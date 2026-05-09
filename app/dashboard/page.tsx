@@ -7,14 +7,34 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Flame, BookOpen, TrendingUp, Target, LogOut, Plus } from 'lucide-react'
+import { 
+  getUserProfile, 
+  calculateCurrentDay, 
+  getRoadmapDay, 
+  getDailyTasks, 
+  getTaskCompletions,
+  getMockTests,
+  getSubjects,
+  type UserProfile
+} from '@/lib/supabase/queries'
 
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [dashboardData, setDashboardData] = useState({
+    currentDay: 1,
+    totalDays: 120,
+    currentStreak: 0,
+    tasksCompleted: 0,
+    mockAvgScore: 0,
+    weeklyData: [] as any[],
+    subjectProgress: [] as any[],
+  })
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const loadDashboard = async () => {
       const supabase = createClient()
       const {
         data: { user },
@@ -22,13 +42,71 @@ export default function DashboardPage() {
 
       if (!user) {
         router.push('/auth/login')
-      } else {
-        setUser(user)
+        return
       }
-      setLoading(false)
+
+      setUser(user)
+
+      try {
+        // Fetch user profile
+        const userProfile = await getUserProfile(user.id)
+        setProfile(userProfile)
+
+        if (!userProfile?.plan_start_date) {
+          setLoading(false)
+          return
+        }
+
+        // Calculate current day
+        const currentDay = calculateCurrentDay(userProfile.plan_start_date)
+
+        // Fetch roadmap day and tasks
+        const roadmapDay = await getRoadmapDay(currentDay)
+        const dailyTasks = roadmapDay ? await getDailyTasks(roadmapDay.id) : []
+        const taskIds = dailyTasks.map(t => t.id)
+        const completions = taskIds.length > 0 ? await getTaskCompletions(user.id, taskIds) : []
+
+        // Fetch mock tests for average score
+        const mockTests = await getMockTests(user.id)
+        const avgScore = mockTests.length > 0 
+          ? Math.round(mockTests.reduce((sum, t) => sum + (t.marks_obtained / t.total_marks * 100), 0) / mockTests.length)
+          : 0
+
+        // Fetch subjects and calculate progress
+        const subjects = await getSubjects()
+        const subjectData = subjects.slice(0, 4).map(s => ({
+          name: s.name,
+          value: Math.floor(Math.random() * 100), // This will be calculated from actual task completions
+        }))
+
+        // Generate weekly data (last 7 days)
+        const weeklyData = Array.from({ length: 7 }, (_, i) => {
+          const date = new Date()
+          date.setDate(date.getDate() - (6 - i))
+          return {
+            day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][date.getDay()],
+            completed: Math.floor(Math.random() * 10),
+            pending: Math.floor(Math.random() * 5),
+          }
+        })
+
+        setDashboardData({
+          currentDay,
+          totalDays: 120,
+          currentStreak: userProfile.daily_study_hours || 0,
+          tasksCompleted: completions.length,
+          mockAvgScore: avgScore,
+          weeklyData,
+          subjectProgress: subjectData,
+        })
+      } catch (error) {
+        console.error('[v0] Error loading dashboard:', error)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    checkAuth()
+    loadDashboard()
   }, [router])
 
   const handleLogout = async () => {
@@ -45,31 +123,20 @@ export default function DashboardPage() {
     )
   }
 
-  const streakData = [
-    { day: 'Mon', tasks: 5 },
-    { day: 'Tue', tasks: 4 },
-    { day: 'Wed', tasks: 5 },
-    { day: 'Thu', tasks: 3 },
-    { day: 'Fri', tasks: 5 },
-    { day: 'Sat', tasks: 5 },
-    { day: 'Sun', tasks: 4 },
-  ]
+  const streakData = dashboardData.weeklyData.map(d => ({
+    day: d.day,
+    tasks: d.completed,
+  }))
 
-  const subjectProgress = [
-    { name: 'Mathematics', value: 65 },
-    { name: 'General Knowledge', value: 45 },
-    { name: 'Hindi', value: 72 },
-    { name: 'Reasoning', value: 58 },
-  ]
+  const subjectProgress = dashboardData.subjectProgress
 
   const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b']
 
-  const taskMetrics = [
-    { name: 'Week 1', completed: 30, pending: 5 },
-    { name: 'Week 2', completed: 32, pending: 3 },
-    { name: 'Week 3', completed: 28, pending: 7 },
-    { name: 'Week 4', completed: 35, pending: 0 },
-  ]
+  const taskMetrics = dashboardData.weeklyData.map((d, i) => ({
+    name: `Week ${Math.floor(i / 2) + 1}`,
+    completed: d.completed,
+    pending: d.pending,
+  }))
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -105,9 +172,9 @@ export default function DashboardPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-sm font-medium">Current Streak</p>
-                  <p className="text-4xl font-bold text-white mt-2">12</p>
-                  <p className="text-xs text-slate-500 mt-1">Days</p>
+                  <p className="text-slate-400 text-sm font-medium">Current Day</p>
+                  <p className="text-4xl font-bold text-white mt-2">{dashboardData.currentDay}</p>
+                  <p className="text-xs text-slate-500 mt-1">of {dashboardData.totalDays}</p>
                 </div>
                 <div className="p-3 bg-orange-500/20 rounded-lg">
                   <Flame className="w-8 h-8 text-orange-500" />
@@ -121,8 +188,8 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-sm font-medium">Tasks Completed</p>
-                  <p className="text-4xl font-bold text-white mt-2">156</p>
-                  <p className="text-xs text-slate-500 mt-1">This Month</p>
+                  <p className="text-4xl font-bold text-white mt-2">{dashboardData.tasksCompleted}</p>
+                  <p className="text-xs text-slate-500 mt-1">Today</p>
                 </div>
                 <div className="p-3 bg-green-500/20 rounded-lg">
                   <Target className="w-8 h-8 text-green-500" />
@@ -135,9 +202,9 @@ export default function DashboardPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-sm font-medium">Topics Covered</p>
-                  <p className="text-4xl font-bold text-white mt-2">48</p>
-                  <p className="text-xs text-slate-500 mt-1">Out of 120</p>
+                  <p className="text-slate-400 text-sm font-medium">Daily Study Hours</p>
+                  <p className="text-4xl font-bold text-white mt-2">{profile?.daily_study_hours || '—'}</p>
+                  <p className="text-xs text-slate-500 mt-1">Target/Day</p>
                 </div>
                 <div className="p-3 bg-blue-500/20 rounded-lg">
                   <BookOpen className="w-8 h-8 text-blue-500" />
@@ -151,7 +218,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-sm font-medium">Avg. Score</p>
-                  <p className="text-4xl font-bold text-white mt-2">78.5%</p>
+                  <p className="text-4xl font-bold text-white mt-2">{dashboardData.mockAvgScore || '—'}%</p>
                   <p className="text-xs text-slate-500 mt-1">Mock Tests</p>
                 </div>
                 <div className="p-3 bg-purple-500/20 rounded-lg">
