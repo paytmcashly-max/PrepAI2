@@ -12,30 +12,25 @@ import {
   Target,
   ArrowRight,
 } from 'lucide-react'
-import type { Subject } from '@/lib/types'
+import type { SubjectProgress } from '@/lib/types'
 import { SubjectIcon } from '@/components/dashboard/subject-icon'
 
-interface SubjectWithProgress extends Subject {
-  progress: number
-  completedTasks: number
-  totalTasks: number
-}
-
 interface SubjectsContentProps {
-  subjects: SubjectWithProgress[]
+  subjects: SubjectProgress[]
+  hasActivePlan: boolean
 }
 
-export function SubjectsContent({ subjects }: SubjectsContentProps) {
+export function SubjectsContent({ subjects, hasActivePlan }: SubjectsContentProps) {
   const overallProgress = subjects.length > 0 
-    ? Math.round(subjects.reduce((sum, s) => sum + s.progress, 0) / subjects.length)
+    ? Math.round(subjects.reduce((sum, s) => sum + s.percentage, 0) / subjects.length)
     : 0
 
   const strongestSubject = subjects.reduce((prev, curr) => 
-    curr.progress > prev.progress ? curr : prev
+    curr.percentage > prev.percentage ? curr : prev
   , subjects[0])
 
   const weakestSubject = subjects.reduce((prev, curr) => 
-    curr.progress < prev.progress ? curr : prev
+    curr.percentage < prev.percentage ? curr : prev
   , subjects[0])
 
   const totalTasks = subjects.reduce((sum, s) => sum + s.totalTasks, 0)
@@ -79,9 +74,11 @@ export function SubjectsContent({ subjects }: SubjectsContentProps) {
                   <EmptyMedia variant="icon">
                     <BookOpen />
                   </EmptyMedia>
-                  <EmptyTitle>No subject tasks yet</EmptyTitle>
+                  <EmptyTitle>{hasActivePlan ? 'No subject tasks yet' : 'No active plan found'}</EmptyTitle>
                   <EmptyDescription>
-                    Subject cards appear after your active study plan has generated tasks.
+                    {hasActivePlan
+                      ? 'Subject cards appear after your active study plan has generated tasks.'
+                      : 'Complete onboarding or regenerate a plan to start tracking subject progress.'}
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
@@ -120,12 +117,12 @@ export function SubjectsContent({ subjects }: SubjectsContentProps) {
                       color: subject.color || '#3B82F6'
                     }}
                   >
-                    {subject.progress}%
+                    {subject.percentage}%
                   </div>
                 </div>
 
                 <Progress 
-                  value={subject.progress} 
+                  value={subject.percentage}
                   className="h-2 mb-4"
                 />
 

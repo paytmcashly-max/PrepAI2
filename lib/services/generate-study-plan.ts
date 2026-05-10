@@ -42,6 +42,17 @@ interface PlannedTask {
   status: 'pending'
 }
 
+interface TaskTemplateRow {
+  exam_id: string | null
+  subject_id: string | null
+  task_type: TaskType
+  title_template: string
+  description_template: string | null
+  estimated_minutes: number
+  priority: Priority
+  how_to_study: string[] | null
+}
+
 const policePhysicalExams = new Set(['bihar_si', 'up_police', 'ssc_gd', 'bihar-si', 'up-police', 'ssc-gd'])
 const reasoningPriorityExams = new Set(['bihar_si', 'up_police', 'bihar-si', 'up-police'])
 const balancedPoliceExams = new Set(['bihar_si', 'up_police', 'bihar-si', 'up-police'])
@@ -322,6 +333,33 @@ function buildTaskCopy(chapter: ChapterRow, taskType: TaskType, phase: string) {
   }
 }
 
+function normalizeTemplateSteps(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((step): step is string => typeof step === 'string' && step.trim().length > 0) : []
+}
+
+function renderTemplate(template: string | null, params: { chapter: ChapterRow; taskType: TaskType; phase: string }) {
+  if (!template) return ''
+
+  return template
+    .replaceAll('{chapter}', params.chapter.name)
+    .replaceAll('{chapter_name}', params.chapter.name)
+    .replaceAll('{subject}', params.chapter.subject_id)
+    .replaceAll('{subject_id}', params.chapter.subject_id)
+    .replaceAll('{task_type}', params.taskType)
+    .replaceAll('{phase}', params.phase)
+}
+
+function findTaskTemplate(
+  templatesByKey: Map<string, TaskTemplateRow>,
+  params: { examId: string; subjectId: string; taskType: TaskType }
+) {
+  return templatesByKey.get(`${params.examId}:${params.subjectId}:${params.taskType}`)
+    || templatesByKey.get(`${params.examId}:*:${params.taskType}`)
+    || templatesByKey.get(`*:${params.subjectId}:${params.taskType}`)
+    || templatesByKey.get(`*:*:${params.taskType}`)
+    || null
+}
+
 function buildStudyTask(params: {
   userId: string
   planId: string
@@ -332,8 +370,20 @@ function buildStudyTask(params: {
   phase: string
   taskType: TaskType
   minutes: number
+  template: TaskTemplateRow | null
 }): PlannedTask {
-  const copy = buildTaskCopy(params.chapter, params.taskType, params.phase)
+  const fallbackCopy = buildTaskCopy(params.chapter, params.taskType, params.phase)
+  const templateSteps = normalizeTemplateSteps(params.template?.how_to_study)
+  const title = renderTemplate(params.template?.title_template || null, {
+    chapter: params.chapter,
+    taskType: params.taskType,
+    phase: params.phase,
+  }) || fallbackCopy.title
+  const description = renderTemplate(params.template?.description_template || null, {
+    chapter: params.chapter,
+    taskType: params.taskType,
+    phase: params.phase,
+  }) || fallbackCopy.description
 
   return {
     user_id: params.userId,
@@ -343,12 +393,12 @@ function buildStudyTask(params: {
     exam_id: params.examId,
     subject_id: params.chapter.subject_id,
     chapter_id: params.chapter.id,
-    title: copy.title,
-    description: copy.description,
+    title,
+    description,
     task_type: params.taskType,
-    estimated_minutes: params.minutes,
-    priority: params.chapter.priority,
-    how_to_study: copy.howToStudy,
+    estimated_minutes: params.template?.estimated_minutes || params.minutes,
+    priority: params.template?.priority || params.chapter.priority,
+    how_to_study: templateSteps.length > 0 ? templateSteps : fallbackCopy.howToStudy,
     status: 'pending',
   }
 }
@@ -395,6 +445,27 @@ export async function generateStudyPlan(
 
   if (selectedChapters.length === 0) {
     throw new Error('No master chapters are available for the selected exam.')
+  }
+
+  const alternateExamId = input.examId.includes('-')
+    ? input.examId.replaceAll('-', '_')
+    : input.examId.replaceAll('_', '-')
+  const examIdsForTemplates = [...new Set([input.examId, alternateExamId])]
+  const { data: templates, error: templatesError } = await supabase
+    .from('task_templates')
+    .select('exam_id, subject_id, task_type, title_template, description_template, estimated_minutes, priority, how_to_study')
+    .in('exam_id', examIdsForTemplates)
+
+  if (templatesError) throw templatesError
+
+  const templatesByKey = new Map<string, TaskTemplateRow>()
+  for (const template of (templates || []) as unknown as TaskTemplateRow[]) {
+    const examKey = template.exam_id || '*'
+    const subjectKey = template.subject_id || '*'
+    templatesByKey.set(`${examKey}:${subjectKey}:${template.task_type}`, template)
+    if (template.exam_id && template.exam_id !== input.examId) {
+      templatesByKey.set(`${input.examId}:${subjectKey}:${template.task_type}`, template)
+    }
   }
 
   await supabase
@@ -480,6 +551,11 @@ export async function generateStudyPlan(
         phase,
         taskType,
         minutes: taskType === 'mock' ? Math.max(60, perTaskMinutes) : perTaskMinutes,
+        template: findTaskTemplate(templatesByKey, {
+          examId: input.examId,
+          subjectId: chapter.subject_id,
+          taskType,
+        }),
       }))
     }
 

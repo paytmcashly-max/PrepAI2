@@ -221,6 +221,27 @@ export interface SubjectProgress {
   weakChapters?: string[]
 }
 
+export interface RoadmapSubject extends Subject {
+  totalTasks: number
+  averageMinutes: number
+}
+
+export interface SubjectChapterProgress extends Chapter {
+  completedTasks: number
+  totalTasks: number
+  percentage: number
+  status: 'not_started' | 'in_progress' | 'completed'
+}
+
+export interface ActivePlanSubjectDetail {
+  plan: UserStudyPlan | null
+  subject: Subject | null
+  chapters: SubjectChapterProgress[]
+  completedTasks: number
+  totalTasks: number
+  percentage: number
+}
+
 export interface PlanSettingsData {
   plan: UserStudyPlan | null
   profile: Profile | null

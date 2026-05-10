@@ -5,19 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { 
   Calendar, 
   CheckCircle2, 
   Target,
   ArrowRight,
+  BookOpen,
 } from 'lucide-react'
-import type { RoadmapPhase, Subject } from '@/lib/types'
+import type { RoadmapPhase, RoadmapSubject } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { SubjectIcon } from '@/components/dashboard/subject-icon'
 
 interface RoadmapContentProps {
   phases: RoadmapPhase[]
-  subjects: Subject[]
+  subjects: RoadmapSubject[]
   totalDays: number
   currentDay: number
 }
@@ -149,21 +151,37 @@ export function RoadmapContent({ phases, subjects, totalDays, currentDay }: Road
           <CardTitle>Daily Learning Structure</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {subjects.map((subject) => (
-              <div
-                key={subject.id}
-                className="rounded-lg border border-border p-4 text-center"
-                style={{ borderLeftColor: subject.color || '#3B82F6', borderLeftWidth: '4px' }}
-              >
-                <div className="flex justify-center mb-2 text-muted-foreground">
-                  <SubjectIcon icon={subject.icon} className="h-5 w-5" />
+          {subjects.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+              {subjects.map((subject) => (
+                <div
+                  key={subject.id}
+                  className="rounded-lg border border-border p-4 text-center"
+                  style={{ borderLeftColor: subject.color || '#3B82F6', borderLeftWidth: '4px' }}
+                >
+                  <div className="mb-2 flex justify-center text-muted-foreground">
+                    <SubjectIcon icon={subject.icon} className="h-5 w-5" />
+                  </div>
+                  <p className="break-words text-sm font-semibold leading-relaxed">{subject.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {subject.totalTasks} tasks | avg {subject.averageMinutes} mins
+                  </p>
                 </div>
-                <p className="font-semibold text-sm">{subject.name}</p>
-                <p className="text-xs text-muted-foreground mt-1">~60 mins/day</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <Empty className="py-8">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <BookOpen />
+                </EmptyMedia>
+                <EmptyTitle>No roadmap tasks yet</EmptyTitle>
+                <EmptyDescription>
+                  Active plan task structure appears after daily tasks are generated.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
         </CardContent>
       </Card>
 

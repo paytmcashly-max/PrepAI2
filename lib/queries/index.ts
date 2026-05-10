@@ -17,6 +17,9 @@ import type {
   UserDailyTask,
   UserStudyPlan,
   PlanSettingsData,
+  RoadmapSubject,
+  ActivePlanSubjectDetail,
+  SubjectChapterProgress,
 } from '@/lib/types'
 
 function getCalendarDay(startDate: string) {
@@ -123,7 +126,7 @@ export async function getChaptersBySubject(subjectId: string): Promise<Chapter[]
 export async function getUserRoadmapData(): Promise<{
   plan: UserStudyPlan | null
   phases: RoadmapPhase[]
-  subjects: Subject[]
+  subjects: RoadmapSubject[]
   currentDay: number
 }> {
   const supabase = await createClient()
@@ -135,26 +138,42 @@ export async function getUserRoadmapData(): Promise<{
     return { plan: null, phases: [], subjects: [], currentDay: 0 }
   }
 
-  const { data: chapters, error: chaptersError } = await supabase
-    .from('chapters')
-    .select('subject:subjects(*)')
-    .eq('exam_id', plan.exam_id)
-    .order('order_index')
+  const { data: tasks, error: tasksError } = await supabase
+    .from('user_daily_tasks')
+    .select('subject_id, estimated_minutes, subject:subjects(*)')
+    .eq('user_id', user.id)
+    .eq('plan_id', plan.id)
+    .not('subject_id', 'is', null)
 
-  if (chaptersError) throw chaptersError
+  if (tasksError) throw tasksError
 
-  const subjectsById = new Map<string, Subject>()
-  for (const row of chapters || []) {
+  const subjectsById = new Map<string, RoadmapSubject>()
+  for (const row of tasks || []) {
     const subject = Array.isArray(row.subject) ? row.subject[0] : row.subject
-    if (subject?.id && !subjectsById.has(subject.id)) {
-      subjectsById.set(subject.id, subject as Subject)
+    if (!subject?.id) continue
+
+    const existing = subjectsById.get(subject.id)
+    if (existing) {
+      const totalMinutes = existing.averageMinutes * existing.totalTasks + (row.estimated_minutes || 0)
+      const totalTasks = existing.totalTasks + 1
+      subjectsById.set(subject.id, {
+        ...existing,
+        totalTasks,
+        averageMinutes: Math.round(totalMinutes / totalTasks),
+      })
+    } else {
+      subjectsById.set(subject.id, {
+        ...(subject as Subject),
+        totalTasks: 1,
+        averageMinutes: row.estimated_minutes || 0,
+      })
     }
   }
 
   return {
     plan,
     phases: buildRoadmapPhases(plan.target_days),
-    subjects: [...subjectsById.values()],
+    subjects: [...subjectsById.values()].sort((a, b) => a.order_index - b.order_index),
     currentDay: clamp(getCalendarDay(plan.start_date), 1, plan.target_days),
   }
 }
@@ -562,7 +581,7 @@ export async function getSubjectProgress(userId: string): Promise<SubjectProgres
     status: task.status,
     chapter: Array.isArray(task.chapter) ? task.chapter[0] || null : task.chapter,
     subject: Array.isArray(task.subject) ? task.subject[0] || null : task.subject,
-  }))
+  })).filter((task) => task.subject?.id)
 
   const bySubject = normalizedTasks.reduce((acc, task) => {
     acc[task.subject_id] = acc[task.subject_id] || {
@@ -606,6 +625,87 @@ export async function getSubjectProgress(userId: string): Promise<SubjectProgres
       weakChapters,
     }
   }).filter((subject) => subject.totalTasks > 0)
+}
+
+export async function getActivePlanSubjectDetail(userId: string, subjectId: string): Promise<ActivePlanSubjectDetail> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(userId)
+
+  const { data: subject, error: subjectError } = await supabase
+    .from('subjects')
+    .select('*')
+    .eq('id', subjectId)
+    .single()
+
+  if (subjectError && subjectError.code !== 'PGRST116') throw subjectError
+
+  if (!plan || !subject) {
+    return {
+      plan,
+      subject: subject || null,
+      chapters: [],
+      completedTasks: 0,
+      totalTasks: 0,
+      percentage: 0,
+    }
+  }
+
+  const { data: chapters, error: chaptersError } = await supabase
+    .from('chapters')
+    .select('*')
+    .eq('exam_id', plan.exam_id)
+    .eq('subject_id', subjectId)
+    .order('order_index')
+
+  if (chaptersError) throw chaptersError
+
+  const { data: tasks, error: tasksError } = await supabase
+    .from('user_daily_tasks')
+    .select('chapter_id, status')
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .eq('subject_id', subjectId)
+    .not('chapter_id', 'is', null)
+
+  if (tasksError) throw tasksError
+
+  const taskCountsByChapter = ((tasks || []) as Array<{ chapter_id: string | null; status: string }>).reduce((acc, task) => {
+    if (!task.chapter_id) return acc
+    acc[task.chapter_id] = acc[task.chapter_id] || { total: 0, completed: 0 }
+    acc[task.chapter_id].total += 1
+    if (task.status === 'completed') acc[task.chapter_id].completed += 1
+    return acc
+  }, {} as Record<string, { total: number; completed: number }>)
+
+  const chapterProgress = ((chapters || []) as Chapter[]).map((chapter) => {
+    const counts = taskCountsByChapter[chapter.id] || { total: 0, completed: 0 }
+    const percentage = counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0
+    const status: SubjectChapterProgress['status'] = counts.total === 0 || counts.completed === 0
+      ? 'not_started'
+      : counts.completed >= counts.total
+        ? 'completed'
+        : 'in_progress'
+
+    return {
+      ...chapter,
+      completedTasks: counts.completed,
+      totalTasks: counts.total,
+      percentage,
+      status,
+    }
+  })
+
+  const totalTasks = chapterProgress.reduce((sum, chapter) => sum + chapter.totalTasks, 0)
+  const completedTasks = chapterProgress.reduce((sum, chapter) => sum + chapter.completedTasks, 0)
+
+  return {
+    plan,
+    subject: subject as Subject,
+    chapters: chapterProgress,
+    completedTasks,
+    totalTasks,
+    percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+  }
 }
 
 export async function getPlanSettingsData(userId: string): Promise<PlanSettingsData> {

@@ -39,7 +39,7 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
 
   return (
     <Card className={cn('overflow-hidden transition-opacity', completed && 'opacity-60')}>
-      <CardContent className={cn('flex min-w-0 items-start gap-3 sm:gap-4', compact ? 'p-3' : 'p-4')}>
+      <CardContent className={cn('flex min-w-0 flex-wrap items-start gap-3 sm:flex-nowrap sm:gap-4', compact ? 'p-3' : 'p-4')}>
         <Checkbox
           checked={completed}
           onCheckedChange={() => onToggle(task.id, completed)}
@@ -47,7 +47,7 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
           className="mt-1 shrink-0"
           aria-label={completed ? `Mark ${task.title} as pending` : `Mark ${task.title} as complete`}
         />
-        <div className="min-w-0 flex-1 break-words">
+        <div className="min-w-[min(100%,14rem)] flex-1 break-words">
           <div className="mb-2 flex min-w-0 flex-col items-start gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
             {task.subject && (
               <Badge
@@ -65,7 +65,7 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
               </span>
             )}
           </div>
-          <h4 className={cn('min-w-0 break-words font-medium leading-relaxed', completed && 'line-through text-muted-foreground')}>
+          <h4 className={cn('min-w-0 whitespace-normal break-words font-medium leading-relaxed', completed && 'line-through text-muted-foreground')}>
             {task.title}
           </h4>
           {task.description && !compact && (
@@ -84,7 +84,7 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
             </ul>
           )}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2 text-right sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="ml-8 flex w-full shrink-0 flex-row flex-wrap items-center gap-2 text-left sm:ml-0 sm:w-auto sm:flex-col sm:items-end sm:text-right md:flex-row md:items-center">
           <div className="flex items-center gap-1 text-muted-foreground">
             <Clock className="h-4 w-4" />
             <span className="text-sm">{task.estimated_minutes}m</span>
