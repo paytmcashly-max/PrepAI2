@@ -38,6 +38,17 @@ function assertStudyLanguage(value: string): StudyLanguage {
   throw new Error('Study language must be Hindi or English.')
 }
 
+function normalizeTaskIds(taskIds: string[]) {
+  const normalized = [...new Set((taskIds || []).map((id) => id?.trim()).filter(Boolean))]
+  if (normalized.length === 0) throw new Error('Select at least one overdue task.')
+  return normalized
+}
+
+function assertISODate(value: string) {
+  const date = assertDate(value)
+  return date
+}
+
 function getAdminEmails() {
   return (process.env.PYQ_ADMIN_EMAILS || process.env.ADMIN_EMAILS || '')
     .split(',')
@@ -166,6 +177,99 @@ export async function toggleTaskCompletion(taskId: string) {
   revalidatePath('/dashboard', 'page')
   revalidatePath('/dashboard/tasks', 'page')
   return { success: true }
+}
+
+async function assertPendingTasksInActivePlan(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  taskIds: string[]
+) {
+  const ids = normalizeTaskIds(taskIds)
+
+  const { data: activePlan, error: planError } = await supabase
+    .from('user_study_plans')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (planError || !activePlan) throw new Error('Active study plan not found.')
+
+  const { data: tasks, error: taskError } = await supabase
+    .from('user_daily_tasks')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('plan_id', activePlan.id)
+    .eq('status', 'pending')
+    .in('id', ids)
+
+  if (taskError) throw taskError
+  if ((tasks || []).length !== ids.length) {
+    throw new Error('Some selected tasks are no longer available in your active plan.')
+  }
+
+  return { activePlanId: activePlan.id as string, ids }
+}
+
+export async function rescheduleTasks(taskIds: string[], newDate: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const targetDate = assertISODate(newDate)
+  const { activePlanId, ids } = await assertPendingTasksInActivePlan(supabase, user.id, taskIds)
+
+  const { error } = await supabase
+    .from('user_daily_tasks')
+    .update({
+      task_date: targetDate,
+      completed_at: null,
+    })
+    .eq('user_id', user.id)
+    .eq('plan_id', activePlanId)
+    .eq('status', 'pending')
+    .in('id', ids)
+
+  if (error) throw error
+
+  revalidatePath('/dashboard', 'layout')
+  revalidatePath('/dashboard', 'page')
+  revalidatePath('/dashboard/backlog', 'page')
+  revalidatePath('/dashboard/revision', 'page')
+  revalidatePath('/dashboard/tasks', 'page')
+  return { success: true, count: ids.length }
+}
+
+export async function skipTasks(taskIds: string[]) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { activePlanId, ids } = await assertPendingTasksInActivePlan(supabase, user.id, taskIds)
+
+  const { error } = await supabase
+    .from('user_daily_tasks')
+    .update({
+      status: 'skipped',
+      completed_at: null,
+    })
+    .eq('user_id', user.id)
+    .eq('plan_id', activePlanId)
+    .eq('status', 'pending')
+    .in('id', ids)
+
+  if (error) throw error
+
+  revalidatePath('/dashboard', 'layout')
+  revalidatePath('/dashboard', 'page')
+  revalidatePath('/dashboard/backlog', 'page')
+  revalidatePath('/dashboard/revision', 'page')
+  revalidatePath('/dashboard/tasks', 'page')
+  return { success: true, count: ids.length }
 }
 
 // ============ PLAN SETTINGS ============

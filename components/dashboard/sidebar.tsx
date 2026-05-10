@@ -14,6 +14,7 @@ import {
   Bot,
   Settings,
   RotateCcw,
+  Inbox,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -71,6 +72,11 @@ const studyNavItems = [
     title: 'Revision Queue',
     href: '/dashboard/revision',
     icon: RotateCcw,
+  },
+  {
+    title: 'Backlog',
+    href: '/dashboard/backlog',
+    icon: Inbox,
   },
   {
     title: 'AI Assistant',

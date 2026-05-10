@@ -25,6 +25,7 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { TaskCheckItem } from '@/components/dashboard/task-check-item'
 import { toggleTaskCompletion } from '@/lib/actions'
 import type { DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea } from '@/lib/types'
@@ -35,6 +36,7 @@ interface DashboardContentProps {
   quote: MotivationalQuote | null
   todayTaskGroup: DayTaskGroup | null
   weakAreas: WeakArea[]
+  overdueTaskCount: number
 }
 
 function clampPercent(value: number) {
@@ -42,7 +44,7 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value))
 }
 
-export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas }: DashboardContentProps) {
+export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount }: DashboardContentProps) {
   const [isPending, startTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
   const visibleSubjectProgress = subjectProgress.filter((subject) => subject.totalTasks > 0)
@@ -123,6 +125,20 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
           </Card>
         )}
       </div>
+
+      {overdueTaskCount > 0 && (
+        <Alert className="border-amber-500/40 bg-amber-500/10">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <AlertDescription className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="min-w-0 break-words">
+              You have {overdueTaskCount} overdue task{overdueTaskCount === 1 ? '' : 's'}. Manage backlog.
+            </span>
+            <Button asChild size="sm" variant="outline" className="w-fit">
+              <Link href="/dashboard/backlog">Manage backlog</Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

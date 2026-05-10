@@ -288,6 +288,23 @@ export interface RevisionQueueData {
   suggestedOrder: RevisionQueueItem[]
 }
 
+export interface BacklogTaskGroup {
+  id: string
+  subject_id: string | null
+  subject_name: string
+  date: string
+  tasks: UserDailyTask[]
+  totalCount: number
+  totalMinutes: number
+}
+
+export interface BacklogData {
+  plan: UserStudyPlan | null
+  overdueTasks: UserDailyTask[]
+  groups: BacklogTaskGroup[]
+  totalCount: number
+}
+
 export interface PlanSettingsData {
   plan: UserStudyPlan | null
   profile: Profile | null

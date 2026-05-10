@@ -141,12 +141,19 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TimerReset className="h-5 w-5" />
-              Overdue Tasks
-            </CardTitle>
-            <CardDescription>Pending active-plan tasks with dates before today.</CardDescription>
+          <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <TimerReset className="h-5 w-5" />
+                Overdue Tasks
+              </CardTitle>
+              <CardDescription>Pending active-plan tasks with dates before today.</CardDescription>
+            </div>
+            {queue.overdueTasks.length > 0 && (
+              <Button asChild size="sm" variant="outline">
+                <Link href="/dashboard/backlog">Manage backlog</Link>
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {queue.overdueTasks.length > 0 ? (

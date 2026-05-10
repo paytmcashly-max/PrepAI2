@@ -23,6 +23,8 @@ import type {
   WeakArea,
   RevisionQueueData,
   RevisionWeakChapter,
+  BacklogData,
+  BacklogTaskGroup,
 } from '@/lib/types'
 
 function getCalendarDay(startDate: string) {
@@ -278,6 +280,87 @@ export async function getTodayTaskGroup(userId: string): Promise<DayTaskGroup | 
   if (error) throw error
 
   return buildDayTaskGroup(plan, currentDay, (tasks || []) as UserDailyTask[])
+}
+
+export async function getBacklogData(userId: string): Promise<BacklogData> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(userId)
+
+  if (!plan) {
+    return {
+      plan: null,
+      overdueTasks: [],
+      groups: [],
+      totalCount: 0,
+    }
+  }
+
+  const today = toDateString(new Date())
+  const { data, error } = await supabase
+    .from('user_daily_tasks')
+    .select('*, subject:subjects(*), chapter:chapters(*)')
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .eq('status', 'pending')
+    .lt('task_date', today)
+    .order('task_date', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+
+  const overdueTasks = (data || []) as UserDailyTask[]
+  const groupsByKey = new Map<string, BacklogTaskGroup>()
+
+  for (const task of overdueTasks) {
+    const subjectName = task.subject?.name || task.subject_id || 'General'
+    const key = `${task.subject_id || 'general'}:${task.task_date}`
+    const existing = groupsByKey.get(key)
+
+    if (existing) {
+      existing.tasks.push(task)
+      existing.totalCount += 1
+      existing.totalMinutes += task.estimated_minutes || 0
+    } else {
+      groupsByKey.set(key, {
+        id: key,
+        subject_id: task.subject_id,
+        subject_name: subjectName,
+        date: task.task_date,
+        tasks: [task],
+        totalCount: 1,
+        totalMinutes: task.estimated_minutes || 0,
+      })
+    }
+  }
+
+  const groups = [...groupsByKey.values()].sort((a, b) => (
+    a.date.localeCompare(b.date) || a.subject_name.localeCompare(b.subject_name)
+  ))
+
+  return {
+    plan,
+    overdueTasks,
+    groups,
+    totalCount: overdueTasks.length,
+  }
+}
+
+export async function getOverdueTaskCount(userId: string): Promise<number> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(userId)
+  if (!plan) return 0
+
+  const today = toDateString(new Date())
+  const { count, error } = await supabase
+    .from('user_daily_tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .eq('status', 'pending')
+    .lt('task_date', today)
+
+  if (error) throw error
+  return count || 0
 }
 
 // ============ PROFILE ============
@@ -724,7 +807,7 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
   }
 
   for (const task of normalizedTasks) {
-    if (task.status === 'completed' || task.task_date >= today) continue
+    if (task.status !== 'pending' || task.task_date >= today) continue
     upsertWeakArea({
       subject_id: task.subject_id,
       subject_name: task.subject?.name || task.subject_id,
@@ -739,7 +822,7 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
 
   for (const [chapterId, chapterTasks] of byChapter.entries()) {
     const total = chapterTasks.length
-    const pending = chapterTasks.filter((task) => task.status !== 'completed').length
+    const pending = chapterTasks.filter((task) => task.status === 'pending').length
     if (total < 2 || pending < 2) continue
     const sample = chapterTasks[0]
     const pendingRate = pending / total
@@ -854,7 +937,7 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
 
   const tasks = (taskRows || []) as UserDailyTask[]
   const overdueTasks = tasks
-    .filter((task) => task.status !== 'completed' && task.task_date < todayString)
+    .filter((task) => task.status === 'pending' && task.task_date < todayString)
     .slice(0, 10)
   const currentWeekRevisionTasks = tasks
     .filter((task) => task.task_type === 'revision' && task.task_date >= weekStartString && task.task_date <= weekEndString)
@@ -876,7 +959,7 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
     existing.totalTasks += 1
     if (task.status === 'completed') {
       existing.completedTasks += 1
-    } else {
+    } else if (task.status === 'pending') {
       existing.pendingTasks += 1
     }
     const pendingRate = existing.totalTasks > 0 ? existing.pendingTasks / existing.totalTasks : 0
