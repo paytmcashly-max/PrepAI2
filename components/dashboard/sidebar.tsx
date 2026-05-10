@@ -11,6 +11,7 @@ import {
   ClipboardList,
   History,
   GraduationCap,
+  Bot,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -61,8 +62,13 @@ const studyNavItems = [
   },
   {
     title: 'PYQ Practice',
-    href: '/pyq',
+    href: '/dashboard/pyq',
     icon: History,
+  },
+  {
+    title: 'AI Assistant',
+    href: '/dashboard/ai',
+    icon: Bot,
   },
 ]
 
