@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+set -eu
+
+should_deploy=false
+
+while read local_ref local_sha remote_ref remote_sha
+do
+  if [ "$remote_ref" = "refs/heads/main" ] && [ "$local_sha" != "0000000000000000000000000000000000000000" ]; then
+    should_deploy=true
+  fi
+done
+
+if [ "$should_deploy" != "true" ]; then
+  exit 0
+fi
+
+echo "Running production checks before deploying to Vercel..."
+corepack pnpm --config.verify-deps-before-run=false run typecheck
+corepack pnpm --config.verify-deps-before-run=false run lint
+corepack pnpm --config.verify-deps-before-run=false run build
+corepack pnpm --config.verify-deps-before-run=false run audit
+
+echo "Deploying current main workspace to Vercel production..."
+corepack pnpm --config.verify-deps-before-run=false dlx vercel@latest deploy --prod --yes
