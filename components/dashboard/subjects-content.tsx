@@ -13,6 +13,7 @@ import {
   Brain,
   Globe,
   ArrowRight,
+  Dumbbell,
 } from 'lucide-react'
 import type { Subject } from '@/lib/types'
 
@@ -31,6 +32,7 @@ const subjectIcons: Record<string, React.ReactNode> = {
   'reasoning': <Brain className="h-6 w-6" />,
   'english': <BookOpen className="h-6 w-6" />,
   'ga': <Globe className="h-6 w-6" />,
+  'physical': <Dumbbell className="h-6 w-6" />,
 }
 
 export function SubjectsContent({ subjects }: SubjectsContentProps) {
@@ -131,12 +133,20 @@ export function SubjectsContent({ subjects }: SubjectsContentProps) {
                   </div>
                 </div>
 
-                <Button asChild variant="outline" className="w-full mt-4">
-                  <Link href={`/dashboard/tasks?subject=${subject.id}`}>
-                    View Tasks
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+                <div className="flex gap-2 mt-4">
+                  <Button asChild variant="outline" className="flex-1">
+                    <Link href={`/dashboard/subjects/${subject.id}`}>
+                      Chapters
+                      <BookOpen className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="flex-1">
+                    <Link href={`/dashboard/tasks?subject=${subject.id}`}>
+                      Tasks
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
