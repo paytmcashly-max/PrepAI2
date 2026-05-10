@@ -4,8 +4,6 @@ import type {
   Subject,
   Chapter,
   RoadmapPhase,
-  DailyPlan,
-  DailyTask,
   Profile,
   MockTest,
   MockTestAttempt,
@@ -15,8 +13,8 @@ import type {
   DashboardStats,
   SubjectProgress,
   DayTaskGroup,
-  DailyTaskWithStatus,
   UserDailyTask,
+  UserStudyPlan,
 } from '@/lib/types'
 
 function getCalendarDay(startDate: string) {
@@ -63,74 +61,93 @@ export async function getChaptersBySubject(subjectId: string): Promise<Chapter[]
 }
 
 // ============ ROADMAP & PHASES ============
-export async function getRoadmapPhases(): Promise<RoadmapPhase[]> {
+export async function getUserRoadmapData(): Promise<{
+  plan: UserStudyPlan | null
+  phases: RoadmapPhase[]
+  subjects: Subject[]
+  currentDay: number
+}> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('roadmap_phases')
-    .select('*')
-    .order('start_day')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { plan: null, phases: [], subjects: [], currentDay: 0 }
 
-  if (error) throw error
-  return data || []
-}
-
-export async function getDailyPlans(): Promise<DailyPlan[]> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('daily_plans')
-    .select('*, phase:roadmap_phases(*)')
-    .order('day')
-
-  if (error) throw error
-  return data || []
-}
-
-export async function getDailyPlanByDay(day: number): Promise<DailyPlan | null> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('daily_plans')
-    .select('*, phase:roadmap_phases(*)')
-    .eq('day', day)
-    .single()
-
-  if (error && error.code !== 'PGRST116') throw error
-  return data
-}
-
-// ============ DAILY TASKS ============
-export async function getDailyTasks(planId: string): Promise<DailyTask[]> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('daily_tasks')
-    .select('*, subject:subjects(*)')
-    .eq('daily_plan_id', planId)
-    .order('order_index')
-
-  if (error) throw error
-  return data || []
-}
-
-export async function getTasksForDay(day: number): Promise<DailyTask[]> {
-  const supabase = await createClient()
-  
-  // First get the daily plan for the day
   const { data: plan, error: planError } = await supabase
-    .from('daily_plans')
-    .select('id')
-    .eq('day', day)
+    .from('user_study_plans')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
     .single()
 
-  if (planError && planError.code !== 'PGRST116') throw planError
-  if (!plan) return []
+  if (planError?.code === 'PGRST205' || planError?.code === 'PGRST116' || !plan) {
+    return { plan: null, phases: [], subjects: [], currentDay: 0 }
+  }
+  if (planError) throw planError
 
-  const { data, error } = await supabase
-    .from('daily_tasks')
-    .select('*, subject:subjects(*)')
-    .eq('daily_plan_id', plan.id)
+  const { data: chapters, error: chaptersError } = await supabase
+    .from('chapters')
+    .select('subject:subjects(*)')
+    .eq('exam_id', plan.exam_id)
     .order('order_index')
 
-  if (error) throw error
-  return data || []
+  if (chaptersError) throw chaptersError
+
+  const subjectsById = new Map<string, Subject>()
+  for (const row of chapters || []) {
+    const subject = Array.isArray(row.subject) ? row.subject[0] : row.subject
+    if (subject?.id && !subjectsById.has(subject.id)) {
+      subjectsById.set(subject.id, subject as Subject)
+    }
+  }
+
+  return {
+    plan,
+    phases: buildRoadmapPhases(plan.target_days),
+    subjects: [...subjectsById.values()],
+    currentDay: Math.min(Math.max(getCalendarDay(plan.start_date), 1), plan.target_days),
+  }
+}
+
+function buildRoadmapPhases(targetDays: number): RoadmapPhase[] {
+  const foundationEnd = Math.max(1, Math.round(targetDays * 0.25))
+  const coreEnd = Math.max(foundationEnd + 1, Math.round(targetDays * 0.60))
+  const practiceEnd = Math.max(coreEnd + 1, Math.round(targetDays * 0.85))
+
+  return [
+    {
+      id: 'foundation',
+      name: 'Foundation',
+      start_day: 1,
+      end_day: foundationEnd,
+      goal: 'Basics, habit building, and beginner-level tasks.',
+      created_at: '',
+    },
+    {
+      id: 'core-syllabus',
+      name: 'Core Syllabus',
+      start_day: foundationEnd + 1,
+      end_day: coreEnd,
+      goal: 'Main chapters, regular practice, and concept consolidation.',
+      created_at: '',
+    },
+    {
+      id: 'practice',
+      name: 'Practice',
+      start_day: coreEnd + 1,
+      end_day: practiceEnd,
+      goal: 'PYQ-style drills, mixed practice, and mock-test rhythm.',
+      created_at: '',
+    },
+    {
+      id: 'revision',
+      name: 'Revision',
+      start_day: practiceEnd + 1,
+      end_day: targetDays,
+      goal: 'Revision, weak topics, and full mock-test analysis.',
+      created_at: '',
+    },
+  ].filter((phase) => phase.start_day <= phase.end_day)
 }
 
 export async function getAllTasksWithPlans(): Promise<DayTaskGroup[]> {
@@ -182,22 +199,6 @@ export async function getAllTasksWithPlans(): Promise<DayTaskGroup[]> {
       totalCount: dayTasks.length,
     }
   })
-}
-
-// ============ TASK COMPLETIONS ============
-export async function getUserTaskCompletions(userId: string): Promise<Record<string, boolean>> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('task_completions')
-    .select('daily_task_id, completed')
-    .eq('user_id', userId)
-
-  if (error) throw error
-  
-  return (data || []).reduce((acc, item) => {
-    acc[item.daily_task_id] = item.completed
-    return acc
-  }, {} as Record<string, boolean>)
 }
 
 // ============ PROFILE ============
@@ -459,7 +460,7 @@ export async function getSubjectProgress(userId: string): Promise<SubjectProgres
 
   const { data: tasks, error } = await supabase
     .from('user_daily_tasks')
-    .select('subject_id, status, chapter:chapters(name), subject:subjects(id, name, color)')
+    .select('subject_id, status, chapter:chapters(name), subject:subjects(id, name, icon, color)')
     .eq('user_id', userId)
     .eq('plan_id', plan.id)
     .not('subject_id', 'is', null)
@@ -470,7 +471,7 @@ export async function getSubjectProgress(userId: string): Promise<SubjectProgres
     subject_id: string
     status: string
     chapter: { name: string } | Array<{ name: string }> | null
-    subject: { id: string; name: string; color: string | null } | Array<{ id: string; name: string; color: string | null }> | null
+    subject: { id: string; name: string; icon: string | null; color: string | null } | Array<{ id: string; name: string; icon: string | null; color: string | null }> | null
   }>).map((task) => ({
     subject_id: task.subject_id,
     status: task.status,
@@ -482,6 +483,7 @@ export async function getSubjectProgress(userId: string): Promise<SubjectProgres
     acc[task.subject_id] = acc[task.subject_id] || {
       id: task.subject_id,
       name: task.subject?.name || task.subject_id,
+      icon: task.subject?.icon || null,
       color: task.subject?.color || '#3B82F6',
       tasks: [],
     }
@@ -491,6 +493,7 @@ export async function getSubjectProgress(userId: string): Promise<SubjectProgres
     id: string
     name: string
     color: string
+    icon: string | null
     tasks: Array<{ status: string; chapter: { name: string } | null }>
   }>)
 
@@ -509,6 +512,7 @@ export async function getSubjectProgress(userId: string): Promise<SubjectProgres
     return {
       id: subject.id,
       name: subject.name,
+      icon: subject.icon,
       color: subject.color,
       completedTasks: completedCount,
       totalTasks: totalCount,

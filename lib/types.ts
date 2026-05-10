@@ -38,31 +38,6 @@ export interface RoadmapPhase {
   created_at: string
 }
 
-export interface DailyPlan {
-  id: string
-  day: number
-  phase_id: string | null
-  is_revision_day: boolean
-  created_at: string
-  phase?: RoadmapPhase
-}
-
-export interface DailyTask {
-  id: string
-  daily_plan_id: string
-  subject_id: string | null
-  title: string
-  chapter: string | null
-  task: string | null
-  how_to_study: string[]
-  estimated_minutes: number
-  priority: 'low' | 'medium' | 'high'
-  order_index: number
-  created_at: string
-  subject?: Subject
-  daily_plan?: DailyPlan
-}
-
 export interface Profile {
   id: string
   full_name: string | null
@@ -110,15 +85,6 @@ export interface UserDailyTask {
   created_at: string
   subject?: Subject | null
   chapter?: Chapter | null
-}
-
-export interface TaskCompletion {
-  id: string
-  user_id: string
-  daily_task_id: string
-  completed: boolean
-  completed_at: string | null
-  created_at: string
 }
 
 export interface MockTest {
@@ -234,6 +200,7 @@ export interface DashboardStats {
 export interface SubjectProgress {
   id: string
   name: string
+  icon: string | null
   color: string
   completedTasks: number
   totalTasks: number
@@ -248,12 +215,6 @@ export interface WeeklyTaskData {
   pending: number
 }
 
-// Daily Task with completion status
-export interface DailyTaskWithStatus extends DailyTask {
-  isCompleted: boolean
-  completedAt: string | null
-}
-
 export interface DayTaskGroup {
   id: string
   day: number
@@ -261,7 +222,7 @@ export interface DayTaskGroup {
   phaseId: string | null
   phaseName: string | null
   isRevisionDay: boolean
-  tasks: Array<DailyTaskWithStatus | UserDailyTask>
+  tasks: UserDailyTask[]
   completedCount: number
   totalCount: number
 }

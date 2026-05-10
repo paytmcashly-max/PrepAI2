@@ -82,46 +82,17 @@ export async function toggleTaskCompletion(taskId: string) {
     .eq('user_id', user.id)
     .single()
 
-  if (!taskFetchError && task) {
-    const isCompleting = task.status !== 'completed'
-    const { error } = await supabase
-      .from('user_daily_tasks')
-      .update({
-        status: isCompleting ? 'completed' : 'pending',
-        completed_at: isCompleting ? new Date().toISOString() : null,
-      })
-      .eq('id', taskId)
-      .eq('user_id', user.id)
+  if (taskFetchError || !task) throw new Error('Task not found')
 
-    if (error) throw error
-    revalidatePath('/dashboard', 'layout')
-    return { success: true }
-  }
-
-  // Backward-compatible fallback for old global daily_tasks rows.
-  const { data: existing } = await supabase
-    .from('task_completions')
-    .select('*')
+  const isCompleting = task.status !== 'completed'
+  const { error } = await supabase
+    .from('user_daily_tasks')
+    .update({
+      status: isCompleting ? 'completed' : 'pending',
+      completed_at: isCompleting ? new Date().toISOString() : null,
+    })
+    .eq('id', taskId)
     .eq('user_id', user.id)
-    .eq('daily_task_id', taskId)
-    .single()
-
-  const { error } = existing
-    ? await supabase
-        .from('task_completions')
-        .update({
-          completed: !existing.completed,
-          completed_at: !existing.completed ? new Date().toISOString() : null,
-        })
-        .eq('id', existing.id)
-    : await supabase
-        .from('task_completions')
-        .insert({
-          user_id: user.id,
-          daily_task_id: taskId,
-          completed: true,
-          completed_at: new Date().toISOString(),
-        })
 
   if (error) throw error
 

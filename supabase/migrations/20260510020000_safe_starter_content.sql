@@ -131,7 +131,7 @@ values
   ('bihar-si', 'weekly', '{"revision_day_interval": 7, "focus": ["high_priority", "mistakes"]}'),
   ('up-police', 'weekly', '{"revision_day_interval": 7, "focus": ["state_gk", "mistakes"]}'),
   ('ssc-gd', 'weekly', '{"revision_day_interval": 7, "focus": ["basics", "speed"]}'),
-  ('ssc-cgl', 'weekly', '{"revision_day_interval": 7, "focus": ["quant", "english", "mistakes"]}');
+  ('ssc-cgl', 'weekly', '{"revision_day_interval": 7, "focus": ["maths", "english", "mistakes"]}');
 
 delete from public.mock_rules where exam_id in ('bihar-si', 'up-police', 'ssc-gd', 'ssc-cgl');
 insert into public.mock_rules (exam_id, start_after_phase, frequency_days, mock_type)

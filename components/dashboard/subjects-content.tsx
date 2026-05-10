@@ -9,13 +9,10 @@ import {
   TrendingUp, 
   Zap, 
   Target,
-  Calculator,
-  Brain,
-  Globe,
   ArrowRight,
-  Dumbbell,
 } from 'lucide-react'
 import type { Subject } from '@/lib/types'
+import { SubjectIcon } from '@/components/dashboard/subject-icon'
 
 interface SubjectWithProgress extends Subject {
   progress: number
@@ -25,14 +22,6 @@ interface SubjectWithProgress extends Subject {
 
 interface SubjectsContentProps {
   subjects: SubjectWithProgress[]
-}
-
-const subjectIcons: Record<string, React.ReactNode> = {
-  'quant': <Calculator className="h-6 w-6" />,
-  'reasoning': <Brain className="h-6 w-6" />,
-  'english': <BookOpen className="h-6 w-6" />,
-  'ga': <Globe className="h-6 w-6" />,
-  'physical': <Dumbbell className="h-6 w-6" />,
 }
 
 export function SubjectsContent({ subjects }: SubjectsContentProps) {
@@ -96,7 +85,7 @@ export function SubjectsContent({ subjects }: SubjectsContentProps) {
                       style={{ backgroundColor: `${subject.color}20` || '#3B82F620' }}
                     >
                       <span style={{ color: subject.color || '#3B82F6' }}>
-                        {subjectIcons[subject.id] || <BookOpen className="h-6 w-6" />}
+                        <SubjectIcon icon={subject.icon} className="h-6 w-6" />
                       </span>
                     </div>
                     <div>

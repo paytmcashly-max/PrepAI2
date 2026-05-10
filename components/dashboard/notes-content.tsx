@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { Dispatch, ReactNode, SetStateAction } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,14 +30,11 @@ import {
   Edit, 
   Tag,
   FileText,
-  BookOpen,
-  Calculator,
-  Brain,
-  Globe,
 } from 'lucide-react'
 import { createNote, updateNote, deleteNote } from '@/lib/actions'
 import type { Chapter, Note, Subject } from '@/lib/types'
 import { format } from 'date-fns'
+import { SubjectIcon } from '@/components/dashboard/subject-icon'
 
 interface NotesContentProps {
   notes: Note[]
@@ -61,13 +58,6 @@ interface NoteFormProps {
   isPending: boolean
   isEdit?: boolean
   onSubmit: () => void
-}
-
-const subjectIcons: Record<string, ReactNode> = {
-  'quant': <Calculator className="h-4 w-4" />,
-  'reasoning': <Brain className="h-4 w-4" />,
-  'english': <BookOpen className="h-4 w-4" />,
-  'ga': <Globe className="h-4 w-4" />,
 }
 
 function NoteForm({
@@ -350,8 +340,17 @@ export function NotesContent({ notes: initialNotes, subjects, chapters }: NotesC
                       </h3>
                       <div className="flex flex-wrap gap-2 mb-3">
                         {note.subject && (
-                          <Badge variant="secondary" className="text-xs">
-                            {subjectIcons[note.subject_id || ''] || <BookOpen className="h-3 w-3" />}
+                          <Badge
+                            variant="secondary"
+                            className="text-xs"
+                            style={{
+                              color: note.subject.color || undefined,
+                              backgroundColor: note.subject.color
+                                ? `color-mix(in srgb, ${note.subject.color} 12%, transparent)`
+                                : undefined,
+                            }}
+                          >
+                            <SubjectIcon icon={note.subject.icon} className="h-3 w-3" />
                             <span className="ml-1">{note.subject.name}</span>
                           </Badge>
                         )}

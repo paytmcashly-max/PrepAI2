@@ -9,32 +9,15 @@ import {
   ChevronDown, 
   Clock, 
   CheckCircle2,
-  BookOpen,
-  Calculator,
-  Brain,
-  Globe,
   Calendar,
 } from 'lucide-react'
 import { toggleTaskCompletion } from '@/lib/actions'
 import type { DayTaskGroup } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { SubjectIcon } from '@/components/dashboard/subject-icon'
 
 interface TasksContentProps {
   dayGroups: DayTaskGroup[]
-}
-
-const subjectIcons: Record<string, React.ReactNode> = {
-  'quant': <Calculator className="h-4 w-4" />,
-  'reasoning': <Brain className="h-4 w-4" />,
-  'english': <BookOpen className="h-4 w-4" />,
-  'ga': <Globe className="h-4 w-4" />,
-}
-
-const subjectColors: Record<string, string> = {
-  'quant': 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-  'reasoning': 'bg-purple-500/10 text-purple-600 border-purple-500/20',
-  'english': 'bg-green-500/10 text-green-600 border-green-500/20',
-  'ga': 'bg-amber-500/10 text-amber-600 border-amber-500/20',
 }
 
 const priorityColors: Record<string, string> = {
@@ -46,19 +29,25 @@ const priorityColors: Record<string, string> = {
 type RenderTask = DayTaskGroup['tasks'][number]
 
 function readCompleted(task: RenderTask) {
-  if ('status' in task) return task.status === 'completed'
-  return task.isCompleted
+  return task.status === 'completed'
 }
 
 function readChapterName(task: RenderTask): string | null {
-  if (!('chapter' in task)) return null
-  if (typeof task.chapter === 'string') return task.chapter
   return task.chapter?.name || null
 }
 
 function readDescription(task: RenderTask) {
-  if ('description' in task) return task.description
-  return 'task' in task ? task.task : null
+  return task.description
+}
+
+function subjectBadgeStyle(color?: string | null): React.CSSProperties {
+  const resolvedColor = color || 'hsl(var(--muted-foreground))'
+
+  return {
+    color: resolvedColor,
+    borderColor: `color-mix(in srgb, ${resolvedColor} 32%, transparent)`,
+    backgroundColor: `color-mix(in srgb, ${resolvedColor} 12%, transparent)`,
+  }
 }
 
 export function TasksContent({ dayGroups }: TasksContentProps) {
@@ -210,12 +199,10 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
                                 {task.subject && (
                                   <Badge 
                                     variant="outline" 
-                                    className={cn(
-                                      "text-xs",
-                                      subjectColors[task.subject_id || '']
-                                    )}
+                                    className="text-xs"
+                                    style={subjectBadgeStyle(task.subject.color)}
                                   >
-                                    {subjectIcons[task.subject_id || '']}
+                                    <SubjectIcon icon={task.subject.icon} className="h-3.5 w-3.5" />
                                     <span className="ml-1">{task.subject.name}</span>
                                   </Badge>
                                 )}
@@ -240,7 +227,7 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
                                 <ul className="mt-2 text-xs text-muted-foreground space-y-1">
                                   {studySteps.map((step, i) => (
                                     <li key={i} className="flex items-start gap-2">
-                                      <span className="text-primary">•</span>
+                                      <span className="text-primary">-</span>
                                       {step}
                                     </li>
                                   ))}

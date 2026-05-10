@@ -29,12 +29,12 @@ interface DashboardContentProps {
   quote: MotivationalQuote | null
 }
 
-const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B']
-
 export function DashboardContent({ stats, subjectProgress, quote }: DashboardContentProps) {
   const pieData = subjectProgress.map(s => ({
+    id: s.id,
     name: s.name,
     value: s.percentage,
+    color: s.color,
   }))
   const planPercent = stats.totalDays > 0 ? Math.round((stats.currentDay / stats.totalDays) * 100) : 0
   const todayPercent = stats.todayTaskCount ? Math.round(((stats.todayCompletedCount || 0) / stats.todayTaskCount) * 100) : 0
@@ -174,14 +174,15 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
                     <span className="font-medium">{subject.name}</span>
                     <span className="text-muted-foreground">{subject.percentage}%</span>
                   </div>
-                  <Progress 
-                    value={subject.percentage} 
-                    className="h-2"
-                    style={{ 
-                      // @ts-ignore - custom property for progress color
-                      '--progress-indicator': subject.color 
-                    } as React.CSSProperties}
-                  />
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${subject.percentage}%`,
+                        backgroundColor: subject.color,
+                      }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -207,8 +208,8 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {pieData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {pieData.map((subject) => (
+                    <Cell key={subject.id} fill={subject.color} />
                   ))}
                 </Pie>
                 <Tooltip 

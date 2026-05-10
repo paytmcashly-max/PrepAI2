@@ -9,19 +9,17 @@ import {
   Calendar, 
   CheckCircle2, 
   Target,
-  BookOpen,
-  Calculator,
-  Brain,
-  Globe,
   ArrowRight,
 } from 'lucide-react'
 import type { RoadmapPhase, Subject } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { SubjectIcon } from '@/components/dashboard/subject-icon'
 
 interface RoadmapContentProps {
   phases: RoadmapPhase[]
   subjects: Subject[]
   totalDays: number
+  currentDay: number
 }
 
 const phaseColors = [
@@ -32,26 +30,21 @@ const phaseColors = [
   'from-rose-500 to-rose-600',
 ]
 
-const subjectIcons: Record<string, React.ReactNode> = {
-  'quant': <Calculator className="h-5 w-5" />,
-  'reasoning': <Brain className="h-5 w-5" />,
-  'english': <BookOpen className="h-5 w-5" />,
-  'ga': <Globe className="h-5 w-5" />,
-}
-
-export function RoadmapContent({ phases, subjects, totalDays }: RoadmapContentProps) {
-  // Calculate current day (this would come from user profile in real app)
-  const currentDay = 1
+export function RoadmapContent({ phases, subjects, totalDays, currentDay }: RoadmapContentProps) {
   const currentPhase = phases.find(
     p => currentDay >= p.start_day && currentDay <= p.end_day
   )
+  const roadmapPercent = totalDays > 0 ? Math.min(100, Math.max(0, (currentDay / totalDays) * 100)) : 0
+  const title = totalDays > 0 ? `${totalDays}-Day Learning Roadmap` : 'Learning Roadmap'
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">{totalDays}-Day Learning Roadmap</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
         <p className="text-muted-foreground">
-          A structured preparation plan designed to systematically build your exam readiness.
+          {totalDays > 0
+            ? 'A structured preparation plan designed to systematically build your exam readiness.'
+            : 'Complete onboarding to generate your personalized roadmap.'}
         </p>
       </div>
 
@@ -69,7 +62,7 @@ export function RoadmapContent({ phases, subjects, totalDays }: RoadmapContentPr
               </Badge>
             )}
           </div>
-          <Progress value={(currentDay / totalDays) * 100} className="h-2" />
+          <Progress value={roadmapPercent} className="h-2" />
         </CardContent>
       </Card>
 
@@ -164,7 +157,7 @@ export function RoadmapContent({ phases, subjects, totalDays }: RoadmapContentPr
                 style={{ borderLeftColor: subject.color || '#3B82F6', borderLeftWidth: '4px' }}
               >
                 <div className="flex justify-center mb-2 text-muted-foreground">
-                  {subjectIcons[subject.id] || <BookOpen className="h-5 w-5" />}
+                  <SubjectIcon icon={subject.icon} className="h-5 w-5" />
                 </div>
                 <p className="font-semibold text-sm">{subject.name}</p>
                 <p className="text-xs text-muted-foreground mt-1">~60 mins/day</p>

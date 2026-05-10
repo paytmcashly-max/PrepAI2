@@ -1,18 +1,15 @@
-import { getRoadmapPhases, getSubjects, getDailyPlans } from '@/lib/queries'
+import { getUserRoadmapData } from '@/lib/queries'
 import { RoadmapContent } from '@/components/dashboard/roadmap-content'
 
 export default async function RoadmapPage() {
-  const [phases, subjects, dailyPlans] = await Promise.all([
-    getRoadmapPhases(),
-    getSubjects(),
-    getDailyPlans(),
-  ])
+  const roadmap = await getUserRoadmapData()
 
   return (
     <RoadmapContent 
-      phases={phases} 
-      subjects={subjects} 
-      totalDays={dailyPlans.length > 0 ? Math.max(...dailyPlans.map(p => p.day)) : 180}
+      phases={roadmap.phases}
+      subjects={roadmap.subjects}
+      totalDays={roadmap.plan?.target_days || 0}
+      currentDay={roadmap.currentDay}
     />
   )
 }
