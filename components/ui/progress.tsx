@@ -5,11 +5,18 @@ import * as ProgressPrimitive from '@radix-ui/react-progress'
 
 import { cn } from '@/lib/utils'
 
+function clampProgress(value: number | null | undefined) {
+  if (!Number.isFinite(value)) return 0
+  return Math.min(100, Math.max(0, value || 0))
+}
+
 function Progress({
   className,
   value,
   ...props
 }: React.ComponentProps<typeof ProgressPrimitive.Root>) {
+  const progressValue = clampProgress(value)
+
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
@@ -21,8 +28,8 @@ function Progress({
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className="bg-primary h-full w-full flex-1 transition-all"
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+        className="bg-primary h-full transition-[width]"
+        style={{ width: `${progressValue}%` }}
       />
     </ProgressPrimitive.Root>
   )

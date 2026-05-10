@@ -1,61 +1,49 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { 
   ChevronDown, 
-  Clock, 
-  CheckCircle2,
   Calendar,
 } from 'lucide-react'
 import { toggleTaskCompletion } from '@/lib/actions'
 import type { DayTaskGroup } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { SubjectIcon } from '@/components/dashboard/subject-icon'
+import { TaskCheckItem } from '@/components/dashboard/task-check-item'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
 interface TasksContentProps {
   dayGroups: DayTaskGroup[]
+  todayDay: number | null
 }
 
-const priorityColors: Record<string, string> = {
-  'high': 'bg-red-500/10 text-red-600',
-  'medium': 'bg-yellow-500/10 text-yellow-600',
-  'low': 'bg-green-500/10 text-green-600',
-}
-
-type RenderTask = DayTaskGroup['tasks'][number]
-
-function readCompleted(task: RenderTask) {
+function readCompleted(task: DayTaskGroup['tasks'][number]) {
   return task.status === 'completed'
 }
 
-function readChapterName(task: RenderTask): string | null {
-  return task.chapter?.name || null
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, value))
 }
 
-function readDescription(task: RenderTask) {
-  return task.description
-}
-
-function subjectBadgeStyle(color?: string | null): React.CSSProperties {
-  const resolvedColor = color || 'hsl(var(--muted-foreground))'
-
-  return {
-    color: resolvedColor,
-    borderColor: `color-mix(in srgb, ${resolvedColor} 32%, transparent)`,
-    backgroundColor: `color-mix(in srgb, ${resolvedColor} 12%, transparent)`,
-  }
-}
-
-export function TasksContent({ dayGroups }: TasksContentProps) {
+export function TasksContent({ dayGroups, todayDay }: TasksContentProps) {
+  const searchParams = useSearchParams()
+  const todayGroup = todayDay ? dayGroups.find((group) => group.day === todayDay) || null : null
   const [expandedDays, setExpandedDays] = useState<string[]>(
-    dayGroups.length > 0 ? [dayGroups[0].id] : []
+    todayGroup?.id ? [todayGroup.id] : dayGroups.length > 0 ? [dayGroups[0].id] : []
   )
   const [isPending, startTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    if (searchParams.get('focus') !== 'today' || !todayGroup?.id) return
+
+    window.requestAnimationFrame(() => {
+      document.getElementById('today-tasks')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [searchParams, todayGroup?.id])
 
   const toggleDay = (dayId: string) => {
     setExpandedDays((prev) =>
@@ -93,29 +81,38 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
   const completedTasks = dayGroups.reduce((sum, day) => {
     return sum + day.tasks.filter(t => getCompletionStatus(t.id, readCompleted(t))).length
   }, 0)
-  const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+  const completionPercentage = totalTasks > 0 ? clampPercent(Math.round((completedTasks / totalTasks) * 100)) : 0
+  const todayTotalTasks = todayGroup?.totalCount || 0
+  const todayCompletedTasks = todayGroup
+    ? todayGroup.tasks.filter((task) => getCompletionStatus(task.id, readCompleted(task))).length
+    : 0
+  const todayCompletionPercentage = todayTotalTasks > 0 ? clampPercent(Math.round((todayCompletedTasks / todayTotalTasks) * 100)) : 0
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 overflow-hidden p-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Daily Tasks</h1>
         <p className="text-muted-foreground">Stay consistent with your preparation</p>
       </div>
 
       {/* Progress Overview */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex min-w-0 items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Overall Progress</p>
-              <p className="text-2xl font-bold">{completedTasks}/{totalTasks} Tasks</p>
+              <p className="mb-1 text-sm font-medium text-muted-foreground">Today&apos;s Progress</p>
+              <p className="text-2xl font-bold">{todayCompletedTasks}/{todayTotalTasks} Tasks</p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-medium text-muted-foreground mb-1">Completion</p>
-              <p className="text-2xl font-bold text-primary">{completionPercentage}%</p>
+              <p className="mb-1 text-sm font-medium text-muted-foreground">Today</p>
+              <p className="text-2xl font-bold text-primary">{todayCompletionPercentage}%</p>
             </div>
           </div>
-          <Progress value={completionPercentage} className="h-2" />
+          <Progress value={todayCompletionPercentage} className="h-2" />
+          <div className="mt-4 flex flex-wrap justify-between gap-2 text-sm text-muted-foreground">
+            <span>Full plan progress</span>
+            <span className="font-medium text-foreground">{completedTasks}/{totalTasks} tasks - {completionPercentage}%</span>
+          </div>
         </CardContent>
       </Card>
 
@@ -123,12 +120,18 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
       <div className="space-y-4">
         {dayGroups.length === 0 ? (
           <Card>
-            <CardContent className="pt-6 text-center">
-              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="font-semibold mb-2">No Tasks Available</h3>
-              <p className="text-muted-foreground text-sm">
-                Tasks will appear here once the study plan is configured.
-              </p>
+            <CardContent className="pt-6">
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Calendar />
+                  </EmptyMedia>
+                  <EmptyTitle>No Tasks Available</EmptyTitle>
+                  <EmptyDescription>
+                    Tasks will appear here once your active study plan is generated.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             </CardContent>
           </Card>
         ) : (
@@ -138,7 +141,7 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
             ).length
 
             return (
-              <div key={dayGroup.id}>
+              <div key={dayGroup.id} id={dayGroup.day === todayDay ? 'today-tasks' : undefined} className="scroll-mt-6">
                 <button
                   onClick={() => toggleDay(dayGroup.id)}
                   className="w-full p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors flex items-center justify-between"
@@ -175,79 +178,15 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
                   <div className="space-y-3 pl-6 pt-3 pb-1">
                     {dayGroup.tasks.map((task) => {
                       const taskCompleted = getCompletionStatus(task.id, readCompleted(task))
-                      const chapterName = readChapterName(task)
-                      const description = readDescription(task)
-                      const studySteps = Array.isArray(task.how_to_study) ? task.how_to_study : []
                       
                       return (
-                        <Card
+                        <TaskCheckItem
                           key={task.id}
-                          className={cn(
-                            "transition-opacity",
-                            taskCompleted && "opacity-60"
-                          )}
-                        >
-                          <CardContent className="p-4 flex items-start gap-4">
-                            <Checkbox
-                              checked={taskCompleted}
-                              onCheckedChange={() => handleToggleTask(task.id, taskCompleted)}
-                              disabled={isPending}
-                              className="mt-1"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-wrap items-center gap-2 mb-2">
-                                {task.subject && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-xs"
-                                    style={subjectBadgeStyle(task.subject.color)}
-                                  >
-                                    <SubjectIcon icon={task.subject.icon} className="h-3.5 w-3.5" />
-                                    <span className="ml-1">{task.subject.name}</span>
-                                  </Badge>
-                                )}
-                                {chapterName && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {chapterName}
-                                  </span>
-                                )}
-                              </div>
-                              <h4 className={cn(
-                                "font-medium",
-                                taskCompleted && "line-through text-muted-foreground"
-                              )}>
-                                {task.title}
-                              </h4>
-                              {description && (
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {description}
-                                </p>
-                              )}
-                              {studySteps.length > 0 && (
-                                <ul className="mt-2 text-xs text-muted-foreground space-y-1">
-                                  {studySteps.map((step, i) => (
-                                    <li key={i} className="flex items-start gap-2">
-                                      <span className="text-primary">-</span>
-                                      {step}
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4 text-right shrink-0">
-                              <div className="flex items-center gap-1 text-muted-foreground">
-                                <Clock className="h-4 w-4" />
-                                <span className="text-sm">{task.estimated_minutes}m</span>
-                              </div>
-                              <Badge className={cn("text-xs", priorityColors[task.priority])}>
-                                {task.priority}
-                              </Badge>
-                              {taskCompleted && (
-                                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
+                          task={task}
+                          completed={taskCompleted}
+                          disabled={isPending}
+                          onToggle={handleToggleTask}
+                        />
                       )
                     })}
                   </div>

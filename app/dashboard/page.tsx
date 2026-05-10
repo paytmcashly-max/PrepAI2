@@ -1,18 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
-import { getDashboardStats, getSubjectProgress, getRandomQuote } from '@/lib/queries'
+import { getDashboardStats, getSubjectProgress, getRandomQuote, getTodayTaskGroup } from '@/lib/queries'
 import { DashboardContent } from '@/components/dashboard/dashboard-content'
-import type { DashboardStats, MotivationalQuote, SubjectProgress } from '@/lib/types'
+import type { DashboardStats, DayTaskGroup, MotivationalQuote, SubjectProgress } from '@/lib/types'
 
 const fallbackStats: DashboardStats = {
+  activePlanId: null,
   currentStreak: 0,
   tasksCompletedThisMonth: 0,
   topicsCovered: 0,
   totalTopics: 0,
   avgMockScore: 0,
-  currentDay: 1,
-  totalDays: 180,
+  currentDay: 0,
+  totalDays: 0,
   todayTaskCount: 0,
   todayCompletedCount: 0,
+  overallTaskCount: 0,
+  overallCompletedCount: 0,
   planState: 'missing',
 }
 
@@ -33,20 +36,23 @@ export default async function DashboardPage() {
     return null // Layout handles redirect
   }
 
-  const [statsResult, subjectProgressResult, quoteResult] = await Promise.allSettled([
+  const [statsResult, subjectProgressResult, quoteResult, todayTasksResult] = await Promise.allSettled([
     getDashboardStats(user.id),
     getSubjectProgress(user.id),
     getRandomQuote(),
+    getTodayTaskGroup(user.id),
   ])
   const stats = valueOrFallback(statsResult, fallbackStats, 'stats')
   const subjectProgress = valueOrFallback<SubjectProgress[]>(subjectProgressResult, [], 'subject progress')
   const quote = valueOrFallback<MotivationalQuote | null>(quoteResult, null, 'quote')
+  const todayTaskGroup = valueOrFallback<DayTaskGroup | null>(todayTasksResult, null, 'today tasks')
 
   return (
     <DashboardContent 
       stats={stats} 
       subjectProgress={subjectProgress} 
       quote={quote}
+      todayTaskGroup={todayTaskGroup}
     />
   )
 }

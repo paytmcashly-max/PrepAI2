@@ -25,6 +25,44 @@ function getCalendarDay(startDate: string) {
   return Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function isMissingSingleRow(error: { code?: string } | null) {
+  return error?.code === 'PGRST205' || error?.code === 'PGRST116'
+}
+
+function buildDayTaskGroup(plan: UserStudyPlan, dayNumber: number, tasks: UserDailyTask[]): DayTaskGroup {
+  return {
+    id: `${plan.id}-${dayNumber}`,
+    day: dayNumber,
+    date: tasks[0]?.task_date || plan.start_date,
+    phaseId: null,
+    phaseName: null,
+    isRevisionDay: tasks.some((task) => task.task_type === 'revision'),
+    tasks,
+    completedCount: tasks.filter((task) => task.status === 'completed').length,
+    totalCount: tasks.length,
+  }
+}
+
+export async function getActiveStudyPlan(userId: string): Promise<UserStudyPlan | null> {
+  const supabase = await createClient()
+  const { data: plan, error } = await supabase
+    .from('user_study_plans')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (isMissingSingleRow(error) || !plan) return null
+  if (error) throw error
+  return plan
+}
+
 // ============ SUBJECTS ============
 export async function getSubjects(): Promise<Subject[]> {
   const supabase = await createClient()
@@ -91,19 +129,10 @@ export async function getUserRoadmapData(): Promise<{
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { plan: null, phases: [], subjects: [], currentDay: 0 }
 
-  const { data: plan, error: planError } = await supabase
-    .from('user_study_plans')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (planError?.code === 'PGRST205' || planError?.code === 'PGRST116' || !plan) {
+  const plan = await getActiveStudyPlan(user.id)
+  if (!plan) {
     return { plan: null, phases: [], subjects: [], currentDay: 0 }
   }
-  if (planError) throw planError
 
   const { data: chapters, error: chaptersError } = await supabase
     .from('chapters')
@@ -125,7 +154,7 @@ export async function getUserRoadmapData(): Promise<{
     plan,
     phases: buildRoadmapPhases(plan.target_days),
     subjects: [...subjectsById.values()],
-    currentDay: Math.min(Math.max(getCalendarDay(plan.start_date), 1), plan.target_days),
+    currentDay: clamp(getCalendarDay(plan.start_date), 1, plan.target_days),
   }
 }
 
@@ -175,17 +204,7 @@ export async function getAllTasksWithPlans(): Promise<DayTaskGroup[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
-  const { data: plan, error: planError } = await supabase
-    .from('user_study_plans')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (planError?.code === 'PGRST205') return []
-  if (planError && planError.code !== 'PGRST116') throw planError
+  const plan = await getActiveStudyPlan(user.id)
   if (!plan) return []
 
   const { data: tasks, error: tasksError } = await supabase
@@ -205,20 +224,26 @@ export async function getAllTasksWithPlans(): Promise<DayTaskGroup[]> {
     return acc
   }, {} as Record<number, UserDailyTask[]>)
 
-  return Object.entries(grouped).map(([day, dayTasks]) => {
-    const dayNumber = Number(day)
-    return {
-      id: `${plan.id}-${day}`,
-      day: dayNumber,
-      date: dayTasks[0]?.task_date || plan.start_date,
-      phaseId: null,
-      phaseName: null,
-      isRevisionDay: dayTasks.some((task) => task.task_type === 'revision'),
-      tasks: dayTasks,
-      completedCount: dayTasks.filter((task) => task.status === 'completed').length,
-      totalCount: dayTasks.length,
-    }
-  })
+  return Object.entries(grouped).map(([day, dayTasks]) => buildDayTaskGroup(plan, Number(day), dayTasks))
+}
+
+export async function getTodayTaskGroup(userId: string): Promise<DayTaskGroup | null> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(userId)
+  if (!plan) return null
+
+  const currentDay = clamp(getCalendarDay(plan.start_date), 1, plan.target_days)
+  const { data: tasks, error } = await supabase
+    .from('user_daily_tasks')
+    .select('*, subject:subjects(*), chapter:chapters(*)')
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .eq('day_number', currentDay)
+    .order('created_at')
+
+  if (error) throw error
+
+  return buildDayTaskGroup(plan, currentDay, (tasks || []) as UserDailyTask[])
 }
 
 // ============ PROFILE ============
@@ -399,17 +424,11 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
   const supabase = await createClient()
 
   const profile = await getProfile(userId)
-  const { data: plan } = await supabase
-    .from('user_study_plans')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
+  const plan = await getActiveStudyPlan(userId)
 
-  if (!profile?.start_date || !plan) {
+  if (!plan) {
     return {
+      activePlanId: null,
       currentStreak: 0,
       tasksCompletedThisMonth: 0,
       topicsCovered: 0,
@@ -419,12 +438,14 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
       totalDays: profile?.target_days || 0,
       todayTaskCount: 0,
       todayCompletedCount: 0,
+      overallTaskCount: 0,
+      overallCompletedCount: 0,
       planState: 'missing',
     }
   }
 
-  const rawCurrentDay = getCalendarDay(profile.start_date)
-  const currentDay = Math.min(Math.max(rawCurrentDay, 1), plan.target_days)
+  const rawCurrentDay = getCalendarDay(plan.start_date)
+  const currentDay = clamp(rawCurrentDay, 1, plan.target_days)
   const planState = rawCurrentDay < 1 ? 'starts-soon' : rawCurrentDay > plan.target_days ? 'completed' : 'active'
 
   const { data: completedTasks } = await supabase
@@ -472,6 +493,19 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
     .eq('plan_id', plan.id)
     .eq('day_number', currentDay)
 
+  const { count: overallTaskCount } = await supabase
+    .from('user_daily_tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+
+  const { count: overallCompletedCount } = await supabase
+    .from('user_daily_tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .eq('status', 'completed')
+
   const { data: attempts } = await supabase
     .from('mock_tests')
     .select('marks_obtained, total_marks')
@@ -486,6 +520,7 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
   }
 
   return {
+    activePlanId: plan.id,
     currentStreak,
     tasksCompletedThisMonth: tasksThisMonth || 0,
     topicsCovered,
@@ -495,6 +530,8 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
     totalDays: plan.target_days,
     todayTaskCount: todayTasks?.length || 0,
     todayCompletedCount: todayTasks?.filter(task => task.status === 'completed').length || 0,
+    overallTaskCount: overallTaskCount || 0,
+    overallCompletedCount: overallCompletedCount || 0,
     planState,
   }
 }
@@ -502,15 +539,7 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
 export async function getSubjectProgress(userId: string): Promise<SubjectProgress[]> {
   const supabase = await createClient()
 
-  const { data: plan } = await supabase
-    .from('user_study_plans')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
-
+  const plan = await getActiveStudyPlan(userId)
   if (!plan) return []
 
   const { data: tasks, error } = await supabase

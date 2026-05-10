@@ -43,6 +43,7 @@ interface PlannedTask {
 }
 
 const policePhysicalExams = new Set(['bihar_si', 'up_police', 'ssc_gd', 'bihar-si', 'up-police', 'ssc-gd'])
+const reasoningPriorityExams = new Set(['bihar_si', 'up_police', 'bihar-si', 'up-police'])
 const baseSubjectOrder = ['maths', 'gk_gs', 'gk-gs', 'hindi', 'english', 'reasoning', 'general-awareness', 'computer']
 
 function addDays(dateValue: string, daysToAdd: number) {
@@ -77,6 +78,50 @@ function distributeSubjects(chapters: ChapterRow[], mathsLevel: Level) {
   }
 
   return ordered.length > 0 ? ordered : subjects
+}
+
+function firstAvailable(subjects: string[], candidates: string[]) {
+  return candidates.find((candidate) => subjects.includes(candidate))
+}
+
+function pickSubjectForSlot(params: {
+  examId: string
+  subjectOrder: string[]
+  day: number
+  slot: number
+  mathsLevel: Level
+}) {
+  const { examId, subjectOrder, day, slot, mathsLevel } = params
+
+  if (!reasoningPriorityExams.has(examId)) {
+    return subjectOrder[(day + slot - 1) % subjectOrder.length] || subjectOrder[0]
+  }
+
+  const reasoning = firstAvailable(subjectOrder, ['reasoning'])
+  const hindi = firstAvailable(subjectOrder, ['hindi'])
+  const maths = firstAvailable(subjectOrder, ['maths'])
+  const generalStudies = firstAvailable(subjectOrder, ['gk_gs', 'gk-gs'])
+  const weekDay = (day - 1) % 7
+  const languagePattern = [
+    reasoning,
+    hindi,
+    reasoning,
+    hindi,
+    reasoning,
+    generalStudies || hindi,
+    reasoning,
+  ]
+  const primaryPattern = mathsLevel === 'weak'
+    ? [maths, maths, maths, maths, maths, generalStudies, maths]
+    : [maths, generalStudies, maths, generalStudies, maths, hindi, maths]
+
+  const preferred = slot === 0
+    ? primaryPattern[weekDay]
+    : slot === 1
+      ? languagePattern[weekDay]
+      : subjectOrder[(day + slot - 1) % subjectOrder.length]
+
+  return preferred || subjectOrder[(day + slot - 1) % subjectOrder.length] || subjectOrder[0]
 }
 
 function physicalMinutes(level: Level, day: number) {
@@ -204,7 +249,13 @@ export async function generateStudyPlan(
     const perTaskMinutes = Math.max(25, Math.floor(studyBudget / academicTaskCount))
 
     for (let slot = 0; slot < academicTaskCount; slot++) {
-      const subjectId = subjectOrder[(day + slot - 1) % subjectOrder.length]
+      const subjectId = pickSubjectForSlot({
+        examId: input.examId,
+        subjectOrder,
+        day,
+        slot,
+        mathsLevel: input.mathsLevel,
+      })
       const subjectChapters = chaptersBySubject[subjectId] || selectedChapters
       const cursor = subjectCursor[subjectId] || 0
       const chapter = subjectChapters[cursor % subjectChapters.length]

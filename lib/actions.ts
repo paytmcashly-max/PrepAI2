@@ -75,11 +75,23 @@ export async function toggleTaskCompletion(taskId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
+  const { data: activePlan, error: planError } = await supabase
+    .from('user_study_plans')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (planError || !activePlan) throw new Error('Active study plan not found')
+
   const { data: task, error: taskFetchError } = await supabase
     .from('user_daily_tasks')
     .select('status')
     .eq('id', taskId)
     .eq('user_id', user.id)
+    .eq('plan_id', activePlan.id)
     .single()
 
   if (taskFetchError || !task) throw new Error('Task not found')
@@ -93,10 +105,13 @@ export async function toggleTaskCompletion(taskId: string) {
     })
     .eq('id', taskId)
     .eq('user_id', user.id)
+    .eq('plan_id', activePlan.id)
 
   if (error) throw error
 
   revalidatePath('/dashboard', 'layout')
+  revalidatePath('/dashboard', 'page')
+  revalidatePath('/dashboard/tasks', 'page')
   return { success: true }
 }
 

@@ -194,6 +194,7 @@ export interface MotivationalQuote {
 
 // Dashboard Stats Types
 export interface DashboardStats {
+  activePlanId: string | null
   currentStreak: number
   tasksCompletedThisMonth: number
   topicsCovered: number
@@ -201,8 +202,10 @@ export interface DashboardStats {
   avgMockScore: number
   currentDay: number
   totalDays: number
-  todayTaskCount?: number
-  todayCompletedCount?: number
+  todayTaskCount: number
+  todayCompletedCount: number
+  overallTaskCount: number
+  overallCompletedCount: number
   planState?: 'starts-soon' | 'active' | 'completed' | 'missing'
 }
 

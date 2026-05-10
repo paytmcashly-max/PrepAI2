@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState, useTransition } from 'react'
 import { 
   Tooltip, 
   ResponsiveContainer, 
@@ -20,24 +21,49 @@ import {
   Map, 
   ClipboardList,
   Quote,
+  CalendarCheck,
 } from 'lucide-react'
-import type { DashboardStats, SubjectProgress, MotivationalQuote } from '@/lib/types'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { TaskCheckItem } from '@/components/dashboard/task-check-item'
+import { toggleTaskCompletion } from '@/lib/actions'
+import type { DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup } from '@/lib/types'
 
 interface DashboardContentProps {
   stats: DashboardStats
   subjectProgress: SubjectProgress[]
   quote: MotivationalQuote | null
+  todayTaskGroup: DayTaskGroup | null
 }
 
-export function DashboardContent({ stats, subjectProgress, quote }: DashboardContentProps) {
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.min(100, Math.max(0, value))
+}
+
+export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup }: DashboardContentProps) {
+  const [isPending, startTransition] = useTransition()
+  const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
   const pieData = subjectProgress.map(s => ({
     id: s.id,
     name: s.name,
-    value: s.percentage,
+    value: clampPercent(s.percentage),
     color: s.color,
   }))
-  const planPercent = stats.totalDays > 0 ? Math.round((stats.currentDay / stats.totalDays) * 100) : 0
-  const todayPercent = stats.todayTaskCount ? Math.round(((stats.todayCompletedCount || 0) / stats.todayTaskCount) * 100) : 0
+  const planPercent = stats.totalDays > 0 ? clampPercent(Math.round((stats.currentDay / stats.totalDays) * 100)) : 0
+  const originalTodayCompleted = todayTaskGroup?.tasks.filter((task) => task.status === 'completed').length ?? stats.todayCompletedCount
+  const todayCompletedCount = todayTaskGroup
+    ? todayTaskGroup.tasks.filter((task) => localCompletions[task.id] ?? (task.status === 'completed')).length
+    : originalTodayCompleted
+  const todayTaskCount = todayTaskGroup?.totalCount ?? stats.todayTaskCount
+  const todayPercent = todayTaskCount ? clampPercent(Math.round((todayCompletedCount / todayTaskCount) * 100)) : 0
+  const adjustedOverallCompleted = Math.min(
+    stats.overallTaskCount,
+    Math.max(0, stats.overallCompletedCount + todayCompletedCount - originalTodayCompleted)
+  )
+  const fullPlanPercent = stats.overallTaskCount > 0
+    ? clampPercent(Math.round((adjustedOverallCompleted / stats.overallTaskCount) * 100))
+    : 0
+  const hasChartData = pieData.length > 0 && pieData.some((subject) => subject.value > 0)
   const planMessage = stats.planState === 'starts-soon'
     ? 'Your plan starts soon.'
     : stats.planState === 'completed'
@@ -46,8 +72,30 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
         ? 'Complete onboarding to generate your plan.'
         : `Day ${stats.currentDay} of ${stats.totalDays} - Keep pushing forward!`
 
+  const getCompletionStatus = (taskId: string, originalCompleted: boolean) => {
+    return localCompletions[taskId] !== undefined ? localCompletions[taskId] : originalCompleted
+  }
+
+  const handleToggleTask = (taskId: string, currentCompleted: boolean) => {
+    setLocalCompletions((current) => ({
+      ...current,
+      [taskId]: !currentCompleted,
+    }))
+
+    startTransition(async () => {
+      try {
+        await toggleTaskCompletion(taskId)
+      } catch {
+        setLocalCompletions((current) => ({
+          ...current,
+          [taskId]: currentCompleted,
+        }))
+      }
+    })
+  }
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 overflow-hidden p-6">
       {/* Welcome Section with Quote */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
@@ -137,10 +185,12 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
       </div>
 
       {/* Progress Overview */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">Overall Progress</CardTitle>
-          <CardDescription>Day {stats.currentDay} of {stats.totalDays} days</CardDescription>
+          <CardDescription>
+            {stats.activePlanId ? `Day ${stats.currentDay} of ${stats.totalDays} days` : 'No active study plan'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -151,24 +201,77 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
             <Progress value={planPercent} className="h-2" />
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Today&apos;s Tasks</span>
-              <span className="font-medium">{stats.todayCompletedCount || 0}/{stats.todayTaskCount || 0}</span>
+              <span className="font-medium">{todayCompletedCount}/{todayTaskCount}</span>
             </div>
             <Progress value={todayPercent} className="h-2" />
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Full Plan Tasks</span>
+              <span className="font-medium">{adjustedOverallCompleted}/{stats.overallTaskCount}</span>
+            </div>
+            <Progress value={fullPlanPercent} className="h-2" />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <CardHeader>
+          <CardTitle>Today&apos;s Tasks</CardTitle>
+          <CardDescription>
+            {todayTaskGroup ? `Day ${todayTaskGroup.day} - ${todayCompletedCount}/${todayTaskCount} completed` : 'Your active plan tasks for today'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {todayTaskGroup && todayTaskGroup.tasks.length > 0 ? (
+            <div className="space-y-3">
+              {todayTaskGroup.tasks.slice(0, 5).map((task) => {
+                const completed = getCompletionStatus(task.id, task.status === 'completed')
+                return (
+                  <TaskCheckItem
+                    key={task.id}
+                    task={task}
+                    completed={completed}
+                    disabled={isPending}
+                    compact
+                    onToggle={handleToggleTask}
+                  />
+                )
+              })}
+              {todayTaskGroup.tasks.length > 5 && (
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/dashboard/tasks?focus=today#today-tasks">
+                    View all {todayTaskGroup.tasks.length} tasks
+                  </Link>
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <CalendarCheck />
+                </EmptyMedia>
+                <EmptyTitle>No tasks for today</EmptyTitle>
+                <EmptyDescription>
+                  Complete onboarding or open Daily Tasks when your active plan has generated tasks.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
         </CardContent>
       </Card>
 
       {/* Charts Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Subject Progress */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle>Subject-wise Progress</CardTitle>
             <CardDescription>Completion percentage by subject</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {subjectProgress.map((subject) => (
+            {subjectProgress.length > 0 ? (
+              <div className="space-y-4">
+                {subjectProgress.map((subject) => (
                 <div key={subject.id} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium">{subject.name}</span>
@@ -178,49 +281,90 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
-                        width: `${subject.percentage}%`,
+                        width: `${clampPercent(subject.percentage)}%`,
                         backgroundColor: subject.color,
                       }}
                     />
                   </div>
                 </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <Empty className="py-8">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <BookOpen />
+                  </EmptyMedia>
+                  <EmptyTitle>No subject progress yet</EmptyTitle>
+                  <EmptyDescription>
+                    Subject progress appears after your active plan has tasks.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
           </CardContent>
         </Card>
 
         {/* Pie Chart */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle>Subject Distribution</CardTitle>
             <CardDescription>Progress overview by subject</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
+          <CardContent className="min-w-0">
+            {hasChartData ? (
+              <div className="grid min-w-0 gap-4 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
+                <div className="h-[220px] min-w-0 sm:h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius="78%"
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {pieData.map((subject) => (
+                          <Cell key={subject.id} fill={subject.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          borderColor: 'hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-2">
                   {pieData.map((subject) => (
-                    <Cell key={subject.id} fill={subject.color} />
+                    <div key={subject.id} className="flex min-w-0 items-center justify-between gap-3 text-sm">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: subject.color }} />
+                        <span className="truncate">{subject.name}</span>
+                      </span>
+                      <span className="font-medium">{subject.value}%</span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))',
-                    borderColor: 'hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+                </div>
+              </div>
+            ) : (
+              <Empty className="py-8">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <TrendingUp />
+                  </EmptyMedia>
+                  <EmptyTitle>No chart data yet</EmptyTitle>
+                  <EmptyDescription>
+                    Complete tasks from your active plan to build subject distribution.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -228,7 +372,7 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-3">
         <Button asChild size="lg" className="h-14">
-          <Link href="/dashboard/tasks">
+          <Link href="/dashboard/tasks?focus=today#today-tasks">
             <Plus className="mr-2 h-5 w-5" />
             Start Daily Tasks
           </Link>
