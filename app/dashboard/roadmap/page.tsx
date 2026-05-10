@@ -1,47 +1,75 @@
 'use client'
 
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Target, Calendar, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Target, Calendar, CheckCircle2, Loader } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { getRoadmapPhases, getUserProfile, type RoadmapPhase } from '@/lib/supabase/queries'
+import { getStudyDayInfo } from '@/lib/utils/study-day'
 
-const phases = [
-  {
-    number: 1,
-    title: 'Foundation Building',
-    days: '1-30',
-    description: 'Lay the foundation with basic concepts and fundamentals across all subjects.',
-    focus: ['Maths Basics', 'GK Fundamentals', 'Hindi Grammar', 'Logical Reasoning', 'Science Basics'],
-    color: 'from-blue-600 to-blue-700',
-  },
-  {
-    number: 2,
-    title: 'Concept Mastery',
-    days: '31-60',
-    description: 'Deepen understanding of intermediate concepts and problem-solving techniques.',
-    focus: ['Advanced Maths', 'Current Affairs', 'Hindi Writing', 'Puzzles & Games', 'Physics & Chemistry'],
-    color: 'from-purple-600 to-purple-700',
-  },
-  {
-    number: 3,
-    title: 'Practice & Application',
-    days: '61-90',
-    description: 'Apply concepts through extensive practice and mock tests.',
-    focus: ['Problem Solving', 'GK Application', 'Reading Comprehension', 'Critical Thinking', 'Numerical Ability'],
-    color: 'from-pink-600 to-pink-700',
-  },
-  {
-    number: 4,
-    title: 'Revision & Assessment',
-    days: '91-120',
-    description: 'Final revision, full-length mock tests, and performance optimization.',
-    focus: ['Complete Revision', 'Full Mock Tests', 'Weak Area Focus', 'Speed & Accuracy', 'Final Preparation'],
-    color: 'from-green-600 to-green-700',
-  },
-]
+const PHASE_COLORS: Record<string, string> = {
+  'Foundation': 'from-blue-600 to-blue-700',
+  'Core Syllabus': 'from-purple-600 to-purple-700',
+  'Practice': 'from-pink-600 to-pink-700',
+  'Revision + Test': 'from-green-600 to-green-700',
+}
 
 export default function RoadmapPage() {
   const router = useRouter()
+  const [phases, setPhases] = useState<RoadmapPhase[]>([])
+  const [currentDay, setCurrentDay] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const loadRoadmap = async () => {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        router.push('/auth/login')
+        return
+      }
+
+      setUser(user)
+
+      try {
+        // Get user profile
+        const profile = await getUserProfile(user.id)
+        if (profile?.plan_start_date) {
+          const info = getStudyDayInfo(profile.plan_start_date)
+          setCurrentDay(info.currentDay)
+        }
+
+        // Get phases
+        const phasesData = await getRoadmapPhases()
+        setPhases(phasesData)
+      } catch (error) {
+        console.error('[v0] Error loading roadmap:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadRoadmap()
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white flex flex-col items-center gap-3">
+          <Loader className="w-8 h-8 animate-spin" />
+          Loading roadmap...
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -60,50 +88,90 @@ export default function RoadmapPage() {
         </div>
 
         <div className="mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">120-Day Learning Roadmap</h1>
-          <p className="text-slate-400 text-lg">
-            A structured 4-phase preparation plan designed to systematically build your exam readiness from fundamentals to mastery.
+          <h1 className="text-4xl font-bold text-white mb-2">120-Day Learning Roadmap</h1>
+          <p className="text-slate-400 text-lg mb-4">
+            Your structured 4-phase preparation plan designed to systematically build your exam readiness from fundamentals to mastery.
           </p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/50 rounded-lg">
+            <Target className="w-4 h-4 text-blue-400" />
+            <span className="text-blue-300">You are on Day {currentDay} of 120</span>
+          </div>
         </div>
 
         {/* Timeline */}
-        <div className="space-y-6">
-          {phases.map((phase, index) => (
-            <Card key={phase.number} className="bg-slate-800/50 border-slate-700 overflow-hidden">
-              <div className={`bg-gradient-to-r ${phase.color} h-1`}></div>
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${phase.color} flex items-center justify-center text-white font-bold text-lg`}>
-                      {phase.number}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-white">{phase.title}</h3>
-                      <div className="flex items-center gap-2 text-slate-400 mt-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>Days {phase.days}</span>
+        {phases.length === 0 ? (
+          <Card className="bg-slate-800/50 border-slate-700 p-8 text-center">
+            <p className="text-slate-400">No roadmap phases available. Please contact support.</p>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {phases.map((phase, index) => {
+              const isCurrentPhase = currentDay >= phase.start_day && currentDay <= phase.end_day
+              const isCompleted = currentDay > phase.end_day
+              const color = PHASE_COLORS[phase.name] || 'from-slate-600 to-slate-700'
+
+              return (
+                <Card
+                  key={phase.id}
+                  className={`border-slate-700 overflow-hidden transition-all ${
+                    isCurrentPhase ? 'bg-slate-800 border-blue-500/50' : 'bg-slate-800/50'
+                  }`}
+                >
+                  <div className={`bg-gradient-to-r ${color} h-1`}></div>
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${color} flex items-center justify-center text-white font-bold text-lg`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-white">{phase.name}</h3>
+                          <div className="flex items-center gap-2 text-slate-400 mt-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>Days {phase.start_day}-{phase.end_day}</span>
+                          </div>
+                        </div>
                       </div>
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-6 h-6 text-green-500" />
+                      ) : isCurrentPhase ? (
+                        <div className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium">
+                          Current Phase
+                        </div>
+                      ) : (
+                        <div className="px-3 py-1 bg-slate-700/50 text-slate-400 rounded-full text-sm">
+                          Upcoming
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <CheckCircle2 className="w-6 h-6 text-slate-600" />
-                </div>
 
-                <p className="text-slate-300 mb-4">{phase.description}</p>
+                    <p className="text-slate-300 mb-4">{phase.goal}</p>
 
-                <div>
-                  <p className="text-sm font-semibold text-slate-300 mb-2">Key Focus Areas:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {phase.focus.map((topic) => (
-                      <span key={topic} className="px-3 py-1 bg-slate-700/50 text-slate-300 rounded-full text-sm">
-                        {topic}
-                      </span>
-                    ))}
+                    {/* Progress bar for current phase */}
+                    {isCurrentPhase && (
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-slate-400">Phase Progress</span>
+                          <span className="text-sm font-medium text-blue-400">
+                            {currentDay - phase.start_day + 1} / {phase.end_day - phase.start_day + 1} days
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
+                            style={{
+                              width: `${((currentDay - phase.start_day + 1) / (phase.end_day - phase.start_day + 1)) * 100}%`,
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
 
         {/* Progress Overview */}
         <Card className="bg-slate-800/50 border-slate-700 mt-12 p-8">

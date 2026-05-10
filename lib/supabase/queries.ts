@@ -94,6 +94,24 @@ export interface PYQQuestion {
   verified: boolean;
 }
 
+export interface RoadmapPhase {
+  id: string;
+  name: string;
+  start_day: number;
+  end_day: number;
+  goal: string;
+  color?: string;
+}
+
+export interface DailyPlan {
+  id: string;
+  day: number;
+  phase_id: string;
+  phase_name?: string;
+  is_revision_day: boolean;
+  quote?: string;
+}
+
 // User Profile Queries
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const supabase = createClient();
@@ -333,6 +351,37 @@ export async function deleteNote(noteId: string): Promise<boolean> {
     return false;
   }
   return true;
+}
+
+// Roadmap Queries
+export async function getRoadmapPhases(): Promise<RoadmapPhase[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('roadmap_phases')
+    .select('*')
+    .order('start_day', { ascending: true });
+
+  if (error) {
+    console.error('[v0] Error fetching roadmap phases:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getDailyPlans(dayStart?: number, dayEnd?: number): Promise<DailyPlan[]> {
+  const supabase = createClient();
+  let query = supabase.from('daily_plans').select('*');
+
+  if (dayStart) query = query.gte('day', dayStart);
+  if (dayEnd) query = query.lte('day', dayEnd);
+
+  const { data, error } = await query.order('day', { ascending: true });
+
+  if (error) {
+    console.error('[v0] Error fetching daily plans:', error);
+    return [];
+  }
+  return data || [];
 }
 
 // PYQ Queries
