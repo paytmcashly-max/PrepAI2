@@ -20,11 +20,11 @@ export default function ResultsPage() {
   const [attempt, setAttempt] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           router.push('/auth/login');
@@ -37,12 +37,16 @@ export default function ResultsPage() {
         const [{ data: testData }, { data: attemptData }, { data: questionsData }] = await Promise.all([
           supabase.from('mock_tests').select('*').eq('id', testId).single(),
           supabase
-            .from('test_attempts')
+            .from('mock_test_attempts')
             .select('*')
             .eq('id', attemptId)
             .eq('user_id', user.id)
             .single(),
-          supabase.from('questions').select('*').eq('mock_test_id', testId),
+          supabase
+            .from('mock_test_questions')
+            .select('*, subject:subjects(name)')
+            .eq('mock_test_id', testId)
+            .order('order_index', { ascending: true }),
         ]);
 
         setTest(testData);
@@ -56,7 +60,7 @@ export default function ResultsPage() {
     };
 
     loadData();
-  }, [router, supabase, testId, attemptId]);
+  }, [router, testId, attemptId]);
 
   if (loading || !user || !test || !attempt) {
     return (
@@ -69,17 +73,21 @@ export default function ResultsPage() {
   const subjectStats: Record<string, { correct: number; total: number }> = {};
   
   for (const question of questions) {
-    if (!subjectStats[question.subject]) {
-      subjectStats[question.subject] = { correct: 0, total: 0 };
+    const subject = question.subject?.name || 'General';
+    if (!subjectStats[subject]) {
+      subjectStats[subject] = { correct: 0, total: 0 };
     }
-    subjectStats[question.subject].total++;
+    subjectStats[subject].total++;
 
     if (attempt.answers[question.id] === question.correct_answer) {
-      subjectStats[question.subject].correct++;
+      subjectStats[subject].correct++;
     }
   }
 
-  const isPass = attempt.score >= (test.passing_score || 60);
+  const scorePercentage = attempt.total_marks > 0
+    ? Math.round(((attempt.marks_obtained || 0) / attempt.total_marks) * 100)
+    : 0;
+  const isPass = scorePercentage >= 60;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-50 dark:to-blue-950/10">
@@ -106,8 +114,8 @@ export default function ResultsPage() {
           </h1>
           <p className="text-lg text-muted-foreground mb-6">
             {isPass
-              ? `You passed with ${attempt.score}% score! Great effort!`
-              : `You scored ${attempt.score}%. Keep practicing to improve!`}
+              ? `You passed with ${scorePercentage}% score! Great effort!`
+              : `You scored ${scorePercentage}%. Keep practicing to improve!`}
           </p>
         </motion.div>
 
@@ -120,7 +128,7 @@ export default function ResultsPage() {
             className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-border"
           >
             <p className="text-muted-foreground text-sm mb-2">Overall Score</p>
-            <p className="text-4xl font-bold text-primary">{attempt.score}%</p>
+            <p className="text-4xl font-bold text-primary">{scorePercentage}%</p>
           </motion.div>
 
           <motion.div
@@ -130,7 +138,7 @@ export default function ResultsPage() {
             className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-border"
           >
             <p className="text-muted-foreground text-sm mb-2">Correct Answers</p>
-            <p className="text-4xl font-bold text-green-500">{attempt.correct_count}</p>
+            <p className="text-4xl font-bold text-green-500">{attempt.correct_answers}</p>
           </motion.div>
 
           <motion.div
@@ -140,7 +148,7 @@ export default function ResultsPage() {
             className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-border"
           >
             <p className="text-muted-foreground text-sm mb-2">Wrong Answers</p>
-            <p className="text-4xl font-bold text-red-500">{attempt.wrong_count}</p>
+            <p className="text-4xl font-bold text-red-500">{attempt.wrong_answers}</p>
           </motion.div>
 
           <motion.div
@@ -150,7 +158,7 @@ export default function ResultsPage() {
             className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-border"
           >
             <p className="text-muted-foreground text-sm mb-2">Unanswered</p>
-            <p className="text-4xl font-bold text-yellow-500">{attempt.unanswered_count}</p>
+            <p className="text-4xl font-bold text-yellow-500">{attempt.unanswered}</p>
           </motion.div>
         </div>
 
@@ -218,7 +226,7 @@ export default function ResultsPage() {
                 >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-semibold text-foreground">
-                      Q{question.number}: {question.content}
+                      Q{question.order_index + 1}: {question.question}
                     </h4>
                     <span className="text-2xl">
                       {isCorrect ? '✅' : userAnswer ? '❌' : '⏭️'}

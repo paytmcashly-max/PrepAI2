@@ -1,27 +1,86 @@
-import { createClient } from './client';
+import { createClient } from '@/lib/supabase/server';
+
+type SeedSubject = {
+  id: string;
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  chapters?: { id?: string; name: string; order?: number; order_index?: number }[];
+};
+
+type SeedPhase = {
+  id: string;
+  name: string;
+  startDay?: number;
+  endDay?: number;
+  start_day?: number;
+  end_day?: number;
+  goal?: string | null;
+};
+
+type SeedTask = {
+  id?: string;
+  subjectId?: string | null;
+  subject_id?: string | null;
+  title: string;
+  chapter?: string | null;
+  task?: string | null;
+  howToStudy?: string[];
+  how_to_study?: string[];
+  estimatedMinutes?: number;
+  estimated_minutes?: number;
+  priority?: 'low' | 'medium' | 'high';
+  order?: number;
+  order_index?: number;
+};
+
+type SeedDailyPlan = {
+  id?: string;
+  day?: number;
+  dayNumber?: number;
+  phaseId?: string | null;
+  phase_id?: string | null;
+  isRevisionDay?: boolean;
+  is_revision_day?: boolean;
+  tasks?: SeedTask[];
+};
+
+type SeedPYQ = {
+  id?: string;
+  examId?: string | null;
+  exam_id?: string | null;
+  year: number;
+  subjectId?: string | null;
+  subject_id?: string | null;
+  chapter?: string | null;
+  topic?: string | null;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  question: string;
+  options?: string[];
+  answer?: string | null;
+  explanation?: string | null;
+  source?: string | null;
+  frequency?: number;
+};
 
 export interface SeedData {
-  metadata: any;
-  phases: any[];
-  subjects: any[];
-  dailyRoadmap: any[];
-  mockTestTemplates: any[];
-  pyqSchemaSample: any[];
+  phases?: SeedPhase[];
+  subjects?: SeedSubject[];
+  chapters?: Record<string, string[]>;
+  dailyRoadmap?: SeedDailyPlan[];
+  pyqSchemaSample?: SeedPYQ[];
+  quotes?: { quote: string; author?: string | null }[];
 }
 
-/**
- * Seed the database with initial data from the JSON file
- * This function uses upsert to prevent duplicate errors on re-runs
- */
-export async function seedDatabase(data: SeedData) {
-  const supabase = createClient();
-  
-  try {
-    console.log('[v0] Starting database seed...');
+function slugify(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
 
-    // 1. Seed Subjects
-    if (data.subjects && data.subjects.length > 0) {
-      console.log('[v0] Seeding subjects...');
+export async function seedDatabase(data: SeedData) {
+  const supabase = await createClient();
+
+  try {
+    if (data.subjects?.length) {
       for (const subject of data.subjects) {
         const { error } = await supabase
           .from('subjects')
@@ -29,154 +88,150 @@ export async function seedDatabase(data: SeedData) {
             {
               id: subject.id,
               name: subject.name,
-              icon: subject.icon,
-              color: subject.color,
-              description: subject.description,
-              total_chapters: subject.chapters ? subject.chapters.length : 0,
+              icon: subject.icon ?? null,
+              color: subject.color ?? null,
             },
-            { onConflict: 'id' }
+            { onConflict: 'id' },
           );
 
-        if (error) {
-          console.error(`[v0] Error seeding subject ${subject.name}:`, error);
-        }
+        if (error) throw error;
 
-        // Seed chapters for this subject
-        if (subject.chapters && subject.chapters.length > 0) {
-          console.log(`[v0] Seeding chapters for ${subject.name}...`);
-          for (const chapter of subject.chapters) {
-            const { error: chapterError } = await supabase
-              .from('chapters')
-              .upsert(
-                {
-                  id: chapter.id,
-                  subject_id: subject.id,
-                  name: chapter.name,
-                  order_index: chapter.order,
-                  status: chapter.status || 'not_started',
-                },
-                { onConflict: 'id' }
-              );
+        const chapterList = subject.chapters?.map(chapter => ({
+          id: chapter.id ?? `${subject.id}-${slugify(chapter.name)}`,
+          name: chapter.name,
+          order_index: chapter.order_index ?? chapter.order ?? 0,
+        })) ?? data.chapters?.[subject.id]?.map((name, index) => ({
+          id: `${subject.id}-${slugify(name)}`,
+          name,
+          order_index: index + 1,
+        })) ?? [];
 
-            if (chapterError) {
-              console.error(`[v0] Error seeding chapter ${chapter.name}:`, chapterError);
-            }
-          }
+        for (const chapter of chapterList) {
+          const { error: chapterError } = await supabase
+            .from('chapters')
+            .upsert(
+              {
+                id: chapter.id,
+                subject_id: subject.id,
+                name: chapter.name,
+                order_index: chapter.order_index,
+              },
+              { onConflict: 'id' },
+            );
+
+          if (chapterError) throw chapterError;
         }
       }
     }
 
-    // 2. Seed Phases (if included in JSON)
-    if (data.phases && data.phases.length > 0) {
-      console.log('[v0] Seeding phases...');
+    if (data.phases?.length) {
       for (const phase of data.phases) {
         const { error } = await supabase
-          .from('phases')
+          .from('roadmap_phases')
           .upsert(
             {
               id: phase.id,
-              title: phase.name,
-              description: phase.goal,
-              phase_number: phase.startDay < 31 ? 1 : phase.startDay < 61 ? 2 : phase.startDay < 91 ? 3 : 4,
-              start_day: phase.startDay,
-              end_day: phase.endDay,
-              focus_areas: [],
+              name: phase.name,
+              start_day: phase.start_day ?? phase.startDay ?? 1,
+              end_day: phase.end_day ?? phase.endDay ?? 1,
+              goal: phase.goal ?? null,
             },
-            { onConflict: 'id' }
+            { onConflict: 'id' },
           );
 
-        if (error) {
-          console.error(`[v0] Error seeding phase ${phase.name}:`, error);
-        }
+        if (error) throw error;
       }
     }
 
-    // 3. Seed Daily Roadmap (if included)
-    if (data.dailyRoadmap && data.dailyRoadmap.length > 0) {
-      console.log('[v0] Seeding daily roadmap...');
+    if (data.dailyRoadmap?.length) {
       for (const dayData of data.dailyRoadmap) {
-        // First, seed the roadmap_day
-        const { data: roadmapDay, error: roadmapError } = await supabase
-          .from('roadmap_days')
+        const day = dayData.day ?? dayData.dayNumber ?? 1;
+        const planId = dayData.id ?? `day-${day}`;
+        const { data: plan, error } = await supabase
+          .from('daily_plans')
           .upsert(
             {
-              id: dayData.id,
-              day_number: dayData.dayNumber,
-              phase_id: dayData.phaseId,
-              phase_name: dayData.phaseName,
-              title: dayData.title,
-              focus: dayData.focus,
-              quote: dayData.quote,
+              id: planId,
+              day,
+              phase_id: dayData.phase_id ?? dayData.phaseId ?? null,
+              is_revision_day: dayData.is_revision_day ?? dayData.isRevisionDay ?? false,
             },
-            { onConflict: 'id' }
+            { onConflict: 'id' },
           )
-          .select()
+          .select('id')
           .single();
 
-        if (roadmapError) {
-          console.error(`[v0] Error seeding roadmap day ${dayData.dayNumber}:`, roadmapError);
-          continue;
-        }
+        if (error) throw error;
 
-        // Then seed the daily tasks for this day
-        if (dayData.tasks && dayData.tasks.length > 0) {
-          for (const task of dayData.tasks) {
-            const { error: taskError } = await supabase
-              .from('daily_tasks')
-              .upsert(
-                {
-                  id: task.id,
-                  roadmap_day_id: roadmapDay.id,
-                  subject: task.subject,
-                  title: task.title,
-                  description: task.description,
-                  estimated_minutes: task.estimatedMinutes,
-                  priority: task.priority || 1,
-                  type: task.type,
-                  resource: task.resource,
-                  order_index: task.order,
-                },
-                { onConflict: 'id' }
-              );
+        for (const [index, task] of (dayData.tasks ?? []).entries()) {
+          const { error: taskError } = await supabase
+            .from('daily_tasks')
+            .upsert(
+              {
+                id: task.id ?? `${plan.id}-task-${index + 1}`,
+                daily_plan_id: plan.id,
+                subject_id: task.subject_id ?? task.subjectId ?? null,
+                title: task.title,
+                chapter: task.chapter ?? null,
+                task: task.task ?? null,
+                how_to_study: task.how_to_study ?? task.howToStudy ?? [],
+                estimated_minutes: task.estimated_minutes ?? task.estimatedMinutes ?? 30,
+                priority: task.priority ?? 'medium',
+                order_index: task.order_index ?? task.order ?? index + 1,
+              },
+              { onConflict: 'id' },
+            );
 
-            if (taskError) {
-              console.error(`[v0] Error seeding task ${task.title}:`, taskError);
-            }
-          }
+          if (taskError) throw taskError;
         }
       }
     }
 
-    // 4. Seed PYQ Questions (if included)
-    if (data.pyqSchemaSample && data.pyqSchemaSample.length > 0) {
-      console.log('[v0] Seeding PYQ questions...');
-      for (const pyq of data.pyqSchemaSample) {
+    if (data.pyqSchemaSample?.length) {
+      for (const [index, pyq] of data.pyqSchemaSample.entries()) {
         const { error } = await supabase
-          .from('previous_year_questions')
+          .from('pyq_questions')
           .upsert(
             {
-              id: pyq.id,
-              exam: pyq.exam,
+              id: pyq.id ?? `pyq-${index + 1}`,
+              exam_id: pyq.exam_id ?? pyq.examId ?? null,
               year: pyq.year,
-              subject: pyq.subject,
-              topic: pyq.topic,
-              difficulty: pyq.difficulty,
-              title: pyq.question,
-              content: pyq.question,
-              options: pyq.options || [],
-              correct_answer: pyq.answer,
-              explanation: pyq.explanation,
+              subject_id: pyq.subject_id ?? pyq.subjectId ?? null,
+              chapter: pyq.chapter ?? null,
+              topic: pyq.topic ?? null,
+              difficulty: pyq.difficulty ?? 'medium',
+              question: pyq.question,
+              options: pyq.options ?? [],
+              answer: pyq.answer ?? null,
+              explanation: pyq.explanation ?? null,
+              source: pyq.source ?? null,
+              is_verified: false,
+              frequency: pyq.frequency ?? 1,
             },
-            { onConflict: 'id' }
+            { onConflict: 'id' },
           );
 
-        if (error) {
-          console.error(`[v0] Error seeding PYQ:`, error);
-        }
+        if (error) throw error;
       }
     }
 
-    console.log('[v0] Database seeding completed successfully!');
+    if (data.quotes?.length) {
+      for (const [index, quote] of data.quotes.entries()) {
+        const { error } = await supabase
+          .from('motivational_quotes')
+          .upsert(
+            {
+              id: `quote-${index + 1}`,
+              quote: quote.quote,
+              author: quote.author ?? null,
+            },
+            { onConflict: 'id' },
+          );
+
+        if (error) throw error;
+      }
+    }
+
     return true;
   } catch (error) {
     console.error('[v0] Fatal error during seeding:', error);
@@ -184,17 +239,14 @@ export async function seedDatabase(data: SeedData) {
   }
 }
 
-/**
- * Create a user profile after signup
- */
 export async function createUserProfile(
   userId: string,
   fullName: string,
   examTarget: string,
   dailyStudyHours: number = 3,
-  planStartDate: string = new Date().toISOString().split('T')[0]
+  startDate: string = new Date().toISOString().split('T')[0],
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from('profiles')
@@ -203,34 +255,11 @@ export async function createUserProfile(
       full_name: fullName,
       exam_target: examTarget,
       daily_study_hours: dailyStudyHours,
-      plan_start_date: planStartDate,
+      start_date: startDate,
     });
 
   if (error) {
     console.error('[v0] Error creating user profile:', error);
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Initialize a user's streak counter
- */
-export async function initializeUserStreak(userId: string) {
-  const supabase = createClient();
-
-  const { error } = await supabase
-    .from('streaks')
-    .insert({
-      user_id: userId,
-      current_streak: 0,
-      longest_streak: 0,
-      last_completed_date: null,
-    });
-
-  if (error) {
-    console.error('[v0] Error initializing streak:', error);
     return false;
   }
 

@@ -21,11 +21,11 @@ export default function Page() {
         // Check if user has completed onboarding
         const { data: profile } = await supabase
           .from('profiles')
-          .select('plan_start_date')
+          .select('start_date')
           .eq('id', user.id)
           .single()
 
-        if (profile?.plan_start_date) {
+        if (profile?.start_date) {
           router.push('/dashboard')
         } else {
           router.push('/onboarding')

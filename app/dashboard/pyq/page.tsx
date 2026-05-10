@@ -1,6 +1,5 @@
 import { Suspense } from "react"
-import { createClient } from "@/lib/supabase/server"
-import { getPYQQuestions, getSubjects } from "@/lib/queries/index"
+import { getPYQQuestions, getPYQYears, getSubjects } from "@/lib/queries/index"
 import { PYQContent } from "@/components/dashboard/pyq-content"
 
 export const metadata = {
@@ -9,18 +8,18 @@ export const metadata = {
 }
 
 export default async function PYQPage() {
-  const supabase = await createClient()
-  
-  const [pyqQuestions, subjects] = await Promise.all([
-    getPYQQuestions(supabase),
-    getSubjects(supabase),
+  const [questions, subjects, years] = await Promise.all([
+    getPYQQuestions(),
+    getSubjects(),
+    getPYQYears(),
   ])
 
   return (
     <Suspense fallback={<PYQSkeleton />}>
       <PYQContent 
-        initialQuestions={pyqQuestions} 
+        questions={questions}
         subjects={subjects}
+        years={years}
       />
     </Suspense>
   )

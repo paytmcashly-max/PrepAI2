@@ -170,7 +170,7 @@ export async function getAllTasksWithPlans(): Promise<DayTaskGroup[]> {
 
   return (plans || []).map(plan => {
     const planTasks = tasksByPlan[plan.id] || []
-    const tasksWithStatus: DailyTaskWithStatus[] = planTasks.map(t => ({
+    const tasksWithStatus: DailyTaskWithStatus[] = planTasks.map((t: DailyTask) => ({
       ...t,
       isCompleted: completions[t.id]?.completed || false,
       completedAt: completions[t.id]?.completed_at || null,
