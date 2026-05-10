@@ -1,4 +1,5 @@
-import { getSubjectWithChapters } from '@/lib/queries/subjects'
+import { getSubjectWithChapters } from '@/lib/queries'
+import { createClient } from '@/lib/supabase/server'
 import { SubjectDetailContent } from '@/components/dashboard/subject-detail-content'
 import { notFound } from 'next/navigation'
 
@@ -8,11 +9,15 @@ interface SubjectDetailPageProps {
 
 export default async function SubjectDetailPage({ params }: SubjectDetailPageProps) {
   const { subjectId } = await params
-  const data = await getSubjectWithChapters(subjectId)
-  
-  if (!data?.subject) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  let subject
+
+  try {
+    subject = await getSubjectWithChapters(subjectId)
+  } catch {
     notFound()
   }
-  
-  return <SubjectDetailContent subject={data.subject} userId={data.userId} />
+
+  return <SubjectDetailContent subject={subject} userId={user?.id} />
 }

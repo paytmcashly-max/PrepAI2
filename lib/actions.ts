@@ -235,6 +235,67 @@ export async function deleteNote(noteId: string) {
   return { success: true }
 }
 
+// ============ MOCK RESULTS ============
+export async function createMockResult(data: {
+  exam_id: string
+  test_date: string
+  total_marks: number
+  marks_obtained: number
+  weak_areas: string[]
+  mistakes?: string | null
+  notes?: string | null
+}) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const totalMarks = Number(data.total_marks)
+  const marksObtained = Number(data.marks_obtained)
+
+  if (!data.exam_id || !data.test_date || !Number.isFinite(totalMarks) || totalMarks <= 0) {
+    throw new Error('Please provide exam, date, and valid total marks.')
+  }
+
+  if (!Number.isFinite(marksObtained) || marksObtained < 0 || marksObtained > totalMarks) {
+    throw new Error('Marks obtained must be between 0 and total marks.')
+  }
+
+  const { data: exam } = await supabase
+    .from('exams')
+    .select('name')
+    .eq('id', data.exam_id)
+    .single()
+
+  const score = Math.round((marksObtained / totalMarks) * 100)
+  const { data: result, error } = await supabase
+    .from('mock_tests')
+    .insert({
+      id: `mock-result-${user.id}-${Date.now()}`,
+      user_id: user.id,
+      exam_id: data.exam_id,
+      title: `${exam?.name || 'Mock Test'} - ${data.test_date}`,
+      description: `Manual mock test result: ${score}%`,
+      test_date: data.test_date,
+      total_marks: totalMarks,
+      marks_obtained: marksObtained,
+      weak_areas: data.weak_areas,
+      mistakes: data.mistakes || null,
+      notes: data.notes || null,
+      total_questions: 0,
+      duration_minutes: 0,
+      is_active: false,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  revalidatePath('/dashboard/mock-tests', 'page')
+  revalidatePath('/dashboard', 'page')
+  return result
+}
+
 // ============ MOCK TEST ATTEMPTS ============
 export async function startMockTest(mockTestId: string) {
   const supabase = await createClient()

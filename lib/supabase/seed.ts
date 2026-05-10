@@ -236,7 +236,13 @@ export async function seedDatabase(data: SeedData) {
 
     for (const [index, pyq] of (data.pyq_questions ?? data.pyqQuestions ?? []).entries()) {
       const source = pyq.source ?? 'ai_generated'
-      const isVerified = source === 'verified_pyq' ? pyq.is_verified ?? pyq.isVerified ?? true : false
+      const explicitVerified = pyq.is_verified ?? pyq.isVerified
+
+      if (source === 'verified_pyq' && explicitVerified !== true) {
+        throw new Error(`PYQ "${pyq.id ?? index + 1}" uses source=verified_pyq but is not explicitly marked verified.`)
+      }
+
+      const isVerified = source === 'verified_pyq'
 
       const { error } = await supabase
         .from('pyq_questions')

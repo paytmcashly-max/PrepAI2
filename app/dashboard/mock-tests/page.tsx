@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getMockTests, getUserMockTestAttempts } from '@/lib/queries'
+import { getMockTests, getUserMockResults } from '@/lib/queries'
 import { MockTestsContent } from '@/components/dashboard/mock-tests-content'
 
 export default async function MockTestsPage() {
@@ -8,10 +8,11 @@ export default async function MockTestsPage() {
 
   if (!user) return null
 
-  const [mockTests, attempts] = await Promise.all([
+  const [mockTests, mockResults, examsResult] = await Promise.all([
     getMockTests(),
-    getUserMockTestAttempts(user.id),
+    getUserMockResults(user.id),
+    supabase.from('exams').select('id, name, level, focus, selection_stages, created_at').order('name'),
   ])
 
-  return <MockTestsContent mockTests={mockTests} attempts={attempts} />
+  return <MockTestsContent mockTests={mockTests} mockResults={mockResults} exams={examsResult.data || []} />
 }

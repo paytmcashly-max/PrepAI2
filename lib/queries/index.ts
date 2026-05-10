@@ -219,8 +219,21 @@ export async function getMockTests(): Promise<MockTest[]> {
   const { data, error } = await supabase
     .from('mock_tests')
     .select('*')
+    .is('user_id', null)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
+}
+
+export async function getUserMockResults(userId: string): Promise<MockTest[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('mock_tests')
+    .select('*')
+    .eq('user_id', userId)
+    .order('test_date', { ascending: false })
 
   if (error) throw error
   return data || []
@@ -404,10 +417,9 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
     .eq('day_number', currentDay)
 
   const { data: attempts } = await supabase
-    .from('mock_test_attempts')
+    .from('mock_tests')
     .select('marks_obtained, total_marks')
     .eq('user_id', userId)
-    .eq('status', 'completed')
 
   let avgMockScore = 0
   if (attempts && attempts.length > 0) {

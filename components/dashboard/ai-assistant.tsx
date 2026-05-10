@@ -1,271 +1,163 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bot, Send, Sparkles, BookOpen, Brain, Calculator, Globe } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { useState, useTransition } from 'react'
+import { Bot, Send, ShieldCheck, Sparkles } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { aiFeatureConfigs, type AIFeatureConfig } from '@/lib/config/ai-placeholders'
+import { cn } from '@/lib/utils'
 
-interface Message {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  timestamp: Date
+type PlaceholderResponse = {
+  status: string
+  title: string
+  message: string
+  safety: {
+    backend_only: boolean
+    provider_called: boolean
+    frontend_key_exposed: boolean
+  }
 }
 
-const suggestedQuestions = [
-  { icon: Calculator, text: "Explain percentage shortcuts" },
-  { icon: Brain, text: "Tips for solving syllogism" },
-  { icon: BookOpen, text: "How to improve reading speed?" },
-  { icon: Globe, text: "Important current affairs topics" },
-]
-
 export function AIAssistant() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content: "Hello! I'm your AI study assistant. I can help you with concepts, solve doubts, explain topics, and provide study tips for your SSC CGL preparation. What would you like to learn today?",
-      timestamp: new Date(),
-    },
-  ])
-  const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [selectedFeature, setSelectedFeature] = useState<AIFeatureConfig>(aiFeatureConfigs[0])
+  const [prompt, setPrompt] = useState('')
+  const [response, setResponse] = useState<PlaceholderResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return
+  const callPlaceholder = () => {
+    setError(null)
+    setResponse(null)
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input,
-      timestamp: new Date(),
-    }
+    startTransition(async () => {
+      try {
+        const apiResponse = await fetch(selectedFeature.endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt }),
+        })
 
-    setMessages((prev) => [...prev, userMessage])
-    setInput("")
-    setIsLoading(true)
+        const payload = await apiResponse.json()
+        if (!apiResponse.ok) {
+          throw new Error(payload.error || 'AI placeholder request failed.')
+        }
 
-    // Simulate AI response (placeholder for actual AI integration)
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: getPlaceholderResponse(input),
-        timestamp: new Date(),
+        setResponse(payload)
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'AI placeholder request failed.')
       }
-      setMessages((prev) => [...prev, aiResponse])
-      setIsLoading(false)
-    }, 1500)
-  }
-
-  const handleSuggestedQuestion = (question: string) => {
-    setInput(question)
+    })
   }
 
   return (
-    <Card className="flex flex-col h-[600px]">
-      <CardHeader className="border-b">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
-            <Bot className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              PrepTrack AI
-              <Sparkles className="w-4 h-4 text-amber-500" />
-            </CardTitle>
-            <CardDescription>Your personal study assistant</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2">
+        {aiFeatureConfigs.map((feature) => {
+          const Icon = feature.icon
+          const isSelected = selectedFeature.id === feature.id
 
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
+          return (
+            <button
+              key={feature.id}
+              type="button"
+              onClick={() => {
+                setSelectedFeature(feature)
+                setResponse(null)
+                setError(null)
+              }}
               className={cn(
-                "flex gap-3",
-                message.role === "user" ? "justify-end" : "justify-start"
+                'rounded-lg border bg-card p-4 text-left transition hover:border-primary/60 hover:bg-accent/40',
+                isSelected && 'border-primary bg-primary/5'
               )}
             >
-              {message.role === "assistant" && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-primary" />
+              <div className="flex items-start gap-3">
+                <div className="rounded-md bg-primary/10 p-2 text-primary">
+                  <Icon className="h-5 w-5" />
                 </div>
-              )}
-              <div
-                className={cn(
-                  "max-w-[80%] rounded-2xl px-4 py-2.5",
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                )}
-              >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <div>
+                  <p className="font-semibold">{feature.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{feature.description}</p>
+                </div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      <Card>
+        <CardHeader className="border-b">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Bot className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  {selectedFeature.title}
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                </CardTitle>
+                <CardDescription>Backend-only placeholder route</CardDescription>
               </div>
             </div>
-          ))}
-          {isLoading && (
-            <div className="flex gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-primary" />
-              </div>
-              <div className="bg-muted rounded-2xl px-4 py-2.5">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
-              </div>
+            <Badge variant="secondary" className="w-fit">
+              <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+              No frontend provider key
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 p-4">
+          <form
+            className="flex flex-col gap-3 sm:flex-row"
+            onSubmit={(event) => {
+              event.preventDefault()
+              callPlaceholder()
+            }}
+          >
+            <Input
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder={selectedFeature.promptPlaceholder}
+              disabled={isPending}
+              className="min-h-10 flex-1"
+            />
+            <Button type="submit" disabled={isPending}>
+              <Send className="mr-2 h-4 w-4" />
+              {isPending ? 'Checking...' : 'Call Route'}
+            </Button>
+          </form>
+
+          {error && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
             </div>
           )}
-        </div>
-      </ScrollArea>
 
-      {/* Suggested Questions */}
-      {messages.length === 1 && (
-        <div className="px-4 pb-2">
-          <p className="text-xs text-muted-foreground mb-2">Try asking:</p>
-          <div className="grid grid-cols-2 gap-2">
-            {suggestedQuestions.map((q, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                className="justify-start text-xs h-auto py-2 px-3"
-                onClick={() => handleSuggestedQuestion(q.text)}
-              >
-                <q.icon className="w-3 h-3 mr-2 flex-shrink-0" />
-                <span className="truncate">{q.text}</span>
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <CardContent className="border-t p-4">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleSend()
-          }}
-          className="flex gap-2"
-        >
-          <Input
-            placeholder="Ask me anything about your preparation..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={isLoading}
-            className="flex-1"
-          />
-          <Button type="submit" size="icon" disabled={!input.trim() || isLoading}>
-            <Send className="w-4 h-4" />
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+          {response ? (
+            <div className="rounded-lg border bg-muted/40 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-semibold">{response.title}</h3>
+                <Badge variant="outline">{response.status.replace('_', ' ')}</Badge>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{response.message}</p>
+              <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+                <Badge variant="secondary">Backend only: {String(response.safety.backend_only)}</Badge>
+                <Badge variant="secondary">Provider called: {String(response.safety.provider_called)}</Badge>
+                <Badge variant="secondary">Frontend key: {String(response.safety.frontend_key_exposed)}</Badge>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed p-6 text-center">
+              <Bot className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+              <p className="font-medium">AI routes are ready for future provider wiring</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Requests are authenticated and return structured coming-soon responses.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   )
-}
-
-// Placeholder responses - will be replaced with actual AI integration
-function getPlaceholderResponse(question: string): string {
-  const lowerQuestion = question.toLowerCase()
-
-  if (lowerQuestion.includes("percentage") || lowerQuestion.includes("shortcut")) {
-    return `Great question! Here are some percentage shortcuts for SSC CGL:
-
-1. **Fraction to Percentage**: Memorize common fractions
-   - 1/4 = 25%, 1/5 = 20%, 1/8 = 12.5%
-   - 1/6 = 16.67%, 1/3 = 33.33%
-
-2. **Quick Calculations**:
-   - To find 15% of any number: Find 10% + half of 10%
-   - For 25%: Divide by 4
-   - For 75%: Find 50% + 25%
-
-3. **Successive Percentage**: 
-   If a value increases by a% then decreases by a%, net change = -a²/100
-
-Practice these daily and you'll solve percentage questions in seconds!`
-  }
-
-  if (lowerQuestion.includes("syllogism")) {
-    return `Here are key tips for solving syllogism questions:
-
-1. **Venn Diagram Method** (Most Reliable):
-   - Draw circles for each term
-   - Mark the relationship based on statements
-   - Check if conclusions follow
-
-2. **Standard Rules**:
-   - All + All = All (Middle term distributed)
-   - Some + All = Some
-   - No + All = No
-   - Some + Some = No conclusion
-
-3. **Watch for**:
-   - "Some" is reversible (Some A are B = Some B are A)
-   - "All" is not reversible
-   - "Only" means "All" in reverse
-
-Practice 10 syllogism questions daily for 2 weeks and you'll master it!`
-  }
-
-  if (lowerQuestion.includes("reading") || lowerQuestion.includes("speed")) {
-    return `To improve reading speed for SSC CGL English section:
-
-1. **Daily Practice**: Read for at least 30 minutes daily
-   - The Hindu Editorial
-   - Short stories or articles
-
-2. **Chunking**: Read groups of words, not individual words
-
-3. **Avoid Sub-vocalization**: Don't read aloud in your mind
-
-4. **Skim First**: Get the main idea before detailed reading
-
-5. **Build Vocabulary**: Learn 10 new words daily
-
-6. **Time Yourself**: Practice RCs with timer (8-10 min per passage)
-
-Consistent practice will improve both speed and comprehension!`
-  }
-
-  if (lowerQuestion.includes("current affairs") || lowerQuestion.includes("ga")) {
-    return `Important Current Affairs topics for SSC CGL:
-
-1. **Government Schemes**: PM-KISAN, Ayushman Bharat, Digital India
-
-2. **Awards & Honors**: Padma Awards, Bharat Ratna, Sports Awards
-
-3. **International Events**: G20/G7 summits, UN events
-
-4. **Economy**: Budget highlights, RBI policies, New tax rules
-
-5. **Sports**: Major tournaments, Indian achievements
-
-6. **Science & Tech**: ISRO missions, Defense developments
-
-**Study Tips**:
-- Read monthly CA magazines (Pratiyogita Darpan, etc.)
-- Make short notes weekly
-- Focus on last 6 months before exam
-
-I can help you with specific topics if needed!`
-  }
-
-  return `That's a great question! While I'm currently in demo mode, here's some general guidance:
-
-1. **Break down the topic** into smaller, manageable concepts
-2. **Practice regularly** with previous year questions
-3. **Make short notes** for quick revision
-4. **Time yourself** while practicing
-
-For specific doubts on Quant, Reasoning, English, or GK topics, feel free to ask! I'm here to help you succeed in your SSC CGL preparation.
-
-*Note: Full AI capabilities with detailed explanations, personalized study plans, and doubt solving will be available soon!*`
 }

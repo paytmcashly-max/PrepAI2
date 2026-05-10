@@ -123,12 +123,19 @@ export interface TaskCompletion {
 
 export interface MockTest {
   id: string
+  user_id?: string | null
   exam_id: string | null
   title: string
   description: string | null
   total_questions: number
-  duration_minutes: number
+  duration_minutes?: number | null
   is_active: boolean
+  test_date?: string | null
+  total_marks?: number | null
+  marks_obtained?: number | null
+  weak_areas?: string[]
+  mistakes?: string | null
+  notes?: string | null
   created_at: string
 }
 
