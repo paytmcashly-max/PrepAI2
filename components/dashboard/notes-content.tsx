@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,11 +44,90 @@ interface NotesContentProps {
   subjects: Subject[]
 }
 
-const subjectIcons: Record<string, React.ReactNode> = {
+type NoteFormData = {
+  title: string
+  subject_id: string
+  chapter: string
+  content: string
+  tags: string
+}
+
+interface NoteFormProps {
+  formData: NoteFormData
+  setFormData: Dispatch<SetStateAction<NoteFormData>>
+  subjects: Subject[]
+  isPending: boolean
+  isEdit?: boolean
+  onSubmit: () => void
+}
+
+const subjectIcons: Record<string, ReactNode> = {
   'quant': <Calculator className="h-4 w-4" />,
   'reasoning': <Brain className="h-4 w-4" />,
   'english': <BookOpen className="h-4 w-4" />,
   'ga': <Globe className="h-4 w-4" />,
+}
+
+function NoteForm({
+  formData,
+  setFormData,
+  subjects,
+  isPending,
+  isEdit = false,
+  onSubmit,
+}: NoteFormProps) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <Input
+          placeholder="Note title"
+          value={formData.title}
+          onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Select
+          value={formData.subject_id}
+          onValueChange={(value) => setFormData(prev => ({ ...prev, subject_id: value }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select subject" />
+          </SelectTrigger>
+          <SelectContent>
+            {subjects.map((subject) => (
+              <SelectItem key={subject.id} value={subject.id}>
+                {subject.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          placeholder="Chapter (optional)"
+          value={formData.chapter}
+          onChange={(e) => setFormData(prev => ({ ...prev, chapter: e.target.value }))}
+        />
+      </div>
+      <Textarea
+        placeholder="Note content..."
+        value={formData.content}
+        onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+        rows={6}
+      />
+      <Input
+        placeholder="Tags (comma-separated)"
+        value={formData.tags}
+        onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+      />
+      <DialogFooter>
+        <Button
+          onClick={onSubmit}
+          disabled={!formData.title || isPending}
+        >
+          {isPending ? 'Saving...' : isEdit ? 'Update Note' : 'Create Note'}
+        </Button>
+      </DialogFooter>
+    </div>
+  )
 }
 
 export function NotesContent({ notes: initialNotes, subjects }: NotesContentProps) {
@@ -164,59 +244,6 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
     })
   }
 
-  const NoteForm = ({ isEdit = false }: { isEdit?: boolean }) => (
-    <div className="space-y-4">
-      <div>
-        <Input
-          placeholder="Note title"
-          value={formData.title}
-          onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Select
-          value={formData.subject_id}
-          onValueChange={(value) => setFormData(prev => ({ ...prev, subject_id: value }))}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select subject" />
-          </SelectTrigger>
-          <SelectContent>
-            {subjects.map((subject) => (
-              <SelectItem key={subject.id} value={subject.id}>
-                {subject.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          placeholder="Chapter (optional)"
-          value={formData.chapter}
-          onChange={(e) => setFormData(prev => ({ ...prev, chapter: e.target.value }))}
-        />
-      </div>
-      <Textarea
-        placeholder="Note content..."
-        value={formData.content}
-        onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-        rows={6}
-      />
-      <Input
-        placeholder="Tags (comma-separated)"
-        value={formData.tags}
-        onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-      />
-      <DialogFooter>
-        <Button
-          onClick={isEdit ? handleUpdateNote : handleCreateNote}
-          disabled={!formData.title || isPending}
-        >
-          {isPending ? 'Saving...' : isEdit ? 'Update Note' : 'Create Note'}
-        </Button>
-      </DialogFooter>
-    </div>
-  )
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -238,7 +265,13 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
                 Add a new study note to your collection.
               </DialogDescription>
             </DialogHeader>
-            <NoteForm />
+            <NoteForm
+              formData={formData}
+              setFormData={setFormData}
+              subjects={subjects}
+              isPending={isPending}
+              onSubmit={handleCreateNote}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -412,7 +445,14 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
               Update your study note.
             </DialogDescription>
           </DialogHeader>
-          <NoteForm isEdit />
+          <NoteForm
+            formData={formData}
+            setFormData={setFormData}
+            subjects={subjects}
+            isPending={isPending}
+            isEdit
+            onSubmit={handleUpdateNote}
+          />
         </DialogContent>
       </Dialog>
     </div>
