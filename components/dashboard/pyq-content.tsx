@@ -1,0 +1,410 @@
+'use client'
+
+import { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select'
+import { 
+  FileText, 
+  Calendar, 
+  BookOpen, 
+  TrendingUp, 
+  BarChart3,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
+import type { PYQQuestion, Subject } from '@/lib/types'
+
+interface PYQContentProps {
+  questions: PYQQuestion[]
+  subjects: Subject[]
+  years: number[]
+}
+
+export function PYQContent({ questions, subjects, years }: PYQContentProps) {
+  const [filterYear, setFilterYear] = useState<string>('all')
+  const [filterSubject, setFilterSubject] = useState<string>('all')
+  const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
+  const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
+
+  // Apply filters
+  const filteredQuestions = questions.filter(q => {
+    if (filterYear !== 'all' && q.year !== parseInt(filterYear)) return false
+    if (filterSubject !== 'all' && q.subject_id !== filterSubject) return false
+    if (filterDifficulty !== 'all' && q.difficulty !== filterDifficulty) return false
+    return true
+  })
+
+  // Calculate stats
+  const totalQuestions = questions.length
+  const questionsByDifficulty = {
+    easy: questions.filter(q => q.difficulty === 'easy').length,
+    medium: questions.filter(q => q.difficulty === 'medium').length,
+    hard: questions.filter(q => q.difficulty === 'hard').length,
+  }
+
+  // Get unique topics
+  const uniqueTopics = new Set(questions.filter(q => q.topic).map(q => q.topic))
+
+  // Get most frequent topics
+  const topicFrequency = questions.reduce((acc, q) => {
+    if (q.topic) {
+      acc[q.topic] = (acc[q.topic] || 0) + 1
+    }
+    return acc
+  }, {} as Record<string, number>)
+
+  const topTopics = Object.entries(topicFrequency)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5)
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'easy':
+        return 'bg-green-500/10 text-green-600 border-green-500/20'
+      case 'medium':
+        return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+      case 'hard':
+        return 'bg-red-500/10 text-red-600 border-red-500/20'
+      default:
+        return 'bg-muted text-muted-foreground'
+    }
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">PYQ Practice</h1>
+        <p className="text-muted-foreground">Practice with previous year questions</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Questions</p>
+                <p className="text-3xl font-bold mt-1">{totalQuestions}</p>
+              </div>
+              <div className="rounded-lg bg-blue-500/10 p-3">
+                <FileText className="h-6 w-6 text-blue-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Years Covered</p>
+                <p className="text-3xl font-bold mt-1">{years.length}</p>
+              </div>
+              <div className="rounded-lg bg-green-500/10 p-3">
+                <Calendar className="h-6 w-6 text-green-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Subjects</p>
+                <p className="text-3xl font-bold mt-1">{subjects.length}</p>
+              </div>
+              <div className="rounded-lg bg-amber-500/10 p-3">
+                <BookOpen className="h-6 w-6 text-amber-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Topics</p>
+                <p className="text-3xl font-bold mt-1">{uniqueTopics.size}</p>
+              </div>
+              <div className="rounded-lg bg-purple-500/10 p-3">
+                <BarChart3 className="h-6 w-6 text-purple-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Difficulty Distribution */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Difficulty Distribution</CardTitle>
+          <CardDescription>Questions breakdown by difficulty level</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <div className="flex-1 rounded-lg bg-green-500/10 p-4 text-center">
+              <p className="text-2xl font-bold text-green-600">{questionsByDifficulty.easy}</p>
+              <p className="text-sm text-muted-foreground">Easy</p>
+            </div>
+            <div className="flex-1 rounded-lg bg-amber-500/10 p-4 text-center">
+              <p className="text-2xl font-bold text-amber-600">{questionsByDifficulty.medium}</p>
+              <p className="text-sm text-muted-foreground">Medium</p>
+            </div>
+            <div className="flex-1 rounded-lg bg-red-500/10 p-4 text-center">
+              <p className="text-2xl font-bold text-red-600">{questionsByDifficulty.hard}</p>
+              <p className="text-sm text-muted-foreground">Hard</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Year</label>
+              <Select value={filterYear} onValueChange={setFilterYear}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {years.map(year => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Subject</label>
+              <Select value={filterSubject} onValueChange={setFilterSubject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subjects</SelectItem>
+                  {subjects.map(subject => (
+                    <SelectItem key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Difficulty</label>
+              <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Levels</SelectItem>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Questions List */}
+        <div className="lg:col-span-3 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">
+              Questions
+              <span className="text-muted-foreground font-normal ml-2">
+                ({filteredQuestions.length} results)
+              </span>
+            </h2>
+          </div>
+
+          {filteredQuestions.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-2">No Questions Found</h3>
+                <p className="text-muted-foreground">
+                  Try adjusting your filters to see more questions.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredQuestions.map((question) => {
+              const isExpanded = expandedQuestion === question.id
+              const subjectName = question.subject?.name || 'General'
+
+              return (
+                <Card key={question.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline">{question.year}</Badge>
+                        <Badge variant="secondary">{subjectName}</Badge>
+                        {question.topic && (
+                          <Badge variant="outline" className="bg-muted/50">
+                            {question.topic}
+                          </Badge>
+                        )}
+                      </div>
+                      <Badge className={getDifficultyColor(question.difficulty)}>
+                        {question.difficulty}
+                      </Badge>
+                    </div>
+
+                    <div className="mb-4">
+                      <p className="text-foreground leading-relaxed">{question.question}</p>
+                    </div>
+
+                    {question.options && question.options.length > 0 && (
+                      <div className="space-y-2 mb-4">
+                        {question.options.map((option, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                          >
+                            <span className="font-semibold text-primary w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-sm">
+                              {String.fromCharCode(65 + idx)}
+                            </span>
+                            <span className="text-foreground">{option}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-4 border-t border-border">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        {question.frequency > 1 && (
+                          <span className="flex items-center gap-1">
+                            <TrendingUp className="h-4 w-4" />
+                            Appeared {question.frequency}x
+                          </span>
+                        )}
+                        {question.source && (
+                          <span>{question.source}</span>
+                        )}
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setExpandedQuestion(isExpanded ? null : question.id)}
+                        className="flex items-center gap-1"
+                      >
+                        {isExpanded ? (
+                          <>
+                            Hide Answer
+                            <ChevronUp className="h-4 w-4" />
+                          </>
+                        ) : (
+                          <>
+                            Show Answer
+                            <ChevronDown className="h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t border-border space-y-3">
+                        {question.answer && (
+                          <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10">
+                            <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
+                            <div>
+                              <p className="font-medium text-green-700 dark:text-green-400">
+                                Correct Answer
+                              </p>
+                              <p className="text-foreground">{question.answer}</p>
+                            </div>
+                          </div>
+                        )}
+                        {question.explanation && (
+                          <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10">
+                            <HelpCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                            <div>
+                              <p className="font-medium text-blue-700 dark:text-blue-400">
+                                Explanation
+                              </p>
+                              <p className="text-foreground">{question.explanation}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })
+          )}
+        </div>
+
+        {/* Sidebar - Important Topics */}
+        <div className="lg:col-span-1">
+          <Card className="sticky top-24">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Hot Topics
+              </CardTitle>
+              <CardDescription>Most frequently asked topics</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {topTopics.length > 0 ? (
+                <div className="space-y-3">
+                  {topTopics.map(([topic, count], idx) => (
+                    <button
+                      key={topic}
+                      onClick={() => {
+                        // Clear other filters and filter by this topic somehow
+                        // For now just show the topic info
+                      }}
+                      className="w-full text-left p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">{topic}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {count}
+                        </Badge>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No topics available
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
