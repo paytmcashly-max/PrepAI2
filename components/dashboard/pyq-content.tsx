@@ -18,7 +18,6 @@ import {
   TrendingUp, 
   BarChart3,
   CheckCircle2,
-  XCircle,
   HelpCircle,
   Filter,
   ChevronDown,

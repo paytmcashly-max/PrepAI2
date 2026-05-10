@@ -18,7 +18,18 @@ export default function Page() {
       } = await supabase.auth.getUser()
 
       if (user) {
-        router.push('/dashboard')
+        // Check if user has completed onboarding
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('plan_start_date')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.plan_start_date) {
+          router.push('/dashboard')
+        } else {
+          router.push('/onboarding')
+        }
       } else {
         setLoading(false)
       }

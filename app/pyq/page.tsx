@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import DashboardHeader from '@/components/dashboard/dashboard-header';
 import { Spinner } from '@/components/ui/spinner';
-import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { generateSamplePYQs, calculatePYQStats, getImportantTopics } from '@/lib/services/pyq-engine';
 
@@ -17,11 +16,11 @@ export default function PYQPage() {
   const [filterSubject, setFilterSubject] = useState<string>('');
   const [filterTopic, setFilterTopic] = useState<string>('');
   const router = useRouter();
-  const supabase = createClient();
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           router.push('/auth/login');
@@ -42,7 +41,7 @@ export default function PYQPage() {
     };
 
     loadData();
-  }, [router, supabase]);
+  }, [router]);
 
   const stats = calculatePYQStats(pyqs);
   const years = Object.keys(stats.byYear).map(Number).sort((a, b) => b - a);

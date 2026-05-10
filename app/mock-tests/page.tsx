@@ -16,11 +16,11 @@ export default function MockTestsPage() {
   const [loading, setLoading] = useState(true);
   const [startingTest, setStartingTest] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           router.push('/auth/login');
@@ -64,7 +64,7 @@ export default function MockTestsPage() {
     };
 
     loadData();
-  }, [router, supabase]);
+  }, [router]);
 
   const handleStartTest = async (testId: string) => {
     setStartingTest(testId);

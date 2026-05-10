@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, BookOpen, CheckCircle2, Circle, Clock, Play } from 'lucide-react'
+import { ArrowLeft, BookOpen, CheckCircle2, Circle, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
@@ -50,17 +50,6 @@ export function SubjectDetailContent({ subject, userId }: SubjectDetailContentPr
     }
     
     toast.success(statusMessages[status])
-  }
-  
-  const getStatusIcon = (status: 'not_started' | 'in_progress' | 'completed') => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />
-      case 'in_progress':
-        return <Play className="h-5 w-5 text-yellow-500" />
-      default:
-        return <Circle className="h-5 w-5 text-muted-foreground" />
-    }
   }
   
   const getStatusBadge = (status: 'not_started' | 'in_progress' | 'completed') => {
