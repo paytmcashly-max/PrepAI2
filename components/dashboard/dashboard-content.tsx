@@ -2,11 +2,6 @@
 
 import Link from 'next/link'
 import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
   Tooltip, 
   ResponsiveContainer, 
   PieChart, 
@@ -25,7 +20,6 @@ import {
   Map, 
   ClipboardList,
   Quote,
-  Calendar,
 } from 'lucide-react'
 import type { DashboardStats, SubjectProgress, MotivationalQuote } from '@/lib/types'
 

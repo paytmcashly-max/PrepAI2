@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useParams } from 'next/navigation';
 import { Spinner } from '@/components/ui/spinner';
@@ -23,11 +23,11 @@ export default function TestAttemptPage() {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const supabase = createClient();
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           router.push('/auth/login');
@@ -82,7 +82,31 @@ export default function TestAttemptPage() {
     };
 
     loadData();
-  }, [router, supabase, testId, attemptId]);
+  }, [router, testId, attemptId]);
+
+  const handleSubmitTest = useCallback(async () => {
+    setSubmitting(true);
+    try {
+      const response = await fetch(
+        `/api/mock-tests/attempts/${attemptId}/submit`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answers }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to submit test');
+
+      toast.success('Test submitted successfully!');
+      router.push(`/mock-tests/${testId}/results/${attemptId}`);
+    } catch (err) {
+      console.error('[v0] Submit test error:', err);
+      toast.error('Failed to submit test');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [answers, attemptId, router, testId]);
 
   // Timer effect
   useEffect(() => {
@@ -99,38 +123,13 @@ export default function TestAttemptPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [test]);
+  }, [handleSubmitTest, test, timeRemaining]);
 
   const handleAnswerChange = (questionId: string, answer: string) => {
     setAnswers(prev => ({
       ...prev,
       [questionId]: answer,
     }));
-  };
-
-  const handleSubmitTest = async () => {
-    setSubmitting(true);
-    try {
-      const response = await fetch(
-        `/api/mock-tests/attempts/${attemptId}/submit`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers }),
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to submit test');
-
-      const result = await response.json();
-      toast.success('Test submitted successfully!');
-      router.push(`/mock-tests/${testId}/results/${attemptId}`);
-    } catch (err) {
-      console.error('[v0] Submit test error:', err);
-      toast.error('Failed to submit test');
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   if (loading || !test || !attempt || questions.length === 0) {

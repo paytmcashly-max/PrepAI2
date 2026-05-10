@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { calculateScore } from '@/lib/services/mock-test-engine';
 
 export async function POST(
   request: NextRequest,

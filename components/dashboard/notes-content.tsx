@@ -36,7 +36,6 @@ import {
 } from 'lucide-react'
 import { createNote, updateNote, deleteNote } from '@/lib/actions'
 import type { Note, Subject } from '@/lib/types'
-import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 
 interface NotesContentProps {

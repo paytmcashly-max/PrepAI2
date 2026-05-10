@@ -130,7 +130,7 @@ export function getFrequentlyAsked(pyqs: PYQQuestion[], limit: number = 10): PYQ
 export function getImportantTopics(
   pyqs: PYQQuestion[],
   subject: string
-): Array<{ topic: string; frequency: number; years: number[] }> {
+): { topic: string; frequency: number; years: number[] }[] {
   const topicMap: Record<string, { frequency: number; years: Set<number> }> = {};
 
   for (const pyq of pyqs) {
@@ -157,13 +157,13 @@ export function getImportantTopics(
 export function getYearWiseAnalysis(
   pyqs: PYQQuestion[],
   subject: string
-): Array<{
+): {
   year: number;
   total: number;
   easy: number;
   medium: number;
   hard: number;
-}> {
+}[] {
   const yearMap: Record<
     number,
     { total: number; easy: number; medium: number; hard: number }
@@ -192,7 +192,7 @@ export function getYearWiseAnalysis(
 export function analyzeWeakAreas(
   pyqs: PYQQuestion[],
   userAnswers: Record<string, string>
-): Array<{ subject: string; topic: string; accuracy: number; needsFocus: boolean }> {
+): { subject: string; topic: string; accuracy: number; needsFocus: boolean }[] {
   const topicStats: Record<string, { correct: number; total: number }> = {};
 
   for (const pyq of pyqs) {
