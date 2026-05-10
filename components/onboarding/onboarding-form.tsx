@@ -85,6 +85,43 @@ export function OnboardingForm({ exams }: OnboardingFormProps) {
     })
   }
 
+  const renderLevelOptions = (
+    groupName: 'mathsLevel' | 'physicalLevel',
+    value: typeof formData.mathsLevel,
+    label: string
+  ) => (
+    <div className="grid gap-2">
+      <Label>{label}</Label>
+      <RadioGroup
+        value={value}
+        onValueChange={(nextValue) => setFormData({ ...formData, [groupName]: nextValue as typeof formData.mathsLevel })}
+        className="grid grid-cols-3 gap-3"
+      >
+        {levelOptions.map((level) => {
+          const id = `${groupName}-${level.value}`
+          const isSelected = value === level.value
+
+          return (
+            <Label
+              key={level.value}
+              htmlFor={id}
+              className={cn(
+                'flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 p-3 text-center font-medium transition-colors',
+                isSelected
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-muted bg-background hover:border-primary/60 hover:bg-accent'
+              )}
+            >
+              <RadioGroupItem id={id} value={level.value} className="sr-only" />
+              <span>{level.label}</span>
+              {isSelected && <CheckCircle2 className="h-4 w-4" />}
+            </Label>
+          )
+        })}
+      </RadioGroup>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-background px-4 py-8">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
@@ -242,37 +279,8 @@ export function OnboardingForm({ exams }: OnboardingFormProps) {
 
             {currentStep === 4 && (
               <div className="grid gap-5">
-                <div className="grid gap-2">
-                  <Label>Maths level</Label>
-                  <RadioGroup
-                    value={formData.mathsLevel}
-                    onValueChange={(value) => setFormData({ ...formData, mathsLevel: value as typeof formData.mathsLevel })}
-                    className="grid grid-cols-3 gap-3"
-                  >
-                    {levelOptions.map((level) => (
-                      <Label key={level.value} className="cursor-pointer rounded-lg border p-3 text-center">
-                        <RadioGroupItem value={level.value} className="sr-only" />
-                        {level.label}
-                      </Label>
-                    ))}
-                  </RadioGroup>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Physical level</Label>
-                  <RadioGroup
-                    value={formData.physicalLevel}
-                    onValueChange={(value) => setFormData({ ...formData, physicalLevel: value as typeof formData.physicalLevel })}
-                    className="grid grid-cols-3 gap-3"
-                  >
-                    {levelOptions.map((level) => (
-                      <Label key={level.value} className="cursor-pointer rounded-lg border p-3 text-center">
-                        <RadioGroupItem value={level.value} className="sr-only" />
-                        {level.label}
-                      </Label>
-                    ))}
-                  </RadioGroup>
-                </div>
+                {renderLevelOptions('mathsLevel', formData.mathsLevel, 'Maths level')}
+                {renderLevelOptions('physicalLevel', formData.physicalLevel, 'Physical level')}
 
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div>

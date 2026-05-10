@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 interface DashboardHeaderProps {
   user: User
@@ -40,6 +41,7 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
       <Separator orientation="vertical" className="mr-2 h-4" />
       
       <div className="flex-1" />
+      <ThemeToggle />
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
