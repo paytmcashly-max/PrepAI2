@@ -10,5 +10,5 @@ export default async function TasksPage() {
     user ? getTodayTaskGroup(user.id) : null,
   ])
 
-  return <TasksContent dayGroups={dayGroups} todayDay={todayTaskGroup?.day || null} />
+  return <TasksContent dayGroups={dayGroups} todayTaskGroup={todayTaskGroup} />
 }

@@ -17,7 +17,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 
 interface TasksContentProps {
   dayGroups: DayTaskGroup[]
-  todayDay: number | null
+  todayTaskGroup: DayTaskGroup | null
 }
 
 function readCompleted(task: DayTaskGroup['tasks'][number]) {
@@ -28,22 +28,22 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value))
 }
 
-export function TasksContent({ dayGroups, todayDay }: TasksContentProps) {
+export function TasksContent({ dayGroups, todayTaskGroup }: TasksContentProps) {
   const searchParams = useSearchParams()
-  const todayGroup = todayDay ? dayGroups.find((group) => group.day === todayDay) || null : null
+  const currentDayGroup = todayTaskGroup ? dayGroups.find((group) => group.day === todayTaskGroup.day) || null : null
   const [expandedDays, setExpandedDays] = useState<string[]>(
-    todayGroup?.id ? [todayGroup.id] : dayGroups.length > 0 ? [dayGroups[0].id] : []
+    currentDayGroup?.id ? [currentDayGroup.id] : dayGroups.length > 0 ? [dayGroups[0].id] : []
   )
   const [isPending, startTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
-    if (searchParams.get('focus') !== 'today' || !todayGroup?.id) return
+    if (searchParams.get('focus') !== 'today' || !todayTaskGroup) return
 
     window.requestAnimationFrame(() => {
       document.getElementById('today-tasks')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
-  }, [searchParams, todayGroup?.id])
+  }, [searchParams, todayTaskGroup])
 
   const toggleDay = (dayId: string) => {
     setExpandedDays((prev) =>
@@ -82,9 +82,9 @@ export function TasksContent({ dayGroups, todayDay }: TasksContentProps) {
     return sum + day.tasks.filter(t => getCompletionStatus(t.id, readCompleted(t))).length
   }, 0)
   const completionPercentage = totalTasks > 0 ? clampPercent(Math.round((completedTasks / totalTasks) * 100)) : 0
-  const todayTotalTasks = todayGroup?.totalCount || 0
-  const todayCompletedTasks = todayGroup
-    ? todayGroup.tasks.filter((task) => getCompletionStatus(task.id, readCompleted(task))).length
+  const todayTotalTasks = todayTaskGroup?.totalCount || 0
+  const todayCompletedTasks = todayTaskGroup
+    ? todayTaskGroup.tasks.filter((task) => getCompletionStatus(task.id, readCompleted(task))).length
     : 0
   const todayCompletionPercentage = todayTotalTasks > 0 ? clampPercent(Math.round((todayCompletedTasks / todayTotalTasks) * 100)) : 0
 
@@ -116,6 +116,43 @@ export function TasksContent({ dayGroups, todayDay }: TasksContentProps) {
         </CardContent>
       </Card>
 
+      <Card id="today-tasks" className="scroll-mt-6 overflow-hidden">
+        <CardHeader>
+          <CardTitle>Today&apos;s Tasks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {todayTaskGroup && todayTaskGroup.tasks.length > 0 ? (
+            <div className="space-y-3">
+              {todayTaskGroup.tasks.map((task) => {
+                const taskCompleted = getCompletionStatus(task.id, readCompleted(task))
+
+                return (
+                  <TaskCheckItem
+                    key={task.id}
+                    task={task}
+                    completed={taskCompleted}
+                    disabled={isPending}
+                    onToggle={handleToggleTask}
+                  />
+                )
+              })}
+            </div>
+          ) : (
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Calendar />
+                </EmptyMedia>
+                <EmptyTitle>No tasks scheduled for today</EmptyTitle>
+                <EmptyDescription>
+                  Tasks moved to today from Backlog Manager will appear here with your normal current-day tasks.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Day Groups */}
       <div className="space-y-4">
         {dayGroups.length === 0 ? (
@@ -141,7 +178,7 @@ export function TasksContent({ dayGroups, todayDay }: TasksContentProps) {
             ).length
 
             return (
-              <div key={dayGroup.id} id={dayGroup.day === todayDay ? 'today-tasks' : undefined} className="scroll-mt-6">
+              <div key={dayGroup.id}>
                 <button
                   onClick={() => toggleDay(dayGroup.id)}
                   className="w-full p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors flex items-center justify-between"

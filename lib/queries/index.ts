@@ -39,7 +39,10 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function toDateString(date: Date) {
-  return date.toISOString().split('T')[0]
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function isMissingSingleRow(error: { code?: string } | null) {
@@ -58,6 +61,14 @@ function buildDayTaskGroup(plan: UserStudyPlan, dayNumber: number, tasks: UserDa
     completedCount: tasks.filter((task) => task.status === 'completed').length,
     totalCount: tasks.length,
   }
+}
+
+function dedupeTasks(tasks: UserDailyTask[]) {
+  const tasksById = new Map<string, UserDailyTask>()
+  for (const task of tasks) {
+    tasksById.set(task.id, task)
+  }
+  return [...tasksById.values()]
 }
 
 export async function getActiveStudyPlan(userId: string): Promise<UserStudyPlan | null> {
@@ -269,17 +280,24 @@ export async function getTodayTaskGroup(userId: string): Promise<DayTaskGroup | 
   if (!plan) return null
 
   const currentDay = clamp(getCalendarDay(plan.start_date), 1, plan.target_days)
+  const today = toDateString(new Date())
   const { data: tasks, error } = await supabase
     .from('user_daily_tasks')
     .select('*, subject:subjects(*), chapter:chapters(*)')
     .eq('user_id', userId)
     .eq('plan_id', plan.id)
-    .eq('day_number', currentDay)
+    .or(`day_number.eq.${currentDay},task_date.eq.${today}`)
+    .order('task_date')
     .order('created_at')
 
   if (error) throw error
 
-  return buildDayTaskGroup(plan, currentDay, (tasks || []) as UserDailyTask[])
+  const todayTasks = dedupeTasks((tasks || []) as UserDailyTask[])
+  return {
+    ...buildDayTaskGroup(plan, currentDay, todayTasks),
+    id: `${plan.id}-today`,
+    date: today,
+  }
 }
 
 export async function getBacklogData(userId: string): Promise<BacklogData> {
@@ -636,12 +654,15 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
 
   const topicsCovered = new Set((completedTasks || []).map(task => task.chapter_id).filter(Boolean)).size
 
-  const { data: todayTasks } = await supabase
+  const todayString = toDateString(new Date())
+  const { data: todayTaskRows } = await supabase
     .from('user_daily_tasks')
-    .select('status')
+    .select('id, status')
     .eq('user_id', userId)
     .eq('plan_id', plan.id)
-    .eq('day_number', currentDay)
+    .or(`day_number.eq.${currentDay},task_date.eq.${todayString}`)
+
+  const todayTasks = [...new Map((todayTaskRows || []).map((task) => [task.id, task])).values()]
 
   const { count: overallTaskCount } = await supabase
     .from('user_daily_tasks')
@@ -678,8 +699,8 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
     avgMockScore: Math.round(avgMockScore * 10) / 10,
     currentDay,
     totalDays: plan.target_days,
-    todayTaskCount: todayTasks?.length || 0,
-    todayCompletedCount: todayTasks?.filter(task => task.status === 'completed').length || 0,
+    todayTaskCount: todayTasks.length,
+    todayCompletedCount: todayTasks.filter(task => task.status === 'completed').length,
     overallTaskCount: overallTaskCount || 0,
     overallCompletedCount: overallCompletedCount || 0,
     planState,
