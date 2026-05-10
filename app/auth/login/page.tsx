@@ -36,6 +36,24 @@ export default function Page() {
     }
   }
 
+  const handleGoogleLogin = async () => {
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (error) {
+      setError(error.message)
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="flex min-h-svh w-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -59,6 +77,18 @@ export default function Page() {
           <CardContent>
             <form onSubmit={handleLogin}>
               <div className="flex flex-col gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                  className="border-slate-600 bg-slate-700/40 text-white hover:bg-slate-700"
+                >
+                  Continue with Google
+                </Button>
+                <div className="relative text-center text-xs text-slate-500">
+                  <span className="bg-slate-800 px-2">or use email</span>
+                </div>
                 <div className="grid gap-2">
                   <Label htmlFor="email" className="text-slate-200">Email</Label>
                   <Input

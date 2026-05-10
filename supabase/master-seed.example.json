@@ -1,0 +1,92 @@
+{
+  "exams": [
+    {
+      "id": "bihar-si",
+      "name": "Bihar Police SI",
+      "level": "State Police",
+      "focus": ["GK/GS", "Hindi", "Maths", "Reasoning", "Physical"],
+      "selectionStages": ["Prelims", "Mains", "Physical Test"]
+    }
+  ],
+  "subjects": [
+    { "id": "maths", "name": "Maths", "icon": "Calculator", "color": "#2563EB" },
+    { "id": "gk-gs", "name": "GK / GS", "icon": "Globe2", "color": "#059669" },
+    { "id": "hindi", "name": "Hindi", "icon": "Languages", "color": "#DC2626" },
+    { "id": "reasoning", "name": "Reasoning", "icon": "Brain", "color": "#7C3AED" },
+    { "id": "physical", "name": "Physical", "icon": "Dumbbell", "color": "#EA580C" }
+  ],
+  "chapters": [
+    {
+      "examId": "bihar-si",
+      "subjectId": "maths",
+      "name": "Percentage",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimatedMinutes": 80,
+      "orderIndex": 1
+    },
+    {
+      "examId": "bihar-si",
+      "subjectId": "gk-gs",
+      "name": "Indian Polity",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimatedMinutes": 90,
+      "orderIndex": 2
+    }
+  ],
+  "taskTemplates": [
+    {
+      "examId": "bihar-si",
+      "subjectId": "maths",
+      "taskType": "concept",
+      "titleTemplate": "Study {{chapter}} basics",
+      "descriptionTemplate": "Build concepts, solve examples, and mark formulas.",
+      "estimatedMinutes": 45,
+      "priority": "high"
+    }
+  ],
+  "revisionRules": [
+    {
+      "examId": "bihar-si",
+      "frequency": "weekly",
+      "ruleConfig": { "revision_day_interval": 7 }
+    }
+  ],
+  "mockRules": [
+    {
+      "examId": "bihar-si",
+      "startAfterPhase": "foundation",
+      "frequencyDays": 7,
+      "mockType": "sectional"
+    }
+  ],
+  "physicalRules": [
+    {
+      "examId": "bihar-si",
+      "level": "weak",
+      "ruleConfig": { "base_minutes": 20, "weekly_increment": 5 }
+    }
+  ],
+  "pyqQuestions": [
+    {
+      "examId": "bihar-si",
+      "year": 2024,
+      "subjectId": "maths",
+      "difficulty": "medium",
+      "question": "Verified PYQ question text goes here.",
+      "options": ["A", "B", "C", "D"],
+      "answer": "A",
+      "explanation": "Short explanation goes here.",
+      "source": "verified_pyq",
+      "isVerified": true
+    }
+  ],
+  "quotes": [
+    {
+      "id": "discipline-1",
+      "quote": "Discipline is choosing your target again when motivation fades.",
+      "author": "PrepAI"
+    }
+  ]
+}

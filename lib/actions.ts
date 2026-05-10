@@ -2,6 +2,71 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { generateStudyPlan } from '@/lib/services/generate-study-plan'
+
+type Level = 'weak' | 'average' | 'good'
+
+export async function completeOnboarding(data: {
+  fullName: string
+  examTarget: string
+  targetDays: number
+  dailyStudyHours: number
+  startDate: string
+  mathsLevel: Level
+  physicalLevel: Level
+  englishBackground: boolean
+  currentEducation?: string | null
+}) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const targetDays = Math.max(7, Number(data.targetDays))
+  const dailyStudyHours = Math.max(1, Number(data.dailyStudyHours))
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .upsert({
+      id: user.id,
+      full_name: data.fullName,
+      exam_target: data.examTarget,
+      target_days: targetDays,
+      daily_study_hours: dailyStudyHours,
+      start_date: data.startDate,
+      maths_level: data.mathsLevel,
+      physical_level: data.physicalLevel,
+      english_background: data.englishBackground,
+      current_education: data.currentEducation || null,
+      onboarding_completed: false,
+      updated_at: new Date().toISOString(),
+    })
+
+  if (profileError) throw profileError
+
+  const result = await generateStudyPlan(supabase, {
+    userId: user.id,
+    examId: data.examTarget,
+    targetDays,
+    dailyStudyHours,
+    startDate: data.startDate,
+    mathsLevel: data.mathsLevel,
+    physicalLevel: data.physicalLevel,
+  })
+
+  const { error: completionError } = await supabase
+    .from('profiles')
+    .update({
+      onboarding_completed: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', user.id)
+
+  if (completionError) throw completionError
+
+  revalidatePath('/dashboard', 'layout')
+  return { success: true, ...result }
+}
 
 // ============ TASK COMPLETIONS ============
 export async function toggleTaskCompletion(taskId: string) {
@@ -10,7 +75,30 @@ export async function toggleTaskCompletion(taskId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // Check if completion record exists
+  const { data: task, error: taskFetchError } = await supabase
+    .from('user_daily_tasks')
+    .select('status')
+    .eq('id', taskId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!taskFetchError && task) {
+    const isCompleting = task.status !== 'completed'
+    const { error } = await supabase
+      .from('user_daily_tasks')
+      .update({
+        status: isCompleting ? 'completed' : 'pending',
+        completed_at: isCompleting ? new Date().toISOString() : null,
+      })
+      .eq('id', taskId)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+    revalidatePath('/dashboard', 'layout')
+    return { success: true }
+  }
+
+  // Backward-compatible fallback for old global daily_tasks rows.
   const { data: existing } = await supabase
     .from('task_completions')
     .select('*')
@@ -18,30 +106,24 @@ export async function toggleTaskCompletion(taskId: string) {
     .eq('daily_task_id', taskId)
     .single()
 
-  if (existing) {
-    // Toggle existing
-    const { error } = await supabase
-      .from('task_completions')
-      .update({
-        completed: !existing.completed,
-        completed_at: !existing.completed ? new Date().toISOString() : null,
-      })
-      .eq('id', existing.id)
+  const { error } = existing
+    ? await supabase
+        .from('task_completions')
+        .update({
+          completed: !existing.completed,
+          completed_at: !existing.completed ? new Date().toISOString() : null,
+        })
+        .eq('id', existing.id)
+    : await supabase
+        .from('task_completions')
+        .insert({
+          user_id: user.id,
+          daily_task_id: taskId,
+          completed: true,
+          completed_at: new Date().toISOString(),
+        })
 
-    if (error) throw error
-  } else {
-    // Create new completion
-    const { error } = await supabase
-      .from('task_completions')
-      .insert({
-        user_id: user.id,
-        daily_task_id: taskId,
-        completed: true,
-        completed_at: new Date().toISOString(),
-      })
-
-    if (error) throw error
-  }
+  if (error) throw error
 
   revalidatePath('/dashboard', 'layout')
   return { success: true }
@@ -77,6 +159,7 @@ export async function updateProfile(data: {
 export async function createNote(data: {
   title: string
   subject_id?: string | null
+  chapter_id?: string | null
   chapter?: string | null
   content?: string | null
   tags?: string[]
@@ -92,6 +175,7 @@ export async function createNote(data: {
       user_id: user.id,
       title: data.title,
       subject_id: data.subject_id || null,
+      chapter_id: data.chapter_id || null,
       chapter: data.chapter || null,
       content: data.content || null,
       tags: data.tags || [],
@@ -108,6 +192,7 @@ export async function createNote(data: {
 export async function updateNote(noteId: string, data: {
   title?: string
   subject_id?: string | null
+  chapter_id?: string | null
   chapter?: string | null
   content?: string | null
   tags?: string[]

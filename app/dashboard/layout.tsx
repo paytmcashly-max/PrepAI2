@@ -16,6 +16,18 @@ export default async function DashboardLayout({
     redirect('/auth/login')
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  const onboardingCompleted = profile?.onboarding_completed ?? Boolean(profile?.exam_target)
+
+  if (!onboardingCompleted) {
+    redirect('/onboarding')
+  }
+
   return (
     <SidebarProvider>
       <DashboardSidebar />

@@ -17,12 +17,13 @@ export async function GET(request: NextRequest) {
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('exam_target')
+          .select('*')
           .eq('id', user.id)
           .single()
         
-        // Redirect to onboarding if no exam target is set
-        if (!profile?.exam_target) {
+        const onboardingCompleted = profile?.onboarding_completed ?? Boolean(profile?.exam_target)
+
+        if (!onboardingCompleted) {
           redirectPath = '/onboarding'
         }
       }

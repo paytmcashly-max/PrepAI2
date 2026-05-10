@@ -36,18 +36,19 @@ import {
   Globe,
 } from 'lucide-react'
 import { createNote, updateNote, deleteNote } from '@/lib/actions'
-import type { Note, Subject } from '@/lib/types'
+import type { Chapter, Note, Subject } from '@/lib/types'
 import { format } from 'date-fns'
 
 interface NotesContentProps {
   notes: Note[]
   subjects: Subject[]
+  chapters: Chapter[]
 }
 
 type NoteFormData = {
   title: string
   subject_id: string
-  chapter: string
+  chapter_id: string
   content: string
   tags: string
 }
@@ -56,6 +57,7 @@ interface NoteFormProps {
   formData: NoteFormData
   setFormData: Dispatch<SetStateAction<NoteFormData>>
   subjects: Subject[]
+  chapters: Chapter[]
   isPending: boolean
   isEdit?: boolean
   onSubmit: () => void
@@ -72,10 +74,13 @@ function NoteForm({
   formData,
   setFormData,
   subjects,
+  chapters,
   isPending,
   isEdit = false,
   onSubmit,
 }: NoteFormProps) {
+  const filteredChapters = chapters.filter((chapter) => !formData.subject_id || chapter.subject_id === formData.subject_id)
+
   return (
     <div className="space-y-4">
       <div>
@@ -101,11 +106,22 @@ function NoteForm({
             ))}
           </SelectContent>
         </Select>
-        <Input
-          placeholder="Chapter (optional)"
-          value={formData.chapter}
-          onChange={(e) => setFormData(prev => ({ ...prev, chapter: e.target.value }))}
-        />
+        <Select
+          value={formData.chapter_id}
+          onValueChange={(value) => setFormData(prev => ({ ...prev, chapter_id: value === 'none' ? '' : value }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select chapter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No chapter</SelectItem>
+            {filteredChapters.map((chapter) => (
+              <SelectItem key={chapter.id} value={chapter.id}>
+                {chapter.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <Textarea
         placeholder="Note content..."
@@ -130,7 +146,7 @@ function NoteForm({
   )
 }
 
-export function NotesContent({ notes: initialNotes, subjects }: NotesContentProps) {
+export function NotesContent({ notes: initialNotes, subjects, chapters }: NotesContentProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [notes, setNotes] = useState(initialNotes)
@@ -142,7 +158,7 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
   const [formData, setFormData] = useState({
     title: '',
     subject_id: '',
-    chapter: '',
+    chapter_id: '',
     content: '',
     tags: '',
   })
@@ -153,6 +169,7 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
     const matchesSearch =
       note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (note.content?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (note.chapter_ref?.name.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
       (note.chapter?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
 
     const matchesTag = !selectedTag || (note.tags || []).includes(selectedTag)
@@ -164,7 +181,7 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
     setFormData({
       title: '',
       subject_id: '',
-      chapter: '',
+      chapter_id: '',
       content: '',
       tags: '',
     })
@@ -177,7 +194,8 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
         const newNote = await createNote({
           title: formData.title,
           subject_id: formData.subject_id || null,
-          chapter: formData.chapter || null,
+          chapter_id: formData.chapter_id || null,
+          chapter: null,
           content: formData.content || null,
           tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
         })
@@ -198,7 +216,8 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
         await updateNote(editingNote.id, {
           title: formData.title,
           subject_id: formData.subject_id || null,
-          chapter: formData.chapter || null,
+          chapter_id: formData.chapter_id || null,
+          chapter: null,
           content: formData.content || null,
           tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
         })
@@ -208,7 +227,9 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
                 ...n, 
                 title: formData.title,
                 subject_id: formData.subject_id || null,
-                chapter: formData.chapter || null,
+                chapter_id: formData.chapter_id || null,
+                chapter_ref: chapters.find((chapter) => chapter.id === formData.chapter_id) || null,
+                chapter: null,
                 content: formData.content || null,
                 tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
               }
@@ -238,7 +259,7 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
     setFormData({
       title: note.title,
       subject_id: note.subject_id || '',
-      chapter: note.chapter || '',
+      chapter_id: note.chapter_id || '',
       content: note.content || '',
       tags: (note.tags || []).join(', '),
     })
@@ -269,6 +290,7 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
               formData={formData}
               setFormData={setFormData}
               subjects={subjects}
+              chapters={chapters}
               isPending={isPending}
               onSubmit={handleCreateNote}
             />
@@ -333,9 +355,9 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
                             <span className="ml-1">{note.subject.name}</span>
                           </Badge>
                         )}
-                        {note.chapter && (
+                        {(note.chapter_ref?.name || note.chapter) && (
                           <Badge variant="outline" className="text-xs">
-                            {note.chapter}
+                            {note.chapter_ref?.name || note.chapter}
                           </Badge>
                         )}
                       </div>
@@ -449,6 +471,7 @@ export function NotesContent({ notes: initialNotes, subjects }: NotesContentProp
             formData={formData}
             setFormData={setFormData}
             subjects={subjects}
+            chapters={chapters}
             isPending={isPending}
             isEdit
             onSubmit={handleUpdateNote}

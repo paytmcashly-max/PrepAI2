@@ -18,6 +18,8 @@ import {
   TrendingUp, 
   BarChart3,
   CheckCircle2,
+  ShieldCheck,
+  Sparkles,
   HelpCircle,
   Filter,
   ChevronDown,
@@ -259,6 +261,11 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
             filteredQuestions.map((question) => {
               const isExpanded = expandedQuestion === question.id
               const subjectName = question.subject?.name || 'General'
+              const sourceLabel = question.is_verified
+                ? 'Verified PYQ'
+                : question.source === 'ai_generated'
+                  ? 'AI generated'
+                  : 'Unverified'
 
               return (
                 <Card key={question.id}>
@@ -272,6 +279,10 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                             {question.topic}
                           </Badge>
                         )}
+                        <Badge variant={question.is_verified ? 'default' : 'outline'} className="gap-1">
+                          {question.is_verified ? <ShieldCheck className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+                          {sourceLabel}
+                        </Badge>
                       </div>
                       <Badge className={getDifficultyColor(question.difficulty)}>
                         {question.difficulty}
@@ -306,8 +317,8 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                             Appeared {question.frequency}x
                           </span>
                         )}
-                        {question.source && (
-                          <span>{question.source}</span>
+                        {!question.is_verified && (
+                          <span>Do not treat as official PYQ</span>
                         )}
                       </div>
 

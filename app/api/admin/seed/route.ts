@@ -4,18 +4,10 @@ import { seedDatabase } from '@/lib/supabase/seed';
 /**
  * POST /api/admin/seed
  * 
- * Seeds the database with initial data from the provided JSON structure
- * This is an admin-only endpoint that should be protected in production
+ * Seeds the database with master/global data only.
  * 
- * Request body should contain the seed data structure:
- * {
- *   "metadata": {...},
- *   "phases": [...],
- *   "subjects": [...],
- *   "dailyRoadmap": [...],
- *   "mockTestTemplates": [...],
- *   "pyqSchemaSample": [...]
- * }
+ * User-specific daily plans must be generated after onboarding and should not
+ * be seeded as fixed Day 1 / Day 2 / Day 3 records.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -37,18 +29,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse the seed data from request body
     const seedData = await request.json();
 
-    // Validate required fields
-    if (!seedData.subjects && !seedData.dailyRoadmap && !seedData.pyqSchemaSample) {
+    if (seedData.dailyRoadmap || seedData.dailyPlans || seedData.dailyTasks) {
       return NextResponse.json(
-        { error: 'Invalid seed data: missing required fields' },
+        { error: 'Static daily plan seeding is not allowed. Seed only master data.' },
         { status: 400 }
       );
     }
 
-    // Run seeding
+    if (!seedData.exams && !seedData.subjects && !seedData.chapters && !seedData.pyqQuestions && !seedData.quotes) {
+      return NextResponse.json(
+        { error: 'Invalid seed data: missing master data fields' },
+        { status: 400 }
+      );
+    }
+
     const success = await seedDatabase(seedData);
 
     if (success) {
@@ -57,9 +53,9 @@ export async function POST(request: NextRequest) {
           message: 'Database seeded successfully',
           data: {
             subjectsSeeded: seedData.subjects?.length || 0,
-            phasesSeeded: seedData.phases?.length || 0,
-            daysSeeded: seedData.dailyRoadmap?.length || 0,
-            pyqsSeeded: seedData.pyqSchemaSample?.length || 0,
+            examsSeeded: seedData.exams?.length || 0,
+            chaptersSeeded: seedData.chapters?.length || 0,
+            pyqsSeeded: seedData.pyqQuestions?.length || 0,
           }
         },
         { status: 200 }

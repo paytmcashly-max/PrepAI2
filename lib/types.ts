@@ -19,8 +19,12 @@ export interface Subject {
 
 export interface Chapter {
   id: string
+  exam_id: string | null
   subject_id: string
   name: string
+  priority: 'low' | 'medium' | 'high'
+  difficulty: 'easy' | 'medium' | 'hard'
+  estimated_minutes: number
   order_index: number
   created_at: string
 }
@@ -63,10 +67,49 @@ export interface Profile {
   id: string
   full_name: string | null
   exam_target: string | null
+  target_days: number
   daily_study_hours: number
   start_date: string | null
+  maths_level: 'weak' | 'average' | 'good'
+  physical_level: 'weak' | 'average' | 'good'
+  english_background: boolean
+  current_education: string | null
+  onboarding_completed: boolean
   created_at: string
   updated_at: string
+}
+
+export interface UserStudyPlan {
+  id: string
+  user_id: string
+  exam_id: string
+  target_days: number
+  daily_study_hours: number
+  start_date: string
+  status: 'active' | 'paused' | 'completed' | 'archived'
+  created_at: string
+}
+
+export interface UserDailyTask {
+  id: string
+  user_id: string
+  plan_id: string
+  day_number: number
+  task_date: string
+  exam_id: string
+  subject_id: string | null
+  chapter_id: string | null
+  title: string
+  description: string | null
+  task_type: 'concept' | 'practice' | 'revision' | 'mock' | 'physical' | 'pyq' | 'notes'
+  estimated_minutes: number
+  priority: 'low' | 'medium' | 'high'
+  how_to_study: string[]
+  status: 'pending' | 'completed' | 'skipped'
+  completed_at: string | null
+  created_at: string
+  subject?: Subject | null
+  chapter?: Chapter | null
 }
 
 export interface TaskCompletion {
@@ -130,12 +173,14 @@ export interface Note {
   user_id: string
   title: string
   subject_id: string | null
+  chapter_id: string | null
   chapter: string | null
   content: string | null
   tags: string[]
   created_at: string
   updated_at: string
   subject?: Subject
+  chapter_ref?: Chapter | null
 }
 
 export interface PYQQuestion {
@@ -143,6 +188,7 @@ export interface PYQQuestion {
   exam_id: string | null
   year: number
   subject_id: string | null
+  chapter_id: string | null
   chapter: string | null
   topic: string | null
   difficulty: 'easy' | 'medium' | 'hard'
@@ -173,6 +219,9 @@ export interface DashboardStats {
   avgMockScore: number
   currentDay: number
   totalDays: number
+  todayTaskCount?: number
+  todayCompletedCount?: number
+  planState?: 'starts-soon' | 'active' | 'completed' | 'missing'
 }
 
 export interface SubjectProgress {
@@ -182,6 +231,8 @@ export interface SubjectProgress {
   completedTasks: number
   totalTasks: number
   percentage: number
+  currentChapter?: string | null
+  weakChapters?: string[]
 }
 
 export interface WeeklyTaskData {
@@ -203,7 +254,7 @@ export interface DayTaskGroup {
   phaseId: string | null
   phaseName: string | null
   isRevisionDay: boolean
-  tasks: DailyTaskWithStatus[]
+  tasks: Array<DailyTaskWithStatus | UserDailyTask>
   completedCount: number
   totalCount: number
 }

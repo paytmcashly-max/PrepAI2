@@ -1,268 +1,278 @@
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/lib/supabase/admin'
+
+type Priority = 'low' | 'medium' | 'high'
+type Difficulty = 'easy' | 'medium' | 'hard'
+type TaskType = 'concept' | 'practice' | 'revision' | 'mock' | 'physical' | 'pyq' | 'notes'
+
+type SeedExam = {
+  id: string
+  name: string
+  level?: string | null
+  focus?: string[]
+  selectionStages?: string[]
+  selection_stages?: string[]
+}
 
 type SeedSubject = {
-  id: string;
-  name: string;
-  icon?: string | null;
-  color?: string | null;
-  chapters?: { id?: string; name: string; order?: number; order_index?: number }[];
-};
+  id: string
+  name: string
+  icon?: string | null
+  color?: string | null
+}
 
-type SeedPhase = {
-  id: string;
-  name: string;
-  startDay?: number;
-  endDay?: number;
-  start_day?: number;
-  end_day?: number;
-  goal?: string | null;
-};
+type SeedChapter = {
+  id?: string
+  examId?: string
+  exam_id?: string
+  subjectId?: string
+  subject_id?: string
+  name: string
+  priority?: Priority
+  difficulty?: Difficulty
+  estimatedMinutes?: number
+  estimated_minutes?: number
+  orderIndex?: number
+  order_index?: number
+}
 
-type SeedTask = {
-  id?: string;
-  subjectId?: string | null;
-  subject_id?: string | null;
-  title: string;
-  chapter?: string | null;
-  task?: string | null;
-  howToStudy?: string[];
-  how_to_study?: string[];
-  estimatedMinutes?: number;
-  estimated_minutes?: number;
-  priority?: 'low' | 'medium' | 'high';
-  order?: number;
-  order_index?: number;
-};
+type SeedTaskTemplate = {
+  id?: string
+  examId?: string | null
+  exam_id?: string | null
+  subjectId?: string | null
+  subject_id?: string | null
+  taskType?: TaskType
+  task_type?: TaskType
+  titleTemplate?: string
+  title_template?: string
+  descriptionTemplate?: string | null
+  description_template?: string | null
+  estimatedMinutes?: number
+  estimated_minutes?: number
+  priority?: Priority
+}
 
-type SeedDailyPlan = {
-  id?: string;
-  day?: number;
-  dayNumber?: number;
-  phaseId?: string | null;
-  phase_id?: string | null;
-  isRevisionDay?: boolean;
-  is_revision_day?: boolean;
-  tasks?: SeedTask[];
-};
+type SeedRule = {
+  examId?: string
+  exam_id?: string
+  frequency?: string
+  startAfterPhase?: string
+  start_after_phase?: string
+  frequencyDays?: number
+  frequency_days?: number
+  mockType?: string
+  mock_type?: string
+  level?: 'weak' | 'average' | 'good'
+  ruleConfig?: Record<string, unknown>
+  rule_config?: Record<string, unknown>
+}
 
 type SeedPYQ = {
-  id?: string;
-  examId?: string | null;
-  exam_id?: string | null;
-  year: number;
-  subjectId?: string | null;
-  subject_id?: string | null;
-  chapter?: string | null;
-  topic?: string | null;
-  difficulty?: 'easy' | 'medium' | 'hard';
-  question: string;
-  options?: string[];
-  answer?: string | null;
-  explanation?: string | null;
-  source?: string | null;
-  frequency?: number;
-};
+  id?: string
+  examId?: string | null
+  exam_id?: string | null
+  year: number
+  subjectId?: string | null
+  subject_id?: string | null
+  chapterId?: string | null
+  chapter_id?: string | null
+  difficulty?: Difficulty
+  question: string
+  options?: unknown
+  answer?: string | null
+  explanation?: string | null
+  source?: 'ai_generated' | 'verified_pyq' | string | null
+  isVerified?: boolean
+  is_verified?: boolean
+}
 
 export interface SeedData {
-  phases?: SeedPhase[];
-  subjects?: SeedSubject[];
-  chapters?: Record<string, string[]>;
-  dailyRoadmap?: SeedDailyPlan[];
-  pyqSchemaSample?: SeedPYQ[];
-  quotes?: { quote: string; author?: string | null }[];
+  exams?: SeedExam[]
+  subjects?: SeedSubject[]
+  chapters?: SeedChapter[]
+  taskTemplates?: SeedTaskTemplate[]
+  task_templates?: SeedTaskTemplate[]
+  revisionRules?: SeedRule[]
+  revision_rules?: SeedRule[]
+  mockRules?: SeedRule[]
+  mock_rules?: SeedRule[]
+  physicalRules?: SeedRule[]
+  physical_rules?: SeedRule[]
+  pyqQuestions?: SeedPYQ[]
+  pyq_questions?: SeedPYQ[]
+  quotes?: { id?: string; quote: string; author?: string | null }[]
 }
 
 function slugify(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
 export async function seedDatabase(data: SeedData) {
-  const supabase = createAdminClient();
+  const supabase = createAdminClient()
 
   try {
-    if (data.subjects?.length) {
-      for (const subject of data.subjects) {
-        const { error } = await supabase
-          .from('subjects')
-          .upsert(
-            {
-              id: subject.id,
-              name: subject.name,
-              icon: subject.icon ?? null,
-              color: subject.color ?? null,
-            },
-            { onConflict: 'id' },
-          );
+    for (const exam of data.exams || []) {
+      const { error } = await supabase
+        .from('exams')
+        .upsert({
+          id: exam.id,
+          name: exam.name,
+          level: exam.level ?? null,
+          focus: exam.focus ?? [],
+          selection_stages: exam.selection_stages ?? exam.selectionStages ?? [],
+        }, { onConflict: 'id' })
 
-        if (error) throw error;
+      if (error) throw error
+    }
 
-        const chapterList = subject.chapters?.map(chapter => ({
-          id: chapter.id ?? `${subject.id}-${slugify(chapter.name)}`,
+    for (const subject of data.subjects || []) {
+      const { error } = await supabase
+        .from('subjects')
+        .upsert({
+          id: subject.id,
+          name: subject.name,
+          icon: subject.icon ?? null,
+          color: subject.color ?? null,
+        }, { onConflict: 'id' })
+
+      if (error) throw error
+    }
+
+    for (const [index, chapter] of (data.chapters || []).entries()) {
+      const examId = chapter.exam_id ?? chapter.examId
+      const subjectId = chapter.subject_id ?? chapter.subjectId
+
+      if (!examId || !subjectId) {
+        throw new Error(`Chapter "${chapter.name}" is missing examId or subjectId.`)
+      }
+
+      const { error } = await supabase
+        .from('chapters')
+        .upsert({
+          id: chapter.id ?? `${examId}-${subjectId}-${slugify(chapter.name)}`,
+          exam_id: examId,
+          subject_id: subjectId,
           name: chapter.name,
-          order_index: chapter.order_index ?? chapter.order ?? 0,
-        })) ?? data.chapters?.[subject.id]?.map((name, index) => ({
-          id: `${subject.id}-${slugify(name)}`,
-          name,
-          order_index: index + 1,
-        })) ?? [];
+          priority: chapter.priority ?? 'medium',
+          difficulty: chapter.difficulty ?? 'medium',
+          estimated_minutes: chapter.estimated_minutes ?? chapter.estimatedMinutes ?? 45,
+          order_index: chapter.order_index ?? chapter.orderIndex ?? index + 1,
+        }, { onConflict: 'id' })
 
-        for (const chapter of chapterList) {
-          const { error: chapterError } = await supabase
-            .from('chapters')
-            .upsert(
-              {
-                id: chapter.id,
-                subject_id: subject.id,
-                name: chapter.name,
-                order_index: chapter.order_index,
-              },
-              { onConflict: 'id' },
-            );
-
-          if (chapterError) throw chapterError;
-        }
-      }
+      if (error) throw error
     }
 
-    if (data.phases?.length) {
-      for (const phase of data.phases) {
-        const { error } = await supabase
-          .from('roadmap_phases')
-          .upsert(
-            {
-              id: phase.id,
-              name: phase.name,
-              start_day: phase.start_day ?? phase.startDay ?? 1,
-              end_day: phase.end_day ?? phase.endDay ?? 1,
-              goal: phase.goal ?? null,
-            },
-            { onConflict: 'id' },
-          );
+    for (const template of data.task_templates ?? data.taskTemplates ?? []) {
+      const title = template.title_template ?? template.titleTemplate
+      if (!title) throw new Error('Task template is missing titleTemplate.')
 
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from('task_templates')
+        .upsert({
+          ...(template.id ? { id: template.id } : {}),
+          exam_id: template.exam_id ?? template.examId ?? null,
+          subject_id: template.subject_id ?? template.subjectId ?? null,
+          task_type: template.task_type ?? template.taskType ?? 'concept',
+          title_template: title,
+          description_template: template.description_template ?? template.descriptionTemplate ?? null,
+          estimated_minutes: template.estimated_minutes ?? template.estimatedMinutes ?? 30,
+          priority: template.priority ?? 'medium',
+        })
+
+      if (error) throw error
     }
 
-    if (data.dailyRoadmap?.length) {
-      for (const dayData of data.dailyRoadmap) {
-        const day = dayData.day ?? dayData.dayNumber ?? 1;
-        const planId = dayData.id ?? `day-${day}`;
-        const { data: plan, error } = await supabase
-          .from('daily_plans')
-          .upsert(
-            {
-              id: planId,
-              day,
-              phase_id: dayData.phase_id ?? dayData.phaseId ?? null,
-              is_revision_day: dayData.is_revision_day ?? dayData.isRevisionDay ?? false,
-            },
-            { onConflict: 'id' },
-          )
-          .select('id')
-          .single();
+    for (const rule of data.revision_rules ?? data.revisionRules ?? []) {
+      const examId = rule.exam_id ?? rule.examId
+      if (!examId) throw new Error('Revision rule is missing examId.')
 
-        if (error) throw error;
+      await supabase.from('revision_rules').delete().eq('exam_id', examId)
 
-        for (const [index, task] of (dayData.tasks ?? []).entries()) {
-          const { error: taskError } = await supabase
-            .from('daily_tasks')
-            .upsert(
-              {
-                id: task.id ?? `${plan.id}-task-${index + 1}`,
-                daily_plan_id: plan.id,
-                subject_id: task.subject_id ?? task.subjectId ?? null,
-                title: task.title,
-                chapter: task.chapter ?? null,
-                task: task.task ?? null,
-                how_to_study: task.how_to_study ?? task.howToStudy ?? [],
-                estimated_minutes: task.estimated_minutes ?? task.estimatedMinutes ?? 30,
-                priority: task.priority ?? 'medium',
-                order_index: task.order_index ?? task.order ?? index + 1,
-              },
-              { onConflict: 'id' },
-            );
+      const { error } = await supabase
+        .from('revision_rules')
+        .insert({
+          exam_id: examId,
+          frequency: rule.frequency ?? 'weekly',
+          rule_config: rule.rule_config ?? rule.ruleConfig ?? {},
+        })
 
-          if (taskError) throw taskError;
-        }
-      }
+      if (error) throw error
     }
 
-    if (data.pyqSchemaSample?.length) {
-      for (const [index, pyq] of data.pyqSchemaSample.entries()) {
-        const { error } = await supabase
-          .from('pyq_questions')
-          .upsert(
-            {
-              id: pyq.id ?? `pyq-${index + 1}`,
-              exam_id: pyq.exam_id ?? pyq.examId ?? null,
-              year: pyq.year,
-              subject_id: pyq.subject_id ?? pyq.subjectId ?? null,
-              chapter: pyq.chapter ?? null,
-              topic: pyq.topic ?? null,
-              difficulty: pyq.difficulty ?? 'medium',
-              question: pyq.question,
-              options: pyq.options ?? [],
-              answer: pyq.answer ?? null,
-              explanation: pyq.explanation ?? null,
-              source: pyq.source ?? null,
-              is_verified: false,
-              frequency: pyq.frequency ?? 1,
-            },
-            { onConflict: 'id' },
-          );
+    for (const rule of data.mock_rules ?? data.mockRules ?? []) {
+      const examId = rule.exam_id ?? rule.examId
+      if (!examId) throw new Error('Mock rule is missing examId.')
 
-        if (error) throw error;
-      }
+      await supabase.from('mock_rules').delete().eq('exam_id', examId)
+
+      const { error } = await supabase
+        .from('mock_rules')
+        .insert({
+          exam_id: examId,
+          start_after_phase: rule.start_after_phase ?? rule.startAfterPhase ?? 'foundation',
+          frequency_days: rule.frequency_days ?? rule.frequencyDays ?? 7,
+          mock_type: rule.mock_type ?? rule.mockType ?? 'sectional',
+        })
+
+      if (error) throw error
     }
 
-    if (data.quotes?.length) {
-      for (const [index, quote] of data.quotes.entries()) {
-        const { error } = await supabase
-          .from('motivational_quotes')
-          .upsert(
-            {
-              id: `quote-${index + 1}`,
-              quote: quote.quote,
-              author: quote.author ?? null,
-            },
-            { onConflict: 'id' },
-          );
+    for (const rule of data.physical_rules ?? data.physicalRules ?? []) {
+      const examId = rule.exam_id ?? rule.examId
+      if (!examId || !rule.level) throw new Error('Physical rule is missing examId or level.')
 
-        if (error) throw error;
-      }
+      await supabase.from('physical_rules').delete().eq('exam_id', examId).eq('level', rule.level)
+
+      const { error } = await supabase
+        .from('physical_rules')
+        .insert({
+          exam_id: examId,
+          level: rule.level,
+          rule_config: rule.rule_config ?? rule.ruleConfig ?? {},
+        })
+
+      if (error) throw error
     }
 
-    return true;
+    for (const [index, pyq] of (data.pyq_questions ?? data.pyqQuestions ?? []).entries()) {
+      const source = pyq.source ?? 'ai_generated'
+      const isVerified = source === 'verified_pyq' ? pyq.is_verified ?? pyq.isVerified ?? true : false
+
+      const { error } = await supabase
+        .from('pyq_questions')
+        .upsert({
+          id: pyq.id ?? `pyq-${index + 1}`,
+          exam_id: pyq.exam_id ?? pyq.examId ?? null,
+          year: pyq.year,
+          subject_id: pyq.subject_id ?? pyq.subjectId ?? null,
+          chapter_id: pyq.chapter_id ?? pyq.chapterId ?? null,
+          difficulty: pyq.difficulty ?? 'medium',
+          question: pyq.question,
+          options: pyq.options ?? [],
+          answer: pyq.answer ?? null,
+          explanation: pyq.explanation ?? null,
+          source,
+          is_verified: isVerified,
+        }, { onConflict: 'id' })
+
+      if (error) throw error
+    }
+
+    for (const [index, quote] of (data.quotes || []).entries()) {
+      const { error } = await supabase
+        .from('motivational_quotes')
+        .upsert({
+          id: quote.id ?? `quote-${index + 1}`,
+          quote: quote.quote,
+          author: quote.author ?? null,
+        }, { onConflict: 'id' })
+
+      if (error) throw error
+    }
+
+    return true
   } catch (error) {
-    console.error('[v0] Fatal error during seeding:', error);
-    return false;
+    console.error('[seed] Fatal error during master seeding:', error)
+    return false
   }
-}
-
-export async function createUserProfile(
-  userId: string,
-  fullName: string,
-  examTarget: string,
-  dailyStudyHours: number = 3,
-  startDate: string = new Date().toISOString().split('T')[0],
-) {
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from('profiles')
-    .insert({
-      id: userId,
-      full_name: fullName,
-      exam_target: examTarget,
-      daily_study_hours: dailyStudyHours,
-      start_date: startDate,
-    });
-
-  if (error) {
-    console.error('[v0] Error creating user profile:', error);
-    return false;
-  }
-
-  return true;
 }

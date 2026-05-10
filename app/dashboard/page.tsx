@@ -11,6 +11,9 @@ const fallbackStats: DashboardStats = {
   avgMockScore: 0,
   currentDay: 1,
   totalDays: 180,
+  todayTaskCount: 0,
+  todayCompletedCount: 0,
+  planState: 'missing',
 }
 
 function valueOrFallback<T>(result: PromiseSettledResult<T>, fallback: T, label: string) {

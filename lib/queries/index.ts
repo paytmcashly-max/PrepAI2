@@ -16,7 +16,15 @@ import type {
   SubjectProgress,
   DayTaskGroup,
   DailyTaskWithStatus,
+  UserDailyTask,
 } from '@/lib/types'
+
+function getCalendarDay(startDate: string) {
+  const start = new Date(`${startDate}T00:00:00`)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+}
 
 // ============ SUBJECTS ============
 export async function getSubjects(): Promise<Subject[]> {
@@ -127,65 +135,51 @@ export async function getTasksForDay(day: number): Promise<DailyTask[]> {
 
 export async function getAllTasksWithPlans(): Promise<DayTaskGroup[]> {
   const supabase = await createClient()
-  
-  const { data: plans, error: plansError } = await supabase
-    .from('daily_plans')
-    .select('*, phase:roadmap_phases(*)')
-    .order('day')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
 
-  if (plansError) throw plansError
+  const { data: plan, error: planError } = await supabase
+    .from('user_study_plans')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (planError?.code === 'PGRST205') return []
+  if (planError && planError.code !== 'PGRST116') throw planError
+  if (!plan) return []
 
   const { data: tasks, error: tasksError } = await supabase
-    .from('daily_tasks')
-    .select('*, subject:subjects(*)')
-    .order('order_index')
+    .from('user_daily_tasks')
+    .select('*, subject:subjects(*), chapter:chapters(*)')
+    .eq('user_id', user.id)
+    .eq('plan_id', plan.id)
+    .order('day_number')
+    .order('created_at')
 
+  if (tasksError?.code === 'PGRST205') return []
   if (tasksError) throw tasksError
 
-  // Get current user for task completions
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  let completions: Record<string, { completed: boolean; completed_at: string | null }> = {}
-  
-  if (user) {
-    const { data: completionData } = await supabase
-      .from('task_completions')
-      .select('daily_task_id, completed, completed_at')
-      .eq('user_id', user.id)
-
-    if (completionData) {
-      completions = completionData.reduce((acc, c) => {
-        acc[c.daily_task_id] = { completed: c.completed, completed_at: c.completed_at }
-        return acc
-      }, {} as Record<string, { completed: boolean; completed_at: string | null }>)
-    }
-  }
-
-  // Group tasks by daily plan
-  const tasksByPlan = (tasks || []).reduce((acc, task) => {
-    if (!acc[task.daily_plan_id]) acc[task.daily_plan_id] = []
-    acc[task.daily_plan_id].push(task)
+  const grouped = ((tasks || []) as UserDailyTask[]).reduce((acc, task) => {
+    acc[task.day_number] = acc[task.day_number] || []
+    acc[task.day_number].push(task)
     return acc
-  }, {} as Record<string, DailyTask[]>)
+  }, {} as Record<number, UserDailyTask[]>)
 
-  return (plans || []).map(plan => {
-    const planTasks = tasksByPlan[plan.id] || []
-    const tasksWithStatus: DailyTaskWithStatus[] = planTasks.map((t: DailyTask) => ({
-      ...t,
-      isCompleted: completions[t.id]?.completed || false,
-      completedAt: completions[t.id]?.completed_at || null,
-    }))
-
+  return Object.entries(grouped).map(([day, dayTasks]) => {
+    const dayNumber = Number(day)
     return {
-      id: plan.id,
-      day: plan.day,
-      date: new Date(Date.now() + (plan.day - 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      phaseId: plan.phase_id,
-      phaseName: plan.phase?.name || null,
-      isRevisionDay: plan.is_revision_day,
-      tasks: tasksWithStatus,
-      completedCount: tasksWithStatus.filter(t => t.isCompleted).length,
-      totalCount: tasksWithStatus.length,
+      id: `${plan.id}-${day}`,
+      day: dayNumber,
+      date: dayTasks[0]?.task_date || plan.start_date,
+      phaseId: null,
+      phaseName: null,
+      isRevisionDay: dayTasks.some((task) => task.task_type === 'revision'),
+      tasks: dayTasks,
+      completedCount: dayTasks.filter((task) => task.status === 'completed').length,
+      totalCount: dayTasks.length,
     }
   })
 }
@@ -261,7 +255,7 @@ export async function getUserNotes(userId: string): Promise<Note[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('notes')
-    .select('*, subject:subjects(*)')
+    .select('*, subject:subjects(*), chapter_ref:chapters(*)')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
 
@@ -335,25 +329,47 @@ export async function getRandomQuote(): Promise<MotivationalQuote | null> {
 export async function getDashboardStats(userId: string): Promise<DashboardStats> {
   const supabase = await createClient()
 
-  // Get user profile for start date
   const profile = await getProfile(userId)
-  const startDate = profile?.start_date ? new Date(profile.start_date) : new Date()
-  const today = new Date()
-  const currentDay = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
-
-  // Get task completions for streak calculation
-  const { data: completions } = await supabase
-    .from('task_completions')
-    .select('completed_at')
+  const { data: plan } = await supabase
+    .from('user_study_plans')
+    .select('*')
     .eq('user_id', userId)
-    .eq('completed', true)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!profile?.start_date || !plan) {
+    return {
+      currentStreak: 0,
+      tasksCompletedThisMonth: 0,
+      topicsCovered: 0,
+      totalTopics: 0,
+      avgMockScore: 0,
+      currentDay: 0,
+      totalDays: profile?.target_days || 0,
+      todayTaskCount: 0,
+      todayCompletedCount: 0,
+      planState: 'missing',
+    }
+  }
+
+  const rawCurrentDay = getCalendarDay(profile.start_date)
+  const currentDay = Math.min(Math.max(rawCurrentDay, 1), plan.target_days)
+  const planState = rawCurrentDay < 1 ? 'starts-soon' : rawCurrentDay > plan.target_days ? 'completed' : 'active'
+
+  const { data: completedTasks } = await supabase
+    .from('user_daily_tasks')
+    .select('task_date, completed_at, chapter_id')
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .eq('status', 'completed')
     .order('completed_at', { ascending: false })
 
-  // Calculate streak
   let currentStreak = 0
-  if (completions && completions.length > 0) {
+  if (completedTasks && completedTasks.length > 0) {
     const completedDates = new Set(
-      completions.map(c => c.completed_at?.split('T')[0]).filter(Boolean)
+      completedTasks.map(task => task.task_date).filter(Boolean)
     )
     
     const checkDate = new Date()
@@ -363,40 +379,30 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
     }
   }
 
-  // Get tasks completed this month
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
+  const today = new Date()
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
   const { count: tasksThisMonth } = await supabase
-    .from('task_completions')
+    .from('user_daily_tasks')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('completed', true)
-    .gte('completed_at', monthStart)
+    .eq('plan_id', plan.id)
+    .eq('status', 'completed')
+    .gte('task_date', monthStart)
 
-  // Get total topics (chapters) and covered topics
   const { count: totalTopics } = await supabase
     .from('chapters')
     .select('*', { count: 'exact', head: true })
+    .eq('exam_id', plan.exam_id)
 
-  // Topics covered based on completed tasks with chapters
-  const { data: completedTaskChapters } = await supabase
-    .from('task_completions')
-    .select('daily_task_id')
+  const topicsCovered = new Set((completedTasks || []).map(task => task.chapter_id).filter(Boolean)).size
+
+  const { data: todayTasks } = await supabase
+    .from('user_daily_tasks')
+    .select('status')
     .eq('user_id', userId)
-    .eq('completed', true)
+    .eq('plan_id', plan.id)
+    .eq('day_number', currentDay)
 
-  let topicsCovered = 0
-  if (completedTaskChapters && completedTaskChapters.length > 0) {
-    const taskIds = completedTaskChapters.map(c => c.daily_task_id)
-    const { data: tasksWithChapters } = await supabase
-      .from('daily_tasks')
-      .select('chapter')
-      .in('id', taskIds)
-      .not('chapter', 'is', null)
-
-    topicsCovered = new Set(tasksWithChapters?.map(t => t.chapter)).size
-  }
-
-  // Get average mock test score
   const { data: attempts } = await supabase
     .from('mock_test_attempts')
     .select('marks_obtained, total_marks')
@@ -411,14 +417,6 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
     avgMockScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
   }
 
-  // Get total days in roadmap
-  const { data: lastPlan } = await supabase
-    .from('daily_plans')
-    .select('day')
-    .order('day', { ascending: false })
-    .limit(1)
-    .single()
-
   return {
     currentStreak,
     tasksCompletedThisMonth: tasksThisMonth || 0,
@@ -426,41 +424,85 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
     totalTopics: totalTopics || 0,
     avgMockScore: Math.round(avgMockScore * 10) / 10,
     currentDay,
-    totalDays: lastPlan?.day || 180,
+    totalDays: plan.target_days,
+    todayTaskCount: todayTasks?.length || 0,
+    todayCompletedCount: todayTasks?.filter(task => task.status === 'completed').length || 0,
+    planState,
   }
 }
 
 export async function getSubjectProgress(userId: string): Promise<SubjectProgress[]> {
   const supabase = await createClient()
 
-  const subjects = await getSubjects()
-  
-  // Get all tasks grouped by subject
-  const { data: allTasks } = await supabase
-    .from('daily_tasks')
-    .select('id, subject_id')
-
-  // Get user's completed tasks
-  const { data: completedTasks } = await supabase
-    .from('task_completions')
-    .select('daily_task_id')
+  const { data: plan } = await supabase
+    .from('user_study_plans')
+    .select('id')
     .eq('user_id', userId)
-    .eq('completed', true)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
 
-  const completedTaskIds = new Set(completedTasks?.map(c => c.daily_task_id) || [])
+  if (!plan) return []
 
-  return subjects.map(subject => {
-    const subjectTasks = allTasks?.filter(t => t.subject_id === subject.id) || []
-    const completedCount = subjectTasks.filter(t => completedTaskIds.has(t.id)).length
+  const { data: tasks, error } = await supabase
+    .from('user_daily_tasks')
+    .select('subject_id, status, chapter:chapters(name), subject:subjects(id, name, color)')
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .not('subject_id', 'is', null)
+
+  if (error) throw error
+
+  const normalizedTasks = ((tasks || []) as unknown as Array<{
+    subject_id: string
+    status: string
+    chapter: { name: string } | Array<{ name: string }> | null
+    subject: { id: string; name: string; color: string | null } | Array<{ id: string; name: string; color: string | null }> | null
+  }>).map((task) => ({
+    subject_id: task.subject_id,
+    status: task.status,
+    chapter: Array.isArray(task.chapter) ? task.chapter[0] || null : task.chapter,
+    subject: Array.isArray(task.subject) ? task.subject[0] || null : task.subject,
+  }))
+
+  const bySubject = normalizedTasks.reduce((acc, task) => {
+    acc[task.subject_id] = acc[task.subject_id] || {
+      id: task.subject_id,
+      name: task.subject?.name || task.subject_id,
+      color: task.subject?.color || '#3B82F6',
+      tasks: [],
+    }
+    acc[task.subject_id].tasks.push(task)
+    return acc
+  }, {} as Record<string, {
+    id: string
+    name: string
+    color: string
+    tasks: Array<{ status: string; chapter: { name: string } | null }>
+  }>)
+
+  return Object.values(bySubject).map(subject => {
+    const subjectTasks = subject.tasks
+    const completedCount = subjectTasks.filter(task => task.status === 'completed').length
     const totalCount = subjectTasks.length
+    const activeTask = subjectTasks.find(task => task.status !== 'completed')
+    const weakChapters = [...new Set(
+      subjectTasks
+        .filter(task => task.status !== 'completed' && task.chapter?.name)
+        .map(task => task.chapter?.name)
+        .filter(Boolean) as string[]
+    )].slice(0, 3)
 
     return {
       id: subject.id,
       name: subject.name,
-      color: subject.color || '#3B82F6',
+      color: subject.color,
       completedTasks: completedCount,
       totalTasks: totalCount,
       percentage: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
+      currentChapter: activeTask?.chapter?.name || null,
+      weakChapters,
     }
   })
 }

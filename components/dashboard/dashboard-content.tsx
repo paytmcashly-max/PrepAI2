@@ -36,6 +36,15 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
     name: s.name,
     value: s.percentage,
   }))
+  const planPercent = stats.totalDays > 0 ? Math.round((stats.currentDay / stats.totalDays) * 100) : 0
+  const todayPercent = stats.todayTaskCount ? Math.round(((stats.todayCompletedCount || 0) / stats.todayTaskCount) * 100) : 0
+  const planMessage = stats.planState === 'starts-soon'
+    ? 'Your plan starts soon.'
+    : stats.planState === 'completed'
+      ? 'Plan completed. Keep revising weak areas.'
+      : stats.planState === 'missing'
+        ? 'Complete onboarding to generate your plan.'
+        : `Day ${stats.currentDay} of ${stats.totalDays} - Keep pushing forward!`
 
   return (
     <div className="p-6 space-y-6">
@@ -44,7 +53,7 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
-            Day {stats.currentDay} of {stats.totalDays} - Keep pushing forward!
+            {planMessage}
           </p>
         </div>
         {quote && (
@@ -134,12 +143,17 @@ export function DashboardContent({ stats, subjectProgress, quote }: DashboardCon
           <CardDescription>Day {stats.currentDay} of {stats.totalDays} days</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className="space-y-4">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Roadmap Completion</span>
-              <span className="font-medium">{Math.round((stats.currentDay / stats.totalDays) * 100)}%</span>
+              <span className="font-medium">{planPercent}%</span>
             </div>
-            <Progress value={(stats.currentDay / stats.totalDays) * 100} className="h-2" />
+            <Progress value={planPercent} className="h-2" />
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Today&apos;s Tasks</span>
+              <span className="font-medium">{stats.todayCompletedCount || 0}/{stats.todayTaskCount || 0}</span>
+            </div>
+            <Progress value={todayPercent} className="h-2" />
           </div>
         </CardContent>
       </Card>

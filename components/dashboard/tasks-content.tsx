@@ -43,6 +43,24 @@ const priorityColors: Record<string, string> = {
   'low': 'bg-green-500/10 text-green-600',
 }
 
+type RenderTask = DayTaskGroup['tasks'][number]
+
+function readCompleted(task: RenderTask) {
+  if ('status' in task) return task.status === 'completed'
+  return task.isCompleted
+}
+
+function readChapterName(task: RenderTask): string | null {
+  if (!('chapter' in task)) return null
+  if (typeof task.chapter === 'string') return task.chapter
+  return task.chapter?.name || null
+}
+
+function readDescription(task: RenderTask) {
+  if ('description' in task) return task.description
+  return 'task' in task ? task.task : null
+}
+
 export function TasksContent({ dayGroups }: TasksContentProps) {
   const [expandedDays, setExpandedDays] = useState<string[]>(
     dayGroups.length > 0 ? [dayGroups[0].id] : []
@@ -84,7 +102,7 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
 
   const totalTasks = dayGroups.reduce((sum, day) => sum + day.totalCount, 0)
   const completedTasks = dayGroups.reduce((sum, day) => {
-    return sum + day.tasks.filter(t => getCompletionStatus(t.id, t.isCompleted)).length
+    return sum + day.tasks.filter(t => getCompletionStatus(t.id, readCompleted(t))).length
   }, 0)
   const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
@@ -127,7 +145,7 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
         ) : (
           dayGroups.map((dayGroup) => {
             const dayCompletedCount = dayGroup.tasks.filter(
-              t => getCompletionStatus(t.id, t.isCompleted)
+              t => getCompletionStatus(t.id, readCompleted(t))
             ).length
 
             return (
@@ -167,20 +185,23 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
                 {expandedDays.includes(dayGroup.id) && (
                   <div className="space-y-3 pl-6 pt-3 pb-1">
                     {dayGroup.tasks.map((task) => {
-                      const isCompleted = getCompletionStatus(task.id, task.isCompleted)
+                      const taskCompleted = getCompletionStatus(task.id, readCompleted(task))
+                      const chapterName = readChapterName(task)
+                      const description = readDescription(task)
+                      const studySteps = Array.isArray(task.how_to_study) ? task.how_to_study : []
                       
                       return (
                         <Card
                           key={task.id}
                           className={cn(
                             "transition-opacity",
-                            isCompleted && "opacity-60"
+                            taskCompleted && "opacity-60"
                           )}
                         >
                           <CardContent className="p-4 flex items-start gap-4">
                             <Checkbox
-                              checked={isCompleted}
-                              onCheckedChange={() => handleToggleTask(task.id, isCompleted)}
+                              checked={taskCompleted}
+                              onCheckedChange={() => handleToggleTask(task.id, taskCompleted)}
                               disabled={isPending}
                               className="mt-1"
                             />
@@ -198,26 +219,26 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
                                     <span className="ml-1">{task.subject.name}</span>
                                   </Badge>
                                 )}
-                                {task.chapter && (
+                                {chapterName && (
                                   <span className="text-xs text-muted-foreground">
-                                    {task.chapter}
+                                    {chapterName}
                                   </span>
                                 )}
                               </div>
                               <h4 className={cn(
                                 "font-medium",
-                                isCompleted && "line-through text-muted-foreground"
+                                taskCompleted && "line-through text-muted-foreground"
                               )}>
                                 {task.title}
                               </h4>
-                              {task.task && (
+                              {description && (
                                 <p className="text-sm text-muted-foreground mt-1">
-                                  {task.task}
+                                  {description}
                                 </p>
                               )}
-                              {task.how_to_study && task.how_to_study.length > 0 && (
+                              {studySteps.length > 0 && (
                                 <ul className="mt-2 text-xs text-muted-foreground space-y-1">
-                                  {task.how_to_study.map((step, i) => (
+                                  {studySteps.map((step, i) => (
                                     <li key={i} className="flex items-start gap-2">
                                       <span className="text-primary">•</span>
                                       {step}
@@ -234,7 +255,7 @@ export function TasksContent({ dayGroups }: TasksContentProps) {
                               <Badge className={cn("text-xs", priorityColors[task.priority])}>
                                 {task.priority}
                               </Badge>
-                              {isCompleted && (
+                              {taskCompleted && (
                                 <CheckCircle2 className="h-5 w-5 text-green-500" />
                               )}
                             </div>
