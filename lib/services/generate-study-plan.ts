@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 type Level = 'weak' | 'average' | 'good'
 type Priority = 'low' | 'medium' | 'high'
 type TaskType = 'concept' | 'practice' | 'revision' | 'mock' | 'physical' | 'pyq' | 'notes'
+type PlanStatus = 'active' | 'generating'
 
 interface ChapterRow {
   id: string
@@ -23,6 +24,7 @@ interface GenerateStudyPlanInput {
   startDate: string
   mathsLevel: Level
   physicalLevel: Level
+  initialStatus?: PlanStatus
 }
 
 interface PlannedTask {
@@ -53,10 +55,74 @@ interface TaskTemplateRow {
   how_to_study: string[] | null
 }
 
+interface ExamSubjectRule {
+  subject_id: string
+  weight: number
+  is_core: boolean
+}
+
+interface PlannerRuleConfig {
+  phase_percentages?: Array<{
+    id: string
+    name: string
+    percentage: number
+    goal?: string
+  }>
+  chapter_selection?: Array<{
+    max_days: number
+    include_priorities: Priority[]
+  }>
+  level_adjustments?: {
+    maths_level?: Partial<Record<Level, {
+      extra_practice_multiplier?: number
+      concept_time_multiplier?: number
+    }>>
+    physical_level?: Partial<Record<Level, {
+      intensity_multiplier?: number
+    }>>
+  }
+}
+
+interface RevisionRuleRow {
+  frequency: string
+  rule_config: Record<string, unknown> | null
+}
+
+interface MockRuleRow {
+  start_after_phase: string | null
+  frequency_days: number | null
+  mock_type: string | null
+  rule_config: Record<string, unknown> | null
+}
+
+interface PhysicalRuleRow {
+  level: Level
+  rule_config: Record<string, unknown> | null
+}
+
+interface PhaseBoundary {
+  id: string
+  name: string
+  startDay: number
+  endDay: number
+}
+
+interface RuleContext {
+  planner: PlannerRuleConfig
+  examSubjects: ExamSubjectRule[]
+  revisionRules: RevisionRuleRow[]
+  mockRules: MockRuleRow[]
+  physicalRule: PhysicalRuleRow | null
+}
+
 const policePhysicalExams = new Set(['bihar_si', 'up_police', 'ssc_gd', 'bihar-si', 'up-police', 'ssc-gd'])
-const reasoningPriorityExams = new Set(['bihar_si', 'up_police', 'bihar-si', 'up-police'])
-const balancedPoliceExams = new Set(['bihar_si', 'up_police', 'bihar-si', 'up-police'])
 const baseSubjectOrder = ['maths', 'gk_gs', 'gk-gs', 'hindi', 'english', 'reasoning', 'general-awareness', 'computer']
+const fallbackPhaseRules = [
+  { id: 'foundation', name: 'Foundation', percentage: 25 },
+  { id: 'core_syllabus', name: 'Core Syllabus', percentage: 35 },
+  { id: 'practice', name: 'Practice', percentage: 25 },
+  { id: 'revision', name: 'Revision', percentage: 15 },
+]
 
 function addDays(dateValue: string, daysToAdd: number) {
   const date = new Date(`${dateValue}T00:00:00`)
@@ -64,143 +130,161 @@ function addDays(dateValue: string, daysToAdd: number) {
   return date.toISOString().split('T')[0]
 }
 
-function getPhase(day: number, targetDays: number) {
-  const foundationEnd = Math.ceil(targetDays * 0.25)
-  const coreEnd = foundationEnd + Math.ceil(targetDays * 0.35)
-  const practiceEnd = coreEnd + Math.ceil(targetDays * 0.25)
-
-  if (day <= foundationEnd) return 'Foundation'
-  if (day <= coreEnd) return 'Core Syllabus'
-  if (day <= practiceEnd) return 'Practice'
-  return 'Revision'
+function normalizeExamIds(examId: string) {
+  const alternateExamId = examId.includes('-')
+    ? examId.replaceAll('-', '_')
+    : examId.replaceAll('_', '-')
+  return [...new Set([examId, alternateExamId])]
 }
 
-function filterChaptersByDuration(chapters: ChapterRow[], targetDays: number) {
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+}
+
+function buildPhaseBoundaries(targetDays: number, planner: PlannerRuleConfig): PhaseBoundary[] {
+  const phaseRules = Array.isArray(planner.phase_percentages) && planner.phase_percentages.length > 0
+    ? planner.phase_percentages
+    : fallbackPhaseRules
+
+  let startDay = 1
+  return phaseRules.map((phase, index) => {
+    const isLast = index === phaseRules.length - 1
+    const days = isLast ? targetDays - startDay + 1 : Math.max(1, Math.round((targetDays * phase.percentage) / 100))
+    const endDay = isLast ? targetDays : Math.min(targetDays, startDay + days - 1)
+    const boundary = {
+      id: phase.id,
+      name: phase.name,
+      startDay,
+      endDay,
+    }
+    startDay = endDay + 1
+    return boundary
+  }).filter((phase) => phase.startDay <= phase.endDay)
+}
+
+function getPhase(day: number, phases: PhaseBoundary[]) {
+  return phases.find((phase) => day >= phase.startDay && day <= phase.endDay) || phases[phases.length - 1]
+}
+
+function getPhaseEnd(phases: PhaseBoundary[], phaseId: string | null | undefined) {
+  if (!phaseId) return 0
+  const normalized = phaseId.replaceAll('-', '_').toLowerCase()
+  return phases.find((phase) => phase.id.replaceAll('-', '_').toLowerCase() === normalized)?.endDay || 0
+}
+
+function getPhaseReviewDays(targetDays: number, revisionRules: RevisionRuleRow[]) {
+  const phaseReviewRule = revisionRules.find((rule) => rule.frequency === 'phase_review')
+  const percentages = Array.isArray(phaseReviewRule?.rule_config?.at_percentages)
+    ? phaseReviewRule.rule_config.at_percentages.filter((value): value is number => typeof value === 'number')
+    : [25, 50, 75, 100]
+
+  return new Set(percentages.map((percentage) => Math.max(1, Math.min(targetDays, Math.ceil((targetDays * percentage) / 100)))))
+}
+
+function getWeeklyRevisionFrequency(revisionRules: RevisionRuleRow[]) {
+  const weeklyRule = revisionRules.find((rule) => rule.frequency === 'weekly')
+  const everyNDays = weeklyRule?.rule_config?.every_n_days
+  return typeof everyNDays === 'number' && everyNDays > 0 ? everyNDays : 7
+}
+
+function getSpacedRevisionDays(targetDays: number, revisionRules: RevisionRuleRow[]) {
+  const spacedRule = revisionRules.find((rule) => rule.frequency === 'spaced_repetition')
+  const afterDays = Array.isArray(spacedRule?.rule_config?.after_days)
+    ? spacedRule.rule_config.after_days.filter((value): value is number => typeof value === 'number' && value > 1)
+    : []
+
+  return new Set(afterDays.filter((day) => day <= targetDays))
+}
+
+function filterChaptersByDuration(chapters: ChapterRow[], targetDays: number, planner: PlannerRuleConfig) {
+  const matchingRule = planner.chapter_selection
+    ?.filter((rule) => Number.isFinite(rule.max_days) && Array.isArray(rule.include_priorities))
+    .sort((a, b) => a.max_days - b.max_days)
+    .find((rule) => targetDays <= rule.max_days)
+
+  if (matchingRule) {
+    return chapters.filter((chapter) => matchingRule.include_priorities.includes(chapter.priority))
+  }
+
   if (targetDays <= 45) return chapters.filter((chapter) => chapter.priority === 'high')
   if (targetDays <= 90) return chapters.filter((chapter) => chapter.priority !== 'low')
   return chapters
 }
 
-function distributeSubjects(chapters: ChapterRow[], mathsLevel: Level) {
+function distributeSubjects(chapters: ChapterRow[], examSubjects: ExamSubjectRule[]) {
   const subjects = [...new Set(chapters.map((chapter) => chapter.subject_id))]
-  const ordered = baseSubjectOrder.filter((subject) => subjects.includes(subject))
-
-  if (mathsLevel === 'weak' && ordered.includes('maths')) {
-    return ['maths', ...ordered.filter((subject) => subject !== 'maths'), 'maths']
-  }
-
+  const seededOrder = examSubjects
+    .filter((rule) => subjects.includes(rule.subject_id) && rule.subject_id !== 'physical')
+    .sort((a, b) => b.weight - a.weight)
+    .map((rule) => rule.subject_id)
+  const ordered = seededOrder.length > 0
+    ? seededOrder
+    : baseSubjectOrder.filter((subject) => subjects.includes(subject))
   return ordered.length > 0 ? ordered : subjects
 }
 
-function firstAvailable(subjects: string[], candidates: string[]) {
-  return candidates.find((candidate) => subjects.includes(candidate))
-}
+function buildSubjectWeights(subjectOrder: string[], examSubjects: ExamSubjectRule[], mathsLevel: Level, planner: PlannerRuleConfig) {
+  const fallbackWeight = 10
+  const mathsBoost = planner.level_adjustments?.maths_level?.[mathsLevel]?.extra_practice_multiplier || 1
+  const weightBySubject = new Map(examSubjects.map((rule) => [rule.subject_id, Math.max(0, rule.weight)]))
 
-function resolvePoliceSubject(subjectOrder: string[], subjectKey: 'maths' | 'gk' | 'hindi' | 'reasoning') {
-  const candidates = {
-    maths: ['maths', 'quant', 'quantitative-aptitude'],
-    gk: ['gk_gs', 'gk-gs', 'general-awareness', 'ga'],
-    hindi: ['hindi'],
-    reasoning: ['reasoning'],
-  }[subjectKey]
-
-  return firstAvailable(subjectOrder, candidates)
-}
-
-function pickBalancedPoliceSubject(subjectOrder: string[], day: number, slot: number, academicTaskCount: number) {
-  const subjectByKey = {
-    maths: resolvePoliceSubject(subjectOrder, 'maths'),
-    gk: resolvePoliceSubject(subjectOrder, 'gk'),
-    hindi: resolvePoliceSubject(subjectOrder, 'hindi'),
-    reasoning: resolvePoliceSubject(subjectOrder, 'reasoning'),
-  }
-  const weekDay = (day - 1) % 7
-  const weeklyPattern: Array<Array<keyof typeof subjectByKey>> = academicTaskCount <= 2
-    ? [
-        ['maths', 'gk'],
-        ['gk', 'reasoning'],
-        ['maths', 'hindi'],
-        ['gk', 'reasoning'],
-        ['maths', 'hindi'],
-        ['gk', 'reasoning'],
-        ['maths', 'hindi'],
-      ]
-    : academicTaskCount === 3
-      ? [
-          ['maths', 'gk', 'hindi'],
-          ['gk', 'reasoning', 'maths'],
-          ['gk', 'hindi', 'reasoning'],
-          ['maths', 'gk', 'hindi'],
-          ['gk', 'reasoning', 'maths'],
-          ['gk', 'reasoning', 'hindi'],
-          ['maths', 'gk', 'reasoning'],
-        ]
-      : [
-          ['maths', 'gk', 'hindi', 'reasoning'],
-          ['gk', 'maths', 'reasoning', 'hindi'],
-          ['gk', 'maths', 'hindi', 'reasoning'],
-          ['maths', 'gk', 'gk', 'hindi'],
-          ['reasoning', 'gk', 'maths', 'hindi'],
-          ['maths', 'gk', 'reasoning', 'gk'],
-          ['maths', 'gk', 'hindi', 'reasoning'],
-        ]
-
-  const preferredKey = weeklyPattern[weekDay]?.[slot % weeklyPattern[weekDay].length]
-  const preferred = preferredKey ? subjectByKey[preferredKey] : null
-  if (preferred) return preferred
-
-  return subjectOrder[(day + slot - 1) % subjectOrder.length] || subjectOrder[0]
+  return subjectOrder.reduce((acc, subjectId) => {
+    const baseWeight = weightBySubject.get(subjectId) || fallbackWeight
+    acc[subjectId] = subjectId === 'maths' ? Math.max(1, Math.round(baseWeight * mathsBoost)) : Math.max(1, baseWeight)
+    return acc
+  }, {} as Record<string, number>)
 }
 
 function pickSubjectForSlot(params: {
-  examId: string
   subjectOrder: string[]
-  day: number
-  slot: number
-  mathsLevel: Level
-  academicTaskCount: number
+  subjectWeights: Record<string, number>
+  subjectUsage: Record<string, number>
+  totalAcademicSlotsPicked: number
+  daySubjects: Set<string>
 }) {
-  const { examId, subjectOrder, day, slot, mathsLevel, academicTaskCount } = params
+  const { subjectOrder, subjectWeights, subjectUsage, totalAcademicSlotsPicked, daySubjects } = params
+  const totalWeight = Object.values(subjectWeights).reduce((sum, weight) => sum + weight, 0) || subjectOrder.length
+  const candidates = subjectOrder.filter((subject) => !daySubjects.has(subject))
+  const pool = candidates.length > 0 ? candidates : subjectOrder
 
-  if (balancedPoliceExams.has(examId)) {
-    return pickBalancedPoliceSubject(subjectOrder, day, slot, academicTaskCount)
-  }
-
-  if (!reasoningPriorityExams.has(examId)) {
-    return subjectOrder[(day + slot - 1) % subjectOrder.length] || subjectOrder[0]
-  }
-
-  const reasoning = firstAvailable(subjectOrder, ['reasoning'])
-  const hindi = firstAvailable(subjectOrder, ['hindi'])
-  const maths = firstAvailable(subjectOrder, ['maths'])
-  const generalStudies = firstAvailable(subjectOrder, ['gk_gs', 'gk-gs'])
-  const weekDay = (day - 1) % 7
-  const languagePattern = [
-    reasoning,
-    hindi,
-    reasoning,
-    hindi,
-    reasoning,
-    generalStudies || hindi,
-    reasoning,
-  ]
-  const primaryPattern = mathsLevel === 'weak'
-    ? [maths, maths, maths, maths, maths, generalStudies, maths]
-    : [maths, generalStudies, maths, generalStudies, maths, hindi, maths]
-
-  const preferred = slot === 0
-    ? primaryPattern[weekDay]
-    : slot === 1
-      ? languagePattern[weekDay]
-      : subjectOrder[(day + slot - 1) % subjectOrder.length]
-
-  return preferred || subjectOrder[(day + slot - 1) % subjectOrder.length] || subjectOrder[0]
+  return pool
+    .map((subject) => {
+      const expected = ((totalAcademicSlotsPicked + 1) * (subjectWeights[subject] || 1)) / totalWeight
+      const actual = subjectUsage[subject] || 0
+      return { subject, deficit: expected - actual, weight: subjectWeights[subject] || 1 }
+    })
+    .sort((a, b) => b.deficit - a.deficit || b.weight - a.weight || subjectOrder.indexOf(a.subject) - subjectOrder.indexOf(b.subject))[0]?.subject
+    || subjectOrder[totalAcademicSlotsPicked % subjectOrder.length]
 }
 
-function physicalMinutes(level: Level, day: number) {
+function physicalMinutes(level: Level, day: number, planner: PlannerRuleConfig) {
   const base = level === 'weak' ? 20 : level === 'average' ? 30 : 40
   const weeklyIncrement = level === 'weak' ? 5 : level === 'average' ? 7 : 10
-  return Math.min(base + Math.floor((day - 1) / 7) * weeklyIncrement, 75)
+  const multiplier = planner.level_adjustments?.physical_level?.[level]?.intensity_multiplier || 1
+  return Math.min(Math.round((base + Math.floor((day - 1) / 7) * weeklyIncrement) * multiplier), 75)
+}
+
+function buildPhysicalCopy(phase: string, level: Level, day: number, physicalRule: PhysicalRuleRow | null) {
+  const week = Math.min(3, Math.max(1, Math.ceil(day / 7)))
+  const config = asObject(physicalRule?.rule_config)
+  const weekPlan = typeof config[`week_${week}`] === 'string' ? config[`week_${week}`] as string : null
+  const progression = typeof config.progression === 'string' ? config.progression : 'Progress gradually and avoid overtraining.'
+  const strength = asStringArray(config.strength)
+
+  return {
+    title: `${phase} physical training`,
+    description: weekPlan || 'Running, mobility, strength basics, and recovery according to your current level.',
+    howToStudy: [
+      'Warm up before running or drills.',
+      progression,
+      strength.length > 0 ? `Strength: ${strength.join(', ')}.` : 'Stretch and hydrate after training.',
+      level === 'weak' ? 'Keep the pace easy and stop before pain.' : 'Track time, distance, and recovery honestly.',
+    ],
+  }
 }
 
 function getSubjectKind(subjectId: string | null) {
@@ -406,19 +490,65 @@ function buildStudyTask(params: {
 function getTaskType(params: {
   day: number
   slot: number
-  phase: string
-  foundationEnd: number
+  phase: PhaseBoundary
   isWeeklyRevision: boolean
   isReviewDay: boolean
+  isSpacedRevisionDay: boolean
+  mockRules: MockRuleRow[]
+  phases: PhaseBoundary[]
 }) {
-  const { day, slot, phase, foundationEnd, isWeeklyRevision, isReviewDay } = params
-  const isMockDay = day > foundationEnd && day % 7 === 0
+  const { day, slot, phase, isWeeklyRevision, isReviewDay, isSpacedRevisionDay, mockRules, phases } = params
+  const isMockDay = mockRules.some((rule) => {
+    const frequency = rule.frequency_days || 0
+    if (frequency <= 0) return false
+    const startAfterDay = getPhaseEnd(phases, rule.start_after_phase || 'foundation')
+    return day > startAfterDay && (day - startAfterDay) % frequency === 0
+  })
 
   if (isMockDay && slot === 0) return 'mock'
-  if ((isReviewDay || isWeeklyRevision) && slot === (isMockDay ? 1 : 0)) return 'revision'
-  if (phase === 'Practice') return slot % 3 === 2 ? 'pyq' : 'practice'
-  if (phase === 'Revision') return slot % 2 === 0 ? 'revision' : 'pyq'
+  if ((isReviewDay || isWeeklyRevision || isSpacedRevisionDay) && slot === (isMockDay ? 1 : 0)) return 'revision'
+  if (phase.id === 'practice') return slot % 3 === 2 ? 'pyq' : 'practice'
+  if (phase.id === 'revision') return slot % 2 === 0 ? 'revision' : 'pyq'
   return slot % 2 === 0 ? 'concept' : 'practice'
+}
+
+async function loadRuleContext(supabase: SupabaseClient, examId: string, physicalLevel: Level): Promise<RuleContext> {
+  const examIds = normalizeExamIds(examId)
+  const [
+    plannerResult,
+    examSubjectsResult,
+    revisionRulesResult,
+    mockRulesResult,
+    physicalRulesResult,
+  ] = await Promise.all([
+    supabase.from('planner_rules').select('rule_config').eq('id', 'default').maybeSingle(),
+    supabase.from('exam_subjects').select('subject_id, weight, is_core').in('exam_id', examIds),
+    supabase.from('revision_rules').select('frequency, rule_config').in('exam_id', examIds),
+    supabase.from('mock_rules').select('start_after_phase, frequency_days, mock_type, rule_config').in('exam_id', examIds),
+    supabase.from('physical_rules').select('level, rule_config').in('exam_id', examIds).eq('level', physicalLevel).limit(1),
+  ])
+
+  if (plannerResult.error && plannerResult.error.code !== 'PGRST116') throw plannerResult.error
+  if (examSubjectsResult.error) throw examSubjectsResult.error
+  if (revisionRulesResult.error) throw revisionRulesResult.error
+  if (mockRulesResult.error) throw mockRulesResult.error
+  if (physicalRulesResult.error) throw physicalRulesResult.error
+
+  return {
+    planner: asObject(plannerResult.data?.rule_config) as PlannerRuleConfig,
+    examSubjects: (examSubjectsResult.data || []) as ExamSubjectRule[],
+    revisionRules: (revisionRulesResult.data || []).map((rule) => ({
+      frequency: rule.frequency,
+      rule_config: asObject(rule.rule_config),
+    })),
+    mockRules: (mockRulesResult.data || []).map((rule) => ({
+      start_after_phase: rule.start_after_phase,
+      frequency_days: rule.frequency_days,
+      mock_type: rule.mock_type,
+      rule_config: asObject(rule.rule_config),
+    })),
+    physicalRule: ((physicalRulesResult.data || [])[0] as PhysicalRuleRow | undefined) || null,
+  }
 }
 
 export async function generateStudyPlan(
@@ -427,6 +557,8 @@ export async function generateStudyPlan(
 ) {
   const targetDays = Math.max(7, input.targetDays)
   const dailyStudyHours = Math.max(1, input.dailyStudyHours)
+  const initialStatus = input.initialStatus || 'active'
+  const ruleContext = await loadRuleContext(supabase, input.examId, input.physicalLevel)
 
   const { data: chapters, error: chaptersError } = await supabase
     .from('chapters')
@@ -437,7 +569,7 @@ export async function generateStudyPlan(
 
   if (chaptersError) throw chaptersError
 
-  const selectedChapters = filterChaptersByDuration((chapters || []) as ChapterRow[], targetDays)
+  const selectedChapters = filterChaptersByDuration((chapters || []) as ChapterRow[], targetDays, ruleContext.planner)
     .sort((a, b) => {
       const priorityRank: Record<Priority, number> = { high: 0, medium: 1, low: 2 }
       return priorityRank[a.priority] - priorityRank[b.priority] || a.order_index - b.order_index
@@ -447,10 +579,7 @@ export async function generateStudyPlan(
     throw new Error('No master chapters are available for the selected exam.')
   }
 
-  const alternateExamId = input.examId.includes('-')
-    ? input.examId.replaceAll('-', '_')
-    : input.examId.replaceAll('_', '-')
-  const examIdsForTemplates = [...new Set([input.examId, alternateExamId])]
+  const examIdsForTemplates = normalizeExamIds(input.examId)
   const { data: templates, error: templatesError } = await supabase
     .from('task_templates')
     .select('exam_id, subject_id, task_type, title_template, description_template, estimated_minutes, priority, how_to_study')
@@ -468,12 +597,6 @@ export async function generateStudyPlan(
     }
   }
 
-  await supabase
-    .from('user_study_plans')
-    .update({ status: 'archived' })
-    .eq('user_id', input.userId)
-    .eq('status', 'active')
-
   const { data: plan, error: planError } = await supabase
     .from('user_study_plans')
     .insert({
@@ -482,7 +605,7 @@ export async function generateStudyPlan(
       target_days: targetDays,
       daily_study_hours: dailyStudyHours,
       start_date: input.startDate,
-      status: 'active',
+      status: initialStatus,
     })
     .select('id')
     .single()
@@ -490,55 +613,63 @@ export async function generateStudyPlan(
   if (planError) throw planError
   if (!plan?.id) throw new Error('Could not create study plan.')
 
-  const subjectOrder = distributeSubjects(selectedChapters, input.mathsLevel)
+  const subjectOrder = distributeSubjects(selectedChapters, ruleContext.examSubjects)
+  const subjectWeights = buildSubjectWeights(subjectOrder, ruleContext.examSubjects, input.mathsLevel, ruleContext.planner)
   const chaptersBySubject = selectedChapters.reduce((acc, chapter) => {
     acc[chapter.subject_id] = acc[chapter.subject_id] || []
     acc[chapter.subject_id].push(chapter)
     return acc
   }, {} as Record<string, ChapterRow[]>)
   const subjectCursor = Object.fromEntries(subjectOrder.map((subject) => [subject, 0])) as Record<string, number>
+  const subjectUsage = Object.fromEntries(subjectOrder.map((subject) => [subject, 0])) as Record<string, number>
+  let totalAcademicSlotsPicked = 0
   const totalDailyMinutes = dailyStudyHours * 60
-  const includesPhysical = policePhysicalExams.has(input.examId)
-  const foundationEnd = Math.ceil(targetDays * 0.25)
-  const reviewDays = new Set([
-    Math.ceil(targetDays * 0.25),
-    Math.ceil(targetDays * 0.5),
-    Math.ceil(targetDays * 0.75),
-    targetDays,
-  ])
+  const includesPhysical = ruleContext.examSubjects.some((rule) => rule.subject_id === 'physical' && rule.weight > 0)
+    || Boolean(ruleContext.physicalRule)
+    || policePhysicalExams.has(input.examId)
+  const phases = buildPhaseBoundaries(targetDays, ruleContext.planner)
+  const weeklyRevisionFrequency = getWeeklyRevisionFrequency(ruleContext.revisionRules)
+  const reviewDays = getPhaseReviewDays(targetDays, ruleContext.revisionRules)
+  const spacedRevisionDays = getSpacedRevisionDays(targetDays, ruleContext.revisionRules)
   const tasks: PlannedTask[] = []
 
   for (let day = 1; day <= targetDays; day++) {
     const taskDate = addDays(input.startDate, day - 1)
-    const phase = getPhase(day, targetDays)
-    const isWeeklyRevision = day % 7 === 0
+    const phase = getPhase(day, phases)
+    const isWeeklyRevision = day % weeklyRevisionFrequency === 0
     const isReviewDay = reviewDays.has(day)
-    const physicalTaskMinutes = includesPhysical ? physicalMinutes(input.physicalLevel, day) : 0
+    const isSpacedRevisionDay = spacedRevisionDays.has(day)
+    const physicalTaskMinutes = includesPhysical ? physicalMinutes(input.physicalLevel, day, ruleContext.planner) : 0
     const studyBudget = Math.max(45, totalDailyMinutes - physicalTaskMinutes)
     const academicTaskCount = Math.min(4, Math.max(2, Math.floor(studyBudget / 45)))
     const perTaskMinutes = Math.max(25, Math.floor(studyBudget / academicTaskCount))
+    const daySubjects = new Set<string>()
 
     for (let slot = 0; slot < academicTaskCount; slot++) {
       const subjectId = pickSubjectForSlot({
-        examId: input.examId,
         subjectOrder,
-        day,
-        slot,
-        mathsLevel: input.mathsLevel,
-        academicTaskCount,
+        subjectWeights,
+        subjectUsage,
+        totalAcademicSlotsPicked,
+        daySubjects,
       })
       const subjectChapters = chaptersBySubject[subjectId] || selectedChapters
       const cursor = subjectCursor[subjectId] || 0
       const chapter = subjectChapters[cursor % subjectChapters.length]
       subjectCursor[subjectId] = cursor + 1
+      subjectUsage[subjectId] = (subjectUsage[subjectId] || 0) + 1
+      totalAcademicSlotsPicked += 1
+      daySubjects.add(subjectId)
 
       const taskType = getTaskType({
         day,
         slot,
         phase,
-        foundationEnd,
         isWeeklyRevision,
         isReviewDay,
+        isSpacedRevisionDay,
+        mockRules: ruleContext.mockRules,
+        phases,
       }) as TaskType
 
       tasks.push(buildStudyTask({
@@ -548,7 +679,7 @@ export async function generateStudyPlan(
         taskDate,
         examId: input.examId,
         chapter,
-        phase,
+        phase: phase.name,
         taskType,
         minutes: taskType === 'mock' ? Math.max(60, perTaskMinutes) : perTaskMinutes,
         template: findTaskTemplate(templatesByKey, {
@@ -560,6 +691,7 @@ export async function generateStudyPlan(
     }
 
     if (includesPhysical) {
+      const physicalCopy = buildPhysicalCopy(phase.name, input.physicalLevel, day, ruleContext.physicalRule)
       tasks.push({
         user_id: input.userId,
         plan_id: plan.id,
@@ -568,26 +700,32 @@ export async function generateStudyPlan(
         exam_id: input.examId,
         subject_id: 'physical',
         chapter_id: null,
-        title: `${phase} physical training`,
-        description: 'Running, mobility, strength basics, and recovery according to your current level.',
+        title: physicalCopy.title,
+        description: physicalCopy.description,
         task_type: 'physical',
         estimated_minutes: physicalTaskMinutes,
         priority: 'high',
-        how_to_study: [
-          'Warm up before running or drills.',
-          'Keep pace comfortable and progress gradually.',
-          'Stretch and hydrate after training.',
-        ],
+        how_to_study: physicalCopy.howToStudy,
         status: 'pending',
       })
     }
   }
 
   const chunkSize = 500
-  for (let index = 0; index < tasks.length; index += chunkSize) {
-    const chunk = tasks.slice(index, index + chunkSize)
-    const { error } = await supabase.from('user_daily_tasks').insert(chunk)
-    if (error) throw error
+  try {
+    for (let index = 0; index < tasks.length; index += chunkSize) {
+      const chunk = tasks.slice(index, index + chunkSize)
+      const { error } = await supabase.from('user_daily_tasks').insert(chunk)
+      if (error) throw error
+    }
+  } catch (error) {
+    await supabase
+      .from('user_study_plans')
+      .delete()
+      .eq('id', plan.id)
+      .eq('user_id', input.userId)
+
+    throw error
   }
 
   return { planId: plan.id as string, taskCount: tasks.length }

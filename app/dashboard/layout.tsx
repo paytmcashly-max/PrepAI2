@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import { getSidebarPlanSummary } from '@/lib/queries'
 
 export default async function DashboardLayout({
   children,
@@ -28,9 +29,15 @@ export default async function DashboardLayout({
     redirect('/onboarding')
   }
 
+  const sidebarSummary = await getSidebarPlanSummary(user.id)
+
   return (
     <SidebarProvider>
-      <DashboardSidebar />
+      <DashboardSidebar
+        examName={sidebarSummary.examName}
+        targetDays={sidebarSummary.targetDays}
+        hasActivePlan={sidebarSummary.hasActivePlan}
+      />
       <SidebarInset>
         <DashboardHeader user={user} />
         <main className="flex-1 overflow-auto">

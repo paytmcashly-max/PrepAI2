@@ -56,6 +56,7 @@ export interface Profile {
   maths_level: 'weak' | 'average' | 'good'
   physical_level: 'weak' | 'average' | 'good'
   english_background: boolean
+  study_language: 'hindi' | 'english'
   current_education: string | null
   onboarding_completed: boolean
   created_at: string
@@ -69,7 +70,7 @@ export interface UserStudyPlan {
   target_days: number
   daily_study_hours: number
   start_date: string
-  status: 'active' | 'paused' | 'completed' | 'archived'
+  status: 'active' | 'paused' | 'completed' | 'archived' | 'generating' | 'failed'
   created_at: string
 }
 

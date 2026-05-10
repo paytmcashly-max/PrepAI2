@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { regeneratePlanFromSettings } from '@/lib/actions'
 import { levelOptions, studyHourOptions, targetDayOptions } from '@/lib/config/onboarding-options'
 import type { Exam, Profile, UserStudyPlan } from '@/lib/types'
@@ -55,6 +56,8 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
     startDate: plan?.start_date || profile?.start_date || new Date().toISOString().split('T')[0],
     mathsLevel: (profile?.maths_level || 'average') as Level,
     physicalLevel: (profile?.physical_level || 'average') as Level,
+    englishBackground: Boolean(profile?.english_background),
+    studyLanguage: profile?.study_language || 'hindi',
   })
 
   const resolvedTargetDays = formData.targetDays === 'custom' ? Number(customDays) : Number(formData.targetDays)
@@ -80,6 +83,8 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
           startDate: formData.startDate,
           mathsLevel: formData.mathsLevel,
           physicalLevel: formData.physicalLevel,
+          englishBackground: formData.englishBackground,
+          studyLanguage: formData.studyLanguage,
         })
         toast.success('Your study plan was regenerated')
         setOpen(false)
@@ -149,7 +154,7 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
         <CardHeader>
           <CardTitle>Current Plan</CardTitle>
           <CardDescription>
-            Regenerating archives the current active plan and creates a new one. Old tasks are preserved but ignored by dashboard progress.
+            Regeneration first creates a new complete plan, then archives the current one. Old tasks are preserved but ignored by dashboard progress.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -240,6 +245,41 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
             {renderLevelOptions('physicalLevel', formData.physicalLevel, 'Physical level')}
           </div>
 
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+              <div className="min-w-0 space-y-1">
+                <Label htmlFor="englishBackground">English background</Label>
+                <p className="text-sm text-muted-foreground">
+                  Keep this on if you are comfortable studying exam content in English.
+                </p>
+              </div>
+              <Switch
+                id="englishBackground"
+                checked={formData.englishBackground}
+                onCheckedChange={(checked) => setFormData({ ...formData, englishBackground: checked })}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Study language</Label>
+              <Select
+                value={formData.studyLanguage}
+                onValueChange={(value) => setFormData({ ...formData, studyLanguage: value as 'hindi' | 'english' })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose study language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hindi">Hindi</SelectItem>
+                  <SelectItem value="english">English</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Saved for future Hindi/English exam-mode support.
+              </p>
+            </div>
+          </div>
+
           <AlertDialog open={open} onOpenChange={setOpen}>
             <AlertDialogTrigger asChild>
               <Button disabled={!isValid || isPending}>
@@ -251,7 +291,7 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
               <AlertDialogHeader>
                 <AlertDialogTitle>Regenerate your study plan?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Your current active plan will be archived and a new active plan will be generated from these settings. Old tasks will remain in the database but will not affect dashboard, tasks, or progress.
+                  A new plan will be generated from these settings before your current active plan is archived. Old tasks will remain in the database but will not affect dashboard, tasks, or progress.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -263,7 +303,7 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
                   }}
                   disabled={isPending}
                 >
-                  {isPending ? 'Regenerating...' : 'Archive and regenerate'}
+                  {isPending ? 'Regenerating...' : 'Regenerate safely'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

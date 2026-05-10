@@ -78,8 +78,16 @@ const studyNavItems = [
   },
 ]
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  examName?: string | null
+  targetDays?: number | null
+  hasActivePlan?: boolean
+}
+
+export function DashboardSidebar({ examName, targetDays, hasActivePlan = false }: DashboardSidebarProps) {
   const pathname = usePathname()
+  const subtitle = hasActivePlan ? examName || 'Active Exam' : 'No Active Plan'
+  const footerLabel = hasActivePlan && targetDays ? `${targetDays}-Day Plan Active` : 'No Active Plan'
 
   return (
     <Sidebar className="border-r border-border">
@@ -90,7 +98,7 @@ export function DashboardSidebar() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground">PrepTrack</h1>
-            <p className="text-xs text-muted-foreground">SSC CGL Prep</p>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </Link>
       </SidebarHeader>
@@ -143,8 +151,8 @@ export function DashboardSidebar() {
 
       <SidebarFooter className="border-t border-border p-4">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="h-2 w-2 rounded-full bg-green-500" />
-          <span>180-Day Plan Active</span>
+          <div className={hasActivePlan ? 'h-2 w-2 rounded-full bg-green-500' : 'h-2 w-2 rounded-full bg-muted-foreground/40'} />
+          <span>{footerLabel}</span>
         </div>
       </SidebarFooter>
     </Sidebar>

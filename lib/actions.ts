@@ -5,7 +5,9 @@ import { revalidatePath } from 'next/cache'
 import { generateStudyPlan } from '@/lib/services/generate-study-plan'
 
 type Level = 'weak' | 'average' | 'good'
+type StudyLanguage = 'hindi' | 'english'
 const allowedLevels = new Set<Level>(['weak', 'average', 'good'])
+const allowedStudyLanguages = new Set<StudyLanguage>(['hindi', 'english'])
 
 function assertLevel(value: string, label: string): Level {
   if (allowedLevels.has(value as Level)) return value as Level
@@ -25,6 +27,11 @@ function assertDate(value: string) {
     throw new Error('Please choose a valid start date.')
   }
   return value
+}
+
+function assertStudyLanguage(value: string): StudyLanguage {
+  if (allowedStudyLanguages.has(value as StudyLanguage)) return value as StudyLanguage
+  throw new Error('Study language must be Hindi or English.')
 }
 
 export async function completeOnboarding(data: {
@@ -58,6 +65,7 @@ export async function completeOnboarding(data: {
       maths_level: data.mathsLevel,
       physical_level: data.physicalLevel,
       english_background: data.englishBackground,
+      study_language: data.englishBackground ? 'english' : 'hindi',
       current_education: data.currentEducation || null,
       onboarding_completed: false,
       updated_at: new Date().toISOString(),
@@ -144,6 +152,8 @@ export async function regeneratePlanFromSettings(data: {
   startDate: string
   mathsLevel: string
   physicalLevel: string
+  englishBackground: boolean
+  studyLanguage: string
 }) {
   const supabase = await createClient()
 
@@ -158,6 +168,7 @@ export async function regeneratePlanFromSettings(data: {
   const startDate = assertDate(data.startDate)
   const mathsLevel = assertLevel(data.mathsLevel, 'Maths level')
   const physicalLevel = assertLevel(data.physicalLevel, 'Physical level')
+  const studyLanguage = assertStudyLanguage(data.studyLanguage)
 
   const { data: exam, error: examError } = await supabase
     .from('exams')
@@ -167,47 +178,96 @@ export async function regeneratePlanFromSettings(data: {
 
   if (examError || !exam) throw new Error('Selected exam is not available.')
 
-  const { error: profileError } = await supabase
+  let generatedPlanId: string | null = null
+  let activated = false
+  let profileUpdated = false
+
+  const { data: previousProfile, error: previousProfileError } = await supabase
     .from('profiles')
-    .update({
-      exam_target: examTarget,
-      target_days: targetDays,
-      daily_study_hours: dailyStudyHours,
-      start_date: startDate,
-      maths_level: mathsLevel,
-      physical_level: physicalLevel,
-      onboarding_completed: true,
-      updated_at: new Date().toISOString(),
-    })
+    .select('exam_target, target_days, daily_study_hours, start_date, maths_level, physical_level, english_background, study_language, onboarding_completed')
     .eq('id', user.id)
+    .single()
 
-  if (profileError) throw profileError
+  if (previousProfileError && previousProfileError.code !== 'PGRST116') throw previousProfileError
 
-  const { error: archiveError } = await supabase
-    .from('user_study_plans')
-    .update({ status: 'archived' })
-    .eq('user_id', user.id)
-    .eq('status', 'active')
+  try {
+    const result = await generateStudyPlan(supabase, {
+      userId: user.id,
+      examId: examTarget,
+      targetDays,
+      dailyStudyHours,
+      startDate,
+      mathsLevel,
+      physicalLevel,
+      initialStatus: 'generating',
+    })
 
-  if (archiveError) throw archiveError
+    generatedPlanId = result.planId
 
-  const result = await generateStudyPlan(supabase, {
-    userId: user.id,
-    examId: examTarget,
-    targetDays,
-    dailyStudyHours,
-    startDate,
-    mathsLevel,
-    physicalLevel,
-  })
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        exam_target: examTarget,
+        target_days: targetDays,
+        daily_study_hours: dailyStudyHours,
+        start_date: startDate,
+        maths_level: mathsLevel,
+        physical_level: physicalLevel,
+        english_background: Boolean(data.englishBackground),
+        study_language: studyLanguage,
+        onboarding_completed: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id)
 
-  revalidatePath('/dashboard', 'layout')
-  revalidatePath('/dashboard', 'page')
-  revalidatePath('/dashboard/tasks', 'page')
-  revalidatePath('/dashboard/roadmap', 'page')
-  revalidatePath('/dashboard/subjects', 'page')
-  revalidatePath('/dashboard/settings/plan', 'page')
-  return { success: true, ...result }
+    if (profileError) throw profileError
+    profileUpdated = true
+
+    const { error: activationError } = await supabase.rpc('activate_generated_study_plan', {
+      p_plan_id: generatedPlanId,
+    })
+
+    if (activationError) throw activationError
+    activated = true
+
+    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard', 'page')
+    revalidatePath('/dashboard/tasks', 'page')
+    revalidatePath('/dashboard/roadmap', 'page')
+    revalidatePath('/dashboard/subjects', 'page')
+    revalidatePath('/dashboard/settings/plan', 'page')
+    return { success: true, ...result }
+  } catch (error) {
+    if (generatedPlanId && !activated) {
+      const { error: deleteError } = await supabase
+        .from('user_study_plans')
+        .delete()
+        .eq('id', generatedPlanId)
+        .eq('user_id', user.id)
+        .eq('status', 'generating')
+
+      if (deleteError) {
+        await supabase
+          .from('user_study_plans')
+          .update({ status: 'failed' })
+          .eq('id', generatedPlanId)
+          .eq('user_id', user.id)
+          .eq('status', 'generating')
+      }
+    }
+
+    if (profileUpdated && !activated && previousProfile) {
+      await supabase
+        .from('profiles')
+        .update({
+          ...previousProfile,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+    }
+
+    throw error
+  }
 }
 
 // ============ PROFILE ============

@@ -98,23 +98,30 @@ export async function getSubjects(): Promise<Subject[]> {
   return data || []
 }
 
-export async function getSubjectWithChapters(subjectId: string): Promise<Subject & { chapters: Chapter[] }> {
+export async function getSubjectWithChapters(subjectId: string, examId: string): Promise<Subject & { chapters: Chapter[] }> {
+  if (!examId) throw new Error('examId is required when fetching subject chapters.')
+
   const supabase = await createClient()
-  const { data, error } = await supabase
+  const { data: subject, error: subjectError } = await supabase
     .from('subjects')
-    .select('*, chapters(*)')
+    .select('*')
     .eq('id', subjectId)
     .single()
 
-  if (error) throw error
-  return data
+  if (subjectError) throw subjectError
+
+  const chapters = await getChaptersBySubject(subjectId, examId)
+  return { ...(subject as Subject), chapters }
 }
 
-export async function getChaptersBySubject(subjectId: string): Promise<Chapter[]> {
+export async function getChaptersBySubject(subjectId: string, examId: string): Promise<Chapter[]> {
+  if (!examId) throw new Error('examId is required when fetching subject chapters.')
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('chapters')
     .select('*')
+    .eq('exam_id', examId)
     .eq('subject_id', subjectId)
     .order('order_index')
 
@@ -716,4 +723,31 @@ export async function getPlanSettingsData(userId: string): Promise<PlanSettingsD
   ])
 
   return { plan, profile, exams }
+}
+
+export async function getSidebarPlanSummary(userId: string): Promise<{
+  examName: string | null
+  targetDays: number | null
+  hasActivePlan: boolean
+}> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(userId)
+
+  if (!plan) {
+    return { examName: null, targetDays: null, hasActivePlan: false }
+  }
+
+  const { data: exam, error } = await supabase
+    .from('exams')
+    .select('name')
+    .eq('id', plan.exam_id)
+    .single()
+
+  if (error && error.code !== 'PGRST116') throw error
+
+  return {
+    examName: exam?.name || plan.exam_id,
+    targetDays: plan.target_days,
+    hasActivePlan: true,
+  }
 }
