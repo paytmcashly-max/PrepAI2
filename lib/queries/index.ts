@@ -244,7 +244,7 @@ export async function getUserMockTestAttempts(userId: string): Promise<MockTestA
     .from('mock_test_attempts')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+    .order('test_date', { ascending: false })
 
   if (error) throw error
   return data || []

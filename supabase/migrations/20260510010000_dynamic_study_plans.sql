@@ -131,6 +131,55 @@ alter table public.mock_tests
   add column if not exists mistakes text,
   add column if not exists notes text;
 
+alter table public.mock_test_attempts
+  add column if not exists test_date date not null default current_date,
+  add column if not exists total_marks integer,
+  add column if not exists marks_obtained integer,
+  add column if not exists status text not null default 'completed',
+  add column if not exists weak_areas text[] not null default '{}',
+  add column if not exists mistakes text,
+  add column if not exists notes text,
+  add column if not exists started_at timestamptz not null default now(),
+  add column if not exists completed_at timestamptz,
+  add column if not exists created_at timestamptz not null default now();
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'mock_test_attempts' and column_name = 'attempted_at'
+  ) then
+    execute $sql$
+      update public.mock_test_attempts
+      set
+        test_date = coalesce(test_date, attempted_at::date, current_date),
+        completed_at = coalesce(completed_at, attempted_at),
+        created_at = coalesce(created_at, attempted_at, now())
+      where attempted_at is not null
+    $sql$;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'mock_test_attempts' and column_name = 'score'
+  ) then
+    execute $sql$
+      update public.mock_test_attempts
+      set marks_obtained = coalesce(marks_obtained, score)
+    $sql$;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'mock_test_attempts' and column_name = 'total_questions'
+  ) then
+    execute $sql$
+      update public.mock_test_attempts
+      set total_marks = coalesce(total_marks, total_questions)
+    $sql$;
+  end if;
+end $$;
+
 alter table public.notes
   add column if not exists chapter_id text references public.chapters(id) on delete set null;
 
