@@ -21,6 +21,8 @@ import type {
   ActivePlanSubjectDetail,
   SubjectChapterProgress,
   WeakArea,
+  RevisionQueueData,
+  RevisionWeakChapter,
 } from '@/lib/types'
 
 function getCalendarDay(startDate: string) {
@@ -32,6 +34,10 @@ function getCalendarDay(startDate: string) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
+}
+
+function toDateString(date: Date) {
+  return date.toISOString().split('T')[0]
 }
 
 function isMissingSingleRow(error: { code?: string } | null) {
@@ -806,6 +812,151 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
     .sort((a, b) => b.score - a.score)
     .map(({ score: _score, ...area }) => area)
     .slice(0, 8)
+}
+
+export async function getRevisionQueue(userId: string): Promise<RevisionQueueData> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(userId)
+
+  if (!plan) {
+    return {
+      plan: null,
+      currentDay: 0,
+      overdueTasks: [],
+      weakChapters: [],
+      mockWeakAreas: [],
+      currentWeekRevisionTasks: [],
+      suggestedOrder: [],
+    }
+  }
+
+  const rawCurrentDay = getCalendarDay(plan.start_date)
+  const currentDay = clamp(rawCurrentDay, 1, plan.target_days)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayString = toDateString(today)
+  const weekStart = new Date(today)
+  weekStart.setDate(today.getDate() - today.getDay())
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 6)
+  const weekStartString = toDateString(weekStart)
+  const weekEndString = toDateString(weekEnd)
+
+  const { data: taskRows, error: taskError } = await supabase
+    .from('user_daily_tasks')
+    .select('*, subject:subjects(*), chapter:chapters(*)')
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .order('task_date')
+    .order('created_at')
+
+  if (taskError) throw taskError
+
+  const tasks = (taskRows || []) as UserDailyTask[]
+  const overdueTasks = tasks
+    .filter((task) => task.status !== 'completed' && task.task_date < todayString)
+    .slice(0, 10)
+  const currentWeekRevisionTasks = tasks
+    .filter((task) => task.task_type === 'revision' && task.task_date >= weekStartString && task.task_date <= weekEndString)
+    .slice(0, 10)
+
+  const chapterMap = new Map<string, RevisionWeakChapter>()
+  for (const task of tasks) {
+    if (!task.chapter_id) continue
+    const existing = chapterMap.get(task.chapter_id) || {
+      subject_id: task.subject_id,
+      subject_name: task.subject?.name || task.subject_id,
+      chapter_id: task.chapter_id,
+      chapter_name: task.chapter?.name || 'Chapter',
+      pendingTasks: 0,
+      totalTasks: 0,
+      completedTasks: 0,
+      priority: 'low' as const,
+    }
+    existing.totalTasks += 1
+    if (task.status === 'completed') {
+      existing.completedTasks += 1
+    } else {
+      existing.pendingTasks += 1
+    }
+    const pendingRate = existing.totalTasks > 0 ? existing.pendingTasks / existing.totalTasks : 0
+    existing.priority = existing.pendingTasks >= 3 || pendingRate >= 0.75 ? 'high' : existing.pendingTasks >= 2 ? 'medium' : 'low'
+    chapterMap.set(task.chapter_id, existing)
+  }
+
+  const weakChapters = [...chapterMap.values()]
+    .filter((chapter) => chapter.totalTasks >= 2 && chapter.pendingTasks > 0)
+    .sort((a, b) => {
+      const priorityRank = { high: 0, medium: 1, low: 2 }
+      return priorityRank[a.priority] - priorityRank[b.priority] || b.pendingTasks - a.pendingTasks
+    })
+    .slice(0, 8)
+
+  const { data: mockRows, error: mockError } = await supabase
+    .from('mock_tests')
+    .select('weak_areas, test_date')
+    .eq('user_id', userId)
+    .eq('exam_id', plan.exam_id)
+    .order('test_date', { ascending: false })
+    .limit(10)
+
+  if (mockError) throw mockError
+
+  const mockCounts = new Map<string, number>()
+  for (const row of mockRows || []) {
+    const areas = Array.isArray(row.weak_areas) ? row.weak_areas : []
+    for (const area of areas) {
+      if (typeof area !== 'string' || !area.trim()) continue
+      const key = area.trim()
+      mockCounts.set(key, (mockCounts.get(key) || 0) + 1)
+    }
+  }
+
+  const mockWeakAreas = [...mockCounts.entries()]
+    .map(([area, count]) => ({ area, count }))
+    .sort((a, b) => b.count - a.count || a.area.localeCompare(b.area))
+    .slice(0, 8)
+
+  const suggestedOrder = [
+    ...overdueTasks.slice(0, 3).map((task) => ({
+      id: `overdue-${task.id}`,
+      title: task.title,
+      reason: `Overdue from ${task.task_date}`,
+      priority: 'high' as const,
+      actionTarget: '/dashboard/tasks?focus=today#today-tasks',
+    })),
+    ...weakChapters.slice(0, 3).map((chapter) => ({
+      id: `chapter-${chapter.chapter_id || chapter.chapter_name}`,
+      title: chapter.chapter_name,
+      reason: `${chapter.pendingTasks}/${chapter.totalTasks} tasks pending`,
+      priority: chapter.priority,
+      actionTarget: chapter.subject_id ? `/dashboard/subjects/${chapter.subject_id}` : '/dashboard/subjects',
+    })),
+    ...mockWeakAreas.slice(0, 2).map((area) => ({
+      id: `mock-${area.area}`,
+      title: area.area,
+      reason: `Repeated in ${area.count} mock result${area.count > 1 ? 's' : ''}`,
+      priority: area.count > 1 ? 'high' as const : 'medium' as const,
+      actionTarget: '/dashboard/mock-tests',
+    })),
+    ...currentWeekRevisionTasks.slice(0, 3).map((task) => ({
+      id: `revision-${task.id}`,
+      title: task.title,
+      reason: `Revision task for ${task.task_date}`,
+      priority: task.priority,
+      actionTarget: '/dashboard/tasks?focus=today#today-tasks',
+    })),
+  ].slice(0, 10)
+
+  return {
+    plan,
+    currentDay,
+    overdueTasks,
+    weakChapters,
+    mockWeakAreas,
+    currentWeekRevisionTasks,
+    suggestedOrder,
+  }
 }
 
 export async function getActivePlanSubjectDetail(userId: string, subjectId: string): Promise<ActivePlanSubjectDetail> {

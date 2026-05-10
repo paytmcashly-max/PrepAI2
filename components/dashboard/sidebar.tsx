@@ -13,6 +13,7 @@ import {
   GraduationCap,
   Bot,
   Settings,
+  RotateCcw,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -65,6 +66,11 @@ const studyNavItems = [
     title: 'PYQ Practice',
     href: '/dashboard/pyq',
     icon: History,
+  },
+  {
+    title: 'Revision Queue',
+    href: '/dashboard/revision',
+    icon: RotateCcw,
   },
   {
     title: 'AI Assistant',

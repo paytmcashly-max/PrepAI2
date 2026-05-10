@@ -256,6 +256,38 @@ export interface WeakArea {
   actionTarget?: string | null
 }
 
+export interface RevisionWeakChapter {
+  subject_id: string | null
+  subject_name: string | null
+  chapter_id: string | null
+  chapter_name: string
+  pendingTasks: number
+  totalTasks: number
+  completedTasks: number
+  priority: 'low' | 'medium' | 'high'
+}
+
+export interface RevisionQueueItem {
+  id: string
+  title: string
+  reason: string
+  priority: 'low' | 'medium' | 'high'
+  actionTarget: string
+}
+
+export interface RevisionQueueData {
+  plan: UserStudyPlan | null
+  currentDay: number
+  overdueTasks: UserDailyTask[]
+  weakChapters: RevisionWeakChapter[]
+  mockWeakAreas: Array<{
+    area: string
+    count: number
+  }>
+  currentWeekRevisionTasks: UserDailyTask[]
+  suggestedOrder: RevisionQueueItem[]
+}
+
 export interface PlanSettingsData {
   plan: UserStudyPlan | null
   profile: Profile | null
