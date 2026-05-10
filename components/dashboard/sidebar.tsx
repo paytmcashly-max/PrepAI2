@@ -12,6 +12,7 @@ import {
   History,
   GraduationCap,
   Bot,
+  Settings,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -69,6 +70,11 @@ const studyNavItems = [
     title: 'AI Assistant',
     href: '/dashboard/ai',
     icon: Bot,
+  },
+  {
+    title: 'Plan Settings',
+    href: '/dashboard/settings/plan',
+    icon: Settings,
   },
 ]
 

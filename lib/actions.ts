@@ -5,6 +5,27 @@ import { revalidatePath } from 'next/cache'
 import { generateStudyPlan } from '@/lib/services/generate-study-plan'
 
 type Level = 'weak' | 'average' | 'good'
+const allowedLevels = new Set<Level>(['weak', 'average', 'good'])
+
+function assertLevel(value: string, label: string): Level {
+  if (allowedLevels.has(value as Level)) return value as Level
+  throw new Error(`${label} must be weak, average, or good.`)
+}
+
+function normalizePositiveInt(value: number, min: number, label: string) {
+  const normalized = Number(value)
+  if (!Number.isFinite(normalized) || normalized < min) {
+    throw new Error(`${label} must be at least ${min}.`)
+  }
+  return Math.floor(normalized)
+}
+
+function assertDate(value: string) {
+  if (!value || Number.isNaN(new Date(`${value}T00:00:00`).getTime())) {
+    throw new Error('Please choose a valid start date.')
+  }
+  return value
+}
 
 export async function completeOnboarding(data: {
   fullName: string
@@ -113,6 +134,80 @@ export async function toggleTaskCompletion(taskId: string) {
   revalidatePath('/dashboard', 'page')
   revalidatePath('/dashboard/tasks', 'page')
   return { success: true }
+}
+
+// ============ PLAN SETTINGS ============
+export async function regeneratePlanFromSettings(data: {
+  examTarget: string
+  targetDays: number
+  dailyStudyHours: number
+  startDate: string
+  mathsLevel: string
+  physicalLevel: string
+}) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const examTarget = data.examTarget?.trim()
+  if (!examTarget) throw new Error('Please choose an exam.')
+
+  const targetDays = normalizePositiveInt(data.targetDays, 7, 'Target days')
+  const dailyStudyHours = normalizePositiveInt(data.dailyStudyHours, 1, 'Daily study hours')
+  const startDate = assertDate(data.startDate)
+  const mathsLevel = assertLevel(data.mathsLevel, 'Maths level')
+  const physicalLevel = assertLevel(data.physicalLevel, 'Physical level')
+
+  const { data: exam, error: examError } = await supabase
+    .from('exams')
+    .select('id')
+    .eq('id', examTarget)
+    .single()
+
+  if (examError || !exam) throw new Error('Selected exam is not available.')
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({
+      exam_target: examTarget,
+      target_days: targetDays,
+      daily_study_hours: dailyStudyHours,
+      start_date: startDate,
+      maths_level: mathsLevel,
+      physical_level: physicalLevel,
+      onboarding_completed: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', user.id)
+
+  if (profileError) throw profileError
+
+  const { error: archiveError } = await supabase
+    .from('user_study_plans')
+    .update({ status: 'archived' })
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+
+  if (archiveError) throw archiveError
+
+  const result = await generateStudyPlan(supabase, {
+    userId: user.id,
+    examId: examTarget,
+    targetDays,
+    dailyStudyHours,
+    startDate,
+    mathsLevel,
+    physicalLevel,
+  })
+
+  revalidatePath('/dashboard', 'layout')
+  revalidatePath('/dashboard', 'page')
+  revalidatePath('/dashboard/tasks', 'page')
+  revalidatePath('/dashboard/roadmap', 'page')
+  revalidatePath('/dashboard/subjects', 'page')
+  revalidatePath('/dashboard/settings/plan', 'page')
+  return { success: true, ...result }
 }
 
 // ============ PROFILE ============

@@ -22,7 +22,7 @@ export default async function SubjectsPage() {
       completedTasks: progressData?.completedTasks || 0,
       totalTasks: progressData?.totalTasks || 0,
     }
-  })
+  }).filter((subject) => subject.totalTasks > 0)
 
   return <SubjectsContent subjects={subjectsWithProgress} />
 }

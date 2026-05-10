@@ -43,7 +43,8 @@ function clampPercent(value: number) {
 export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup }: DashboardContentProps) {
   const [isPending, startTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
-  const pieData = subjectProgress.map(s => ({
+  const visibleSubjectProgress = subjectProgress.filter((subject) => subject.totalTasks > 0)
+  const pieData = visibleSubjectProgress.map(s => ({
     id: s.id,
     name: s.name,
     value: clampPercent(s.percentage),
@@ -269,9 +270,9 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
             <CardDescription>Completion percentage by subject</CardDescription>
           </CardHeader>
           <CardContent>
-            {subjectProgress.length > 0 ? (
+            {visibleSubjectProgress.length > 0 ? (
               <div className="space-y-4">
-                {subjectProgress.map((subject) => (
+                {visibleSubjectProgress.map((subject) => (
                 <div key={subject.id} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium">{subject.name}</span>

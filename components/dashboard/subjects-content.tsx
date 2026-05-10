@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { 
   BookOpen, 
   TrendingUp, 
@@ -70,8 +71,25 @@ export function SubjectsContent({ subjects }: SubjectsContentProps) {
       {/* Subject Cards */}
       <div>
         <h2 className="text-xl font-bold mb-4">Subject-Wise Breakdown</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {subjects.map((subject) => (
+        {subjects.length === 0 ? (
+          <Card>
+            <CardContent className="py-8">
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <BookOpen />
+                  </EmptyMedia>
+                  <EmptyTitle>No subject tasks yet</EmptyTitle>
+                  <EmptyDescription>
+                    Subject cards appear after your active study plan has generated tasks.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {subjects.map((subject) => (
             <Card key={subject.id} className="overflow-hidden">
               <div 
                 className="h-1" 
@@ -138,8 +156,9 @@ export function SubjectsContent({ subjects }: SubjectsContentProps) {
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Performance Summary */}

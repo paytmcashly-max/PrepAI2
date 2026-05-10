@@ -39,7 +39,7 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
 
   return (
     <Card className={cn('overflow-hidden transition-opacity', completed && 'opacity-60')}>
-      <CardContent className={cn('flex min-w-0 items-start gap-4', compact ? 'p-3' : 'p-4')}>
+      <CardContent className={cn('flex min-w-0 items-start gap-3 sm:gap-4', compact ? 'p-3' : 'p-4')}>
         <Checkbox
           checked={completed}
           onCheckedChange={() => onToggle(task.id, completed)}
@@ -47,44 +47,44 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
           className="mt-1 shrink-0"
           aria-label={completed ? `Mark ${task.title} as pending` : `Mark ${task.title} as complete`}
         />
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1 break-words">
+          <div className="mb-2 flex min-w-0 flex-col items-start gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
             {task.subject && (
               <Badge
                 variant="outline"
-                className="max-w-full truncate text-xs"
+                className="max-w-full whitespace-normal break-words text-xs leading-relaxed"
                 style={subjectBadgeStyle(task.subject.color)}
               >
                 <SubjectIcon icon={task.subject.icon} className="h-3.5 w-3.5 shrink-0" />
-                <span className="ml-1 truncate">{task.subject.name}</span>
+                <span className="ml-1 min-w-0 break-words">{task.subject.name}</span>
               </Badge>
             )}
             {chapterName && (
-              <span className="min-w-0 truncate text-xs text-muted-foreground">
+              <span className="min-w-0 max-w-full break-words text-xs leading-relaxed text-muted-foreground">
                 {chapterName}
               </span>
             )}
           </div>
-          <h4 className={cn('min-w-0 font-medium', completed && 'line-through text-muted-foreground')}>
+          <h4 className={cn('min-w-0 break-words font-medium leading-relaxed', completed && 'line-through text-muted-foreground')}>
             {task.title}
           </h4>
           {task.description && !compact && (
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 min-w-0 break-words text-sm leading-relaxed text-muted-foreground">
               {task.description}
             </p>
           )}
           {studySteps.length > 0 && !compact && (
-            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+            <ul className="mt-2 min-w-0 space-y-1 text-xs leading-relaxed text-muted-foreground">
               {studySteps.map((step, index) => (
-                <li key={`${index}-${step}`} className="flex items-start gap-2">
+                <li key={`${index}-${step}`} className="flex min-w-0 items-start gap-2">
                   <span className="text-primary">-</span>
-                  <span>{step}</span>
+                  <span className="min-w-0 break-words">{step}</span>
                 </li>
               ))}
             </ul>
           )}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2 text-right sm:flex-row sm:items-center">
+        <div className="flex shrink-0 flex-col items-end gap-2 text-right sm:flex-row sm:flex-wrap sm:items-center">
           <div className="flex items-center gap-1 text-muted-foreground">
             <Clock className="h-4 w-4" />
             <span className="text-sm">{task.estimated_minutes}m</span>

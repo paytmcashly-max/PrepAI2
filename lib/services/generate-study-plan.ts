@@ -44,6 +44,7 @@ interface PlannedTask {
 
 const policePhysicalExams = new Set(['bihar_si', 'up_police', 'ssc_gd', 'bihar-si', 'up-police', 'ssc-gd'])
 const reasoningPriorityExams = new Set(['bihar_si', 'up_police', 'bihar-si', 'up-police'])
+const balancedPoliceExams = new Set(['bihar_si', 'up_police', 'bihar-si', 'up-police'])
 const baseSubjectOrder = ['maths', 'gk_gs', 'gk-gs', 'hindi', 'english', 'reasoning', 'general-awareness', 'computer']
 
 function addDays(dateValue: string, daysToAdd: number) {
@@ -84,14 +85,75 @@ function firstAvailable(subjects: string[], candidates: string[]) {
   return candidates.find((candidate) => subjects.includes(candidate))
 }
 
+function resolvePoliceSubject(subjectOrder: string[], subjectKey: 'maths' | 'gk' | 'hindi' | 'reasoning') {
+  const candidates = {
+    maths: ['maths', 'quant', 'quantitative-aptitude'],
+    gk: ['gk_gs', 'gk-gs', 'general-awareness', 'ga'],
+    hindi: ['hindi'],
+    reasoning: ['reasoning'],
+  }[subjectKey]
+
+  return firstAvailable(subjectOrder, candidates)
+}
+
+function pickBalancedPoliceSubject(subjectOrder: string[], day: number, slot: number, academicTaskCount: number) {
+  const subjectByKey = {
+    maths: resolvePoliceSubject(subjectOrder, 'maths'),
+    gk: resolvePoliceSubject(subjectOrder, 'gk'),
+    hindi: resolvePoliceSubject(subjectOrder, 'hindi'),
+    reasoning: resolvePoliceSubject(subjectOrder, 'reasoning'),
+  }
+  const weekDay = (day - 1) % 7
+  const weeklyPattern: Array<Array<keyof typeof subjectByKey>> = academicTaskCount <= 2
+    ? [
+        ['maths', 'gk'],
+        ['gk', 'reasoning'],
+        ['maths', 'hindi'],
+        ['gk', 'reasoning'],
+        ['maths', 'hindi'],
+        ['gk', 'reasoning'],
+        ['maths', 'hindi'],
+      ]
+    : academicTaskCount === 3
+      ? [
+          ['maths', 'gk', 'hindi'],
+          ['gk', 'reasoning', 'maths'],
+          ['gk', 'hindi', 'reasoning'],
+          ['maths', 'gk', 'hindi'],
+          ['gk', 'reasoning', 'maths'],
+          ['gk', 'reasoning', 'hindi'],
+          ['maths', 'gk', 'reasoning'],
+        ]
+      : [
+          ['maths', 'gk', 'hindi', 'reasoning'],
+          ['gk', 'maths', 'reasoning', 'hindi'],
+          ['gk', 'maths', 'hindi', 'reasoning'],
+          ['maths', 'gk', 'gk', 'hindi'],
+          ['reasoning', 'gk', 'maths', 'hindi'],
+          ['maths', 'gk', 'reasoning', 'gk'],
+          ['maths', 'gk', 'hindi', 'reasoning'],
+        ]
+
+  const preferredKey = weeklyPattern[weekDay]?.[slot % weeklyPattern[weekDay].length]
+  const preferred = preferredKey ? subjectByKey[preferredKey] : null
+  if (preferred) return preferred
+
+  return subjectOrder[(day + slot - 1) % subjectOrder.length] || subjectOrder[0]
+}
+
 function pickSubjectForSlot(params: {
   examId: string
   subjectOrder: string[]
   day: number
   slot: number
   mathsLevel: Level
+  academicTaskCount: number
 }) {
-  const { examId, subjectOrder, day, slot, mathsLevel } = params
+  const { examId, subjectOrder, day, slot, mathsLevel, academicTaskCount } = params
+
+  if (balancedPoliceExams.has(examId)) {
+    return pickBalancedPoliceSubject(subjectOrder, day, slot, academicTaskCount)
+  }
 
   if (!reasoningPriorityExams.has(examId)) {
     return subjectOrder[(day + slot - 1) % subjectOrder.length] || subjectOrder[0]
@@ -130,6 +192,136 @@ function physicalMinutes(level: Level, day: number) {
   return Math.min(base + Math.floor((day - 1) / 7) * weeklyIncrement, 75)
 }
 
+function getSubjectKind(subjectId: string | null) {
+  if (!subjectId) return 'general'
+  if (['gk_gs', 'gk-gs', 'general-awareness', 'ga'].includes(subjectId)) return 'gk'
+  if (['maths', 'quant', 'quantitative-aptitude'].includes(subjectId)) return 'maths'
+  if (subjectId === 'hindi') return 'hindi'
+  if (subjectId === 'reasoning') return 'reasoning'
+  if (subjectId === 'english') return 'english'
+  return 'general'
+}
+
+function buildTaskCopy(chapter: ChapterRow, taskType: TaskType, phase: string) {
+  const chapterName = chapter.name
+  const subjectKind = getSubjectKind(chapter.subject_id)
+  const normalized = chapterName.toLowerCase()
+  const typeLabel = taskType === 'pyq' ? 'PYQ drill' : taskType === 'mock' ? 'mock drill' : taskType
+
+  if (taskType === 'mock') {
+    return {
+      title: `Attempt ${chapterName} mock drill`,
+      description: `Solve a timed mixed set around ${chapterName}, then note accuracy, speed, and the top 3 mistakes.`,
+      howToStudy: [
+        'Set a timer before starting.',
+        'Attempt easy questions first, then return to doubtful ones.',
+        'Write mistakes and revise the rule or fact immediately.',
+      ],
+    }
+  }
+
+  if (taskType === 'revision') {
+    return {
+      title: `Revise ${chapterName}`,
+      description: `Revise notes and marked mistakes from ${chapterName}, then solve a short recall drill without hints.`,
+      howToStudy: [
+        'Read yesterday and weekly error notes first.',
+        'Rewrite the most important formulas, facts, or rules.',
+        'Solve 15-20 mixed questions and mark weak points.',
+      ],
+    }
+  }
+
+  if (subjectKind === 'maths') {
+    const concept = normalized.includes('percentage')
+      ? 'Learn fraction-to-percentage conversion and solve 25 beginner questions.'
+      : normalized.includes('ratio')
+        ? 'Learn the core ratio method and solve 25 direct comparison questions.'
+        : normalized.includes('profit') || normalized.includes('loss')
+          ? 'Practice cost price, selling price, profit, and loss conversions with 25 questions.'
+          : `Learn the main formulas for ${chapterName} and solve 25 level-wise questions.`
+
+    return {
+      title: `${taskType === 'practice' || taskType === 'pyq' ? 'Practice' : 'Learn'} ${chapterName}`,
+      description: concept,
+      howToStudy: [
+        'Write formulas and one solved example before practice.',
+        'Solve without calculator and keep rough work clean.',
+        'Mark every wrong question with the exact reason.',
+      ],
+    }
+  }
+
+  if (subjectKind === 'gk') {
+    const isCurrentAffairs = normalized.includes('current')
+    return {
+      title: `${isCurrentAffairs ? 'Read and note' : 'Study'} ${chapterName}`,
+      description: isCurrentAffairs
+        ? 'Read national plus Bihar/UP current affairs and write 10 exam-ready facts.'
+        : `Study ${chapterName}, make 10 short factual notes, and attempt a quick recall quiz.`,
+      howToStudy: [
+        'Read from one reliable source before making notes.',
+        'Write facts in short bullet form for fast revision.',
+        'Quiz yourself after 20 minutes without looking at notes.',
+      ],
+    }
+  }
+
+  if (subjectKind === 'hindi') {
+    const wordTask = normalized.includes('\u0935\u093f\u0932\u094b\u092e')
+      || normalized.includes('\u092a\u0930\u094d\u092f\u093e\u092f')
+      || normalized.includes('synonym')
+      || normalized.includes('antonym')
+    return {
+      title: `${taskType === 'practice' || taskType === 'pyq' ? 'Practice' : 'Learn'} ${chapterName}`,
+      description: wordTask
+        ? `Learn 20 ${chapterName} words and revise yesterday's 20 words.`
+        : `Study rules for ${chapterName}, write 10 examples, and solve a short Hindi drill.`,
+      howToStudy: [
+        'Read the rule or word list aloud once.',
+        'Write examples in your notebook using clear Devanagari.',
+        'Revise wrong words again before ending the session.',
+      ],
+    }
+  }
+
+  if (subjectKind === 'reasoning') {
+    return {
+      title: `Solve ${chapterName}`,
+      description: normalized.includes('analogy')
+        ? 'Solve 30 analogy questions and mark every wrong pattern for revision.'
+        : `Solve 30 ${chapterName} questions, then group mistakes by pattern.`,
+      howToStudy: [
+        'Do the first 10 questions slowly to identify the pattern.',
+        'Solve the next 20 questions with a timer.',
+        'Record wrong patterns instead of only checking answers.',
+      ],
+    }
+  }
+
+  if (subjectKind === 'english') {
+    return {
+      title: `${taskType === 'practice' || taskType === 'pyq' ? 'Practice' : 'Study'} ${chapterName}`,
+      description: `Study ${chapterName}, write 10 examples, and solve a short accuracy drill.`,
+      howToStudy: [
+        'Read the rule and one example first.',
+        'Practice questions in a timed set.',
+        'Write the correction for every wrong answer.',
+      ],
+    }
+  }
+
+  return {
+    title: `${typeLabel[0].toUpperCase()}${typeLabel.slice(1)}: ${chapterName}`,
+    description: `${phase} phase task for ${chapterName}: study the core idea, practice questions, and mark weak areas.`,
+    howToStudy: [
+      'Read core concepts and examples first.',
+      'Practice timed questions without checking answers immediately.',
+      'Mark weak points for weekly revision.',
+    ],
+  }
+}
+
 function buildStudyTask(params: {
   userId: string
   planId: string
@@ -141,13 +333,7 @@ function buildStudyTask(params: {
   taskType: TaskType
   minutes: number
 }): PlannedTask {
-  const action = params.taskType === 'pyq'
-    ? 'Solve PYQs for'
-    : params.taskType === 'revision'
-      ? 'Revise'
-      : params.taskType === 'practice'
-        ? 'Practice'
-        : 'Study'
+  const copy = buildTaskCopy(params.chapter, params.taskType, params.phase)
 
   return {
     user_id: params.userId,
@@ -157,18 +343,32 @@ function buildStudyTask(params: {
     exam_id: params.examId,
     subject_id: params.chapter.subject_id,
     chapter_id: params.chapter.id,
-    title: `${action} ${params.chapter.name}`,
-    description: `${params.phase} phase task for ${params.chapter.name}.`,
+    title: copy.title,
+    description: copy.description,
     task_type: params.taskType,
     estimated_minutes: params.minutes,
     priority: params.chapter.priority,
-    how_to_study: [
-      'Read core concepts and examples first.',
-      'Practice timed questions without checking answers immediately.',
-      'Mark weak points for weekly revision.',
-    ],
+    how_to_study: copy.howToStudy,
     status: 'pending',
   }
+}
+
+function getTaskType(params: {
+  day: number
+  slot: number
+  phase: string
+  foundationEnd: number
+  isWeeklyRevision: boolean
+  isReviewDay: boolean
+}) {
+  const { day, slot, phase, foundationEnd, isWeeklyRevision, isReviewDay } = params
+  const isMockDay = day > foundationEnd && day % 7 === 0
+
+  if (isMockDay && slot === 0) return 'mock'
+  if ((isReviewDay || isWeeklyRevision) && slot === (isMockDay ? 1 : 0)) return 'revision'
+  if (phase === 'Practice') return slot % 3 === 2 ? 'pyq' : 'practice'
+  if (phase === 'Revision') return slot % 2 === 0 ? 'revision' : 'pyq'
+  return slot % 2 === 0 ? 'concept' : 'practice'
 }
 
 export async function generateStudyPlan(
@@ -241,11 +441,10 @@ export async function generateStudyPlan(
     const taskDate = addDays(input.startDate, day - 1)
     const phase = getPhase(day, targetDays)
     const isWeeklyRevision = day % 7 === 0
-    const isMockDay = day > foundationEnd && day % 7 === 0
     const isReviewDay = reviewDays.has(day)
     const physicalTaskMinutes = includesPhysical ? physicalMinutes(input.physicalLevel, day) : 0
     const studyBudget = Math.max(45, totalDailyMinutes - physicalTaskMinutes)
-    const academicTaskCount = isMockDay || isReviewDay ? 2 : Math.min(4, Math.max(2, Math.floor(studyBudget / 45)))
+    const academicTaskCount = Math.min(4, Math.max(2, Math.floor(studyBudget / 45)))
     const perTaskMinutes = Math.max(25, Math.floor(studyBudget / academicTaskCount))
 
     for (let slot = 0; slot < academicTaskCount; slot++) {
@@ -255,25 +454,21 @@ export async function generateStudyPlan(
         day,
         slot,
         mathsLevel: input.mathsLevel,
+        academicTaskCount,
       })
       const subjectChapters = chaptersBySubject[subjectId] || selectedChapters
       const cursor = subjectCursor[subjectId] || 0
       const chapter = subjectChapters[cursor % subjectChapters.length]
       subjectCursor[subjectId] = cursor + 1
 
-      const taskType: TaskType = isMockDay && slot === 0
-        ? 'mock'
-        : isReviewDay
-          ? 'revision'
-          : isWeeklyRevision
-            ? 'revision'
-            : phase === 'Practice'
-              ? 'pyq'
-              : phase === 'Revision'
-                ? 'revision'
-                : slot % 2 === 0
-                  ? 'concept'
-                  : 'practice'
+      const taskType = getTaskType({
+        day,
+        slot,
+        phase,
+        foundationEnd,
+        isWeeklyRevision,
+        isReviewDay,
+      }) as TaskType
 
       tasks.push(buildStudyTask({
         userId: input.userId,

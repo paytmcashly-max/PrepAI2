@@ -221,6 +221,12 @@ export interface SubjectProgress {
   weakChapters?: string[]
 }
 
+export interface PlanSettingsData {
+  plan: UserStudyPlan | null
+  profile: Profile | null
+  exams: Exam[]
+}
+
 export interface WeeklyTaskData {
   day: string
   completed: number

@@ -16,6 +16,7 @@ import type {
   DayTaskGroup,
   UserDailyTask,
   UserStudyPlan,
+  PlanSettingsData,
 } from '@/lib/types'
 
 function getCalendarDay(startDate: string) {
@@ -604,5 +605,15 @@ export async function getSubjectProgress(userId: string): Promise<SubjectProgres
       currentChapter: activeTask?.chapter?.name || null,
       weakChapters,
     }
-  })
+  }).filter((subject) => subject.totalTasks > 0)
+}
+
+export async function getPlanSettingsData(userId: string): Promise<PlanSettingsData> {
+  const [plan, profile, exams] = await Promise.all([
+    getActiveStudyPlan(userId),
+    getProfile(userId),
+    getMasterExams(),
+  ])
+
+  return { plan, profile, exams }
 }
