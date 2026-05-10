@@ -1,5 +1,6 @@
 // Server-side queries for PrepTrack
 import { createClient } from '@/lib/supabase/server'
+import { toLocalDateString } from '@/lib/date-utils'
 import type {
   Exam,
   Subject,
@@ -39,10 +40,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function toDateString(date: Date) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return toLocalDateString(date)
 }
 
 function isMissingSingleRow(error: { code?: string } | null) {
@@ -631,14 +629,14 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
     )
     
     const checkDate = new Date()
-    while (completedDates.has(checkDate.toISOString().split('T')[0])) {
+    while (completedDates.has(toDateString(checkDate))) {
       currentStreak++
       checkDate.setDate(checkDate.getDate() - 1)
     }
   }
 
   const today = new Date()
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+  const monthStart = toDateString(new Date(today.getFullYear(), today.getMonth(), 1))
   const { count: tasksThisMonth } = await supabase
     .from('user_daily_tasks')
     .select('*', { count: 'exact', head: true })
@@ -783,7 +781,7 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
   const plan = await getActiveStudyPlan(userId)
   if (!plan) return []
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = toDateString(new Date())
   const currentDay = getCalendarDay(plan.start_date)
   const { data: tasks, error: tasksError } = await supabase
     .from('user_daily_tasks')

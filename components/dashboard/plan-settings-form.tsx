@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { regeneratePlanFromSettings } from '@/lib/actions'
 import { levelOptions, studyHourOptions, targetDayOptions } from '@/lib/config/onboarding-options'
+import { todayLocalDateString } from '@/lib/date-utils'
 import type { Exam, Profile, UserStudyPlan } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -53,7 +54,7 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
     examTarget: plan?.exam_id || profile?.exam_target || exams[0]?.id || '',
     targetDays: toSelectValue(initialTargetDays, targetDayOptions),
     dailyStudyHours: toSelectValue(initialStudyHours, studyHourOptions),
-    startDate: plan?.start_date || profile?.start_date || new Date().toISOString().split('T')[0],
+    startDate: plan?.start_date || profile?.start_date || todayLocalDateString(),
     mathsLevel: (profile?.maths_level || 'average') as Level,
     physicalLevel: (profile?.physical_level || 'average') as Level,
     englishBackground: Boolean(profile?.english_background),

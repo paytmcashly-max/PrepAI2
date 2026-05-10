@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { toLocalDateString } from '../date-utils'
 
 type Level = 'weak' | 'average' | 'good'
 type Priority = 'low' | 'medium' | 'high'
@@ -127,7 +128,7 @@ const fallbackPhaseRules = [
 function addDays(dateValue: string, daysToAdd: number) {
   const date = new Date(`${dateValue}T00:00:00`)
   date.setDate(date.getDate() + daysToAdd)
-  return date.toISOString().split('T')[0]
+  return toLocalDateString(date)
 }
 
 function normalizeExamIds(examId: string) {

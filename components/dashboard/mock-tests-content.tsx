@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { createMockResult } from '@/lib/actions'
+import { todayLocalDateString } from '@/lib/date-utils'
 import type { Exam, MockTest } from '@/lib/types'
 
 interface MockTestsContentProps {
@@ -78,7 +79,7 @@ export function MockTestsContent({ mockTests, mockResults: initialResults, exams
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState<MockResultForm>({
     exam_id: exams[0]?.id || '',
-    test_date: new Date().toISOString().split('T')[0],
+    test_date: todayLocalDateString(),
     total_marks: '',
     marks_obtained: '',
     weak_areas: '',
@@ -118,7 +119,7 @@ export function MockTestsContent({ mockTests, mockResults: initialResults, exams
   const resetForm = () => {
     setFormData({
       exam_id: exams[0]?.id || '',
-      test_date: new Date().toISOString().split('T')[0],
+      test_date: todayLocalDateString(),
       total_marks: '',
       marks_obtained: '',
       weak_areas: '',

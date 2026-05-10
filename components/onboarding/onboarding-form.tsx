@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { completeOnboarding } from '@/lib/actions'
 import { levelOptions, studyHourOptions, targetDayOptions } from '@/lib/config/onboarding-options'
+import { todayLocalDateString } from '@/lib/date-utils'
 import { cn } from '@/lib/utils'
 
 interface ExamOption {
@@ -43,7 +44,7 @@ export function OnboardingForm({ exams }: OnboardingFormProps) {
     examTarget: exams[0]?.id || '',
     targetDays: '90',
     dailyStudyHours: '3',
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: todayLocalDateString(),
     mathsLevel: 'average' as 'weak' | 'average' | 'good',
     physicalLevel: 'average' as 'weak' | 'average' | 'good',
     englishBackground: false,

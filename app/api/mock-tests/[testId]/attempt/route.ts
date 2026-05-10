@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { todayLocalDateString } from '@/lib/date-utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
@@ -30,7 +31,7 @@ export async function POST(
         mock_test_id: testId,
         user_id: user.id,
         answers: {},
-        test_date: new Date().toISOString().split('T')[0],
+        test_date: todayLocalDateString(),
         total_marks: mockTest.total_questions,
         marks_obtained: 0,
         correct_answers: 0,
