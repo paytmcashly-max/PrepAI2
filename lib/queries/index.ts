@@ -242,7 +242,7 @@ export async function getUserMockTestAttempts(userId: string): Promise<MockTestA
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('mock_test_attempts')
-    .select('*, mock_test:mock_tests(*)')
+    .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
