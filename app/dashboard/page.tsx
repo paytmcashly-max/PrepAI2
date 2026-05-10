@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import { getDashboardStats, getSubjectProgress, getRandomQuote, getTodayTaskGroup } from '@/lib/queries'
+import { getDashboardStats, getSubjectProgress, getRandomQuote, getTodayTaskGroup, getWeakAreas } from '@/lib/queries'
 import { DashboardContent } from '@/components/dashboard/dashboard-content'
-import type { DashboardStats, DayTaskGroup, MotivationalQuote, SubjectProgress } from '@/lib/types'
+import type { DashboardStats, DayTaskGroup, MotivationalQuote, SubjectProgress, WeakArea } from '@/lib/types'
 
 const fallbackStats: DashboardStats = {
   activePlanId: null,
@@ -36,16 +36,18 @@ export default async function DashboardPage() {
     return null // Layout handles redirect
   }
 
-  const [statsResult, subjectProgressResult, quoteResult, todayTasksResult] = await Promise.allSettled([
+  const [statsResult, subjectProgressResult, quoteResult, todayTasksResult, weakAreasResult] = await Promise.allSettled([
     getDashboardStats(user.id),
     getSubjectProgress(user.id),
     getRandomQuote(),
     getTodayTaskGroup(user.id),
+    getWeakAreas(user.id),
   ])
   const stats = valueOrFallback(statsResult, fallbackStats, 'stats')
   const subjectProgress = valueOrFallback<SubjectProgress[]>(subjectProgressResult, [], 'subject progress')
   const quote = valueOrFallback<MotivationalQuote | null>(quoteResult, null, 'quote')
   const todayTaskGroup = valueOrFallback<DayTaskGroup | null>(todayTasksResult, null, 'today tasks')
+  const weakAreas = valueOrFallback<WeakArea[]>(weakAreasResult, [], 'weak areas')
 
   return (
     <DashboardContent 
@@ -53,6 +55,7 @@ export default async function DashboardPage() {
       subjectProgress={subjectProgress} 
       quote={quote}
       todayTaskGroup={todayTaskGroup}
+      weakAreas={weakAreas}
     />
   )
 }

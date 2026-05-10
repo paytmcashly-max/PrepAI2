@@ -22,17 +22,19 @@ import {
   ClipboardList,
   Quote,
   CalendarCheck,
+  AlertTriangle,
 } from 'lucide-react'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { TaskCheckItem } from '@/components/dashboard/task-check-item'
 import { toggleTaskCompletion } from '@/lib/actions'
-import type { DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup } from '@/lib/types'
+import type { DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea } from '@/lib/types'
 
 interface DashboardContentProps {
   stats: DashboardStats
   subjectProgress: SubjectProgress[]
   quote: MotivationalQuote | null
   todayTaskGroup: DayTaskGroup | null
+  weakAreas: WeakArea[]
 }
 
 function clampPercent(value: number) {
@@ -40,7 +42,7 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value))
 }
 
-export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup }: DashboardContentProps) {
+export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas }: DashboardContentProps) {
   const [isPending, startTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
   const visibleSubjectProgress = subjectProgress.filter((subject) => subject.totalTasks > 0)
@@ -254,6 +256,48 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
                 <EmptyTitle>No tasks for today</EmptyTitle>
                 <EmptyDescription>
                   Complete onboarding or open Daily Tasks when your active plan has generated tasks.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Weak Areas
+          </CardTitle>
+          <CardDescription>Top focus areas from overdue tasks, subject progress, chapters, and mock results.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {weakAreas.length > 0 ? (
+            <div className="space-y-3">
+              {weakAreas.slice(0, 3).map((area, index) => (
+                <div key={`${area.subject_id || 'mock'}-${area.chapter_id || area.chapter_name || index}`} className="rounded-lg border p-4">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="min-w-0 break-words font-medium">
+                      {area.chapter_name || area.subject_name || 'General weakness'}
+                    </span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize text-muted-foreground">
+                      {area.priority}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{area.reason}</p>
+                  <p className="mt-2 break-words text-sm">{area.suggested_action}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty className="py-8">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <AlertTriangle />
+                </EmptyMedia>
+                <EmptyTitle>No weak areas detected</EmptyTitle>
+                <EmptyDescription>
+                  Keep completing tasks and logging mock results to build stronger recommendations.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

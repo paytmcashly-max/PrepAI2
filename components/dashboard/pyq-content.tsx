@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { 
   Select, 
   SelectContent, 
@@ -24,26 +26,40 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  Upload,
 } from 'lucide-react'
-import type { PYQQuestion, Subject } from '@/lib/types'
+import type { Chapter, Exam, PYQQuestion, Subject } from '@/lib/types'
 
 interface PYQContentProps {
   questions: PYQQuestion[]
+  exams: Exam[]
   subjects: Subject[]
+  chapters: Chapter[]
   years: number[]
 }
 
-export function PYQContent({ questions, subjects, years }: PYQContentProps) {
+export function PYQContent({ questions, exams, subjects, chapters, years }: PYQContentProps) {
+  const [filterExam, setFilterExam] = useState<string>('all')
   const [filterYear, setFilterYear] = useState<string>('all')
   const [filterSubject, setFilterSubject] = useState<string>('all')
+  const [filterChapter, setFilterChapter] = useState<string>('all')
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
+  const [verifiedOnly, setVerifiedOnly] = useState(false)
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
 
-  // Apply filters
+  const filteredChapters = chapters.filter((chapter) => {
+    if (filterExam !== 'all' && chapter.exam_id !== filterExam) return false
+    if (filterSubject !== 'all' && chapter.subject_id !== filterSubject) return false
+    return true
+  })
+
   const filteredQuestions = questions.filter(q => {
+    if (filterExam !== 'all' && q.exam_id !== filterExam) return false
     if (filterYear !== 'all' && q.year !== parseInt(filterYear)) return false
     if (filterSubject !== 'all' && q.subject_id !== filterSubject) return false
+    if (filterChapter !== 'all' && q.chapter_id !== filterChapter) return false
     if (filterDifficulty !== 'all' && q.difficulty !== filterDifficulty) return false
+    if (verifiedOnly && !q.is_verified) return false
     return true
   })
 
@@ -55,13 +71,14 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
     hard: questions.filter(q => q.difficulty === 'hard').length,
   }
 
-  // Get unique topics
-  const uniqueTopics = new Set(questions.filter(q => q.topic).map(q => q.topic))
+  const verifiedCount = questions.filter((question) => question.is_verified).length
+  const uniqueTopics = new Set(questions.map(q => q.chapter_ref?.name || q.chapter || q.topic).filter(Boolean))
 
   // Get most frequent topics
   const topicFrequency = questions.reduce((acc, q) => {
-    if (q.topic) {
-      acc[q.topic] = (acc[q.topic] || 0) + 1
+    const topic = q.chapter_ref?.name || q.chapter || q.topic
+    if (topic) {
+      acc[topic] = (acc[topic] || 0) + 1
     }
     return acc
   }, {} as Record<string, number>)
@@ -85,9 +102,17 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">PYQ Practice</h1>
-        <p className="text-muted-foreground">Practice with previous year questions</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">PYQ Practice</h1>
+          <p className="text-muted-foreground">Practice verified and clearly marked unverified previous-year questions</p>
+        </div>
+        <Button asChild variant="outline">
+          <Link href="/dashboard/pyq/admin">
+            <Upload className="mr-2 h-4 w-4" />
+            Manual Import
+          </Link>
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -124,8 +149,8 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Subjects</p>
-                <p className="text-3xl font-bold mt-1">{subjects.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Verified</p>
+                <p className="text-3xl font-bold mt-1">{verifiedCount}</p>
               </div>
               <div className="rounded-lg bg-amber-500/10 p-3">
                 <BookOpen className="h-6 w-6 text-amber-500" />
@@ -182,7 +207,27 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Exam</label>
+              <Select value={filterExam} onValueChange={(value) => {
+                setFilterExam(value)
+                setFilterChapter('all')
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select exam" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Exams</SelectItem>
+                  {exams.map(exam => (
+                    <SelectItem key={exam.id} value={exam.id}>
+                      {exam.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <label className="text-sm font-medium mb-2 block">Year</label>
               <Select value={filterYear} onValueChange={setFilterYear}>
@@ -202,7 +247,10 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
 
             <div>
               <label className="text-sm font-medium mb-2 block">Subject</label>
-              <Select value={filterSubject} onValueChange={setFilterSubject}>
+              <Select value={filterSubject} onValueChange={(value) => {
+                setFilterSubject(value)
+                setFilterChapter('all')
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select subject" />
                 </SelectTrigger>
@@ -211,6 +259,23 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                   {subjects.map(subject => (
                     <SelectItem key={subject.id} value={subject.id}>
                       {subject.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Chapter</label>
+              <Select value={filterChapter} onValueChange={setFilterChapter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select chapter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Chapters</SelectItem>
+                  {filteredChapters.map(chapter => (
+                    <SelectItem key={chapter.id} value={chapter.id}>
+                      {chapter.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -231,6 +296,11 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                 </SelectContent>
               </Select>
             </div>
+
+            <label className="flex items-end gap-2 rounded-md border p-3 text-sm">
+              <Checkbox checked={verifiedOnly} onCheckedChange={(checked) => setVerifiedOnly(Boolean(checked))} />
+              <span className="leading-none">Verified only</span>
+            </label>
           </div>
         </CardContent>
       </Card>
@@ -253,7 +323,9 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="font-semibold mb-2">No Questions Found</h3>
                 <p className="text-muted-foreground">
-                  Try adjusting your filters to see more questions.
+                  {questions.length === 0
+                    ? 'No verified PYQ bank has been imported yet. Add real PYQs through manual import when available.'
+                    : 'Try adjusting your filters to see more questions.'}
                 </p>
               </CardContent>
             </Card>
@@ -261,6 +333,8 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
             filteredQuestions.map((question) => {
               const isExpanded = expandedQuestion === question.id
               const subjectName = question.subject?.name || 'General'
+              const examName = question.exam?.name || question.exam_id || 'Exam'
+              const chapterName = question.chapter_ref?.name || question.chapter || question.topic
               const sourceLabel = question.is_verified
                 ? 'Verified PYQ'
                 : question.source === 'ai_generated'
@@ -273,10 +347,11 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline">{question.year}</Badge>
+                        <Badge variant="outline">{examName}</Badge>
                         <Badge variant="secondary">{subjectName}</Badge>
-                        {question.topic && (
+                        {chapterName && (
                           <Badge variant="outline" className="bg-muted/50">
-                            {question.topic}
+                            {chapterName}
                           </Badge>
                         )}
                         <Badge variant={question.is_verified ? 'default' : 'outline'} className="gap-1">
@@ -290,7 +365,7 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                     </div>
 
                     <div className="mb-4">
-                      <p className="text-foreground leading-relaxed">{question.question}</p>
+                      <p className="break-words text-foreground leading-relaxed">{question.question}</p>
                     </div>
 
                     {question.options && question.options.length > 0 && (
@@ -303,7 +378,7 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                             <span className="font-semibold text-primary w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-sm">
                               {String.fromCharCode(65 + idx)}
                             </span>
-                            <span className="text-foreground">{option}</span>
+                            <span className="min-w-0 break-words text-foreground">{option}</span>
                           </div>
                         ))}
                       </div>
@@ -351,7 +426,7 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                               <p className="font-medium text-green-700 dark:text-green-400">
                                 Correct Answer
                               </p>
-                              <p className="text-foreground">{question.answer}</p>
+                              <p className="break-words text-foreground">{question.answer}</p>
                             </div>
                           </div>
                         )}
@@ -362,7 +437,7 @@ export function PYQContent({ questions, subjects, years }: PYQContentProps) {
                               <p className="font-medium text-blue-700 dark:text-blue-400">
                                 Explanation
                               </p>
-                              <p className="text-foreground">{question.explanation}</p>
+                              <p className="break-words text-foreground">{question.explanation}</p>
                             </div>
                           </div>
                         )}

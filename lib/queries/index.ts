@@ -20,6 +20,7 @@ import type {
   RoadmapSubject,
   ActivePlanSubjectDetail,
   SubjectChapterProgress,
+  WeakArea,
 } from '@/lib/types'
 
 function getCalendarDay(startDate: string) {
@@ -394,18 +395,22 @@ export async function getPYQQuestions(filters?: {
   examId?: string
   year?: number
   subjectId?: string
+  chapterId?: string
   difficulty?: string
+  verifiedOnly?: boolean
 }): Promise<PYQQuestion[]> {
   const supabase = await createClient()
   let query = supabase
     .from('pyq_questions')
-    .select('*, subject:subjects(*)')
+    .select('*, subject:subjects(*), exam:exams(*), chapter_ref:chapters(*)')
     .order('year', { ascending: false })
 
   if (filters?.examId) query = query.eq('exam_id', filters.examId)
   if (filters?.year) query = query.eq('year', filters.year)
   if (filters?.subjectId) query = query.eq('subject_id', filters.subjectId)
+  if (filters?.chapterId) query = query.eq('chapter_id', filters.chapterId)
   if (filters?.difficulty) query = query.eq('difficulty', filters.difficulty)
+  if (filters?.verifiedOnly) query = query.eq('is_verified', true)
 
   const { data, error } = await query
 
@@ -443,6 +448,35 @@ export async function getRandomQuote(): Promise<MotivationalQuote | null> {
     category: quote.category,
     author: quote.author,
     created_at: quote.created_at,
+  }
+}
+
+export async function getPYQFilterData(): Promise<{
+  exams: Exam[]
+  subjects: Subject[]
+  chapters: Chapter[]
+  years: number[]
+}> {
+  const supabase = await createClient()
+  const [exams, subjects, yearsResult, chaptersResult] = await Promise.all([
+    getMasterExams(),
+    getSubjects(),
+    getPYQYears(),
+    supabase
+      .from('chapters')
+      .select('*')
+      .order('exam_id')
+      .order('subject_id')
+      .order('order_index'),
+  ])
+
+  if (chaptersResult.error) throw chaptersResult.error
+
+  return {
+    exams,
+    subjects,
+    chapters: (chaptersResult.data || []) as Chapter[],
+    years: yearsResult,
   }
 }
 
@@ -632,6 +666,139 @@ export async function getSubjectProgress(userId: string): Promise<SubjectProgres
       weakChapters,
     }
   }).filter((subject) => subject.totalTasks > 0)
+}
+
+export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(userId)
+  if (!plan) return []
+
+  const today = new Date().toISOString().split('T')[0]
+  const { data: tasks, error: tasksError } = await supabase
+    .from('user_daily_tasks')
+    .select('subject_id, chapter_id, status, task_date, subject:subjects(id, name), chapter:chapters(id, name)')
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .not('subject_id', 'is', null)
+
+  if (tasksError) throw tasksError
+
+  const normalizedTasks = ((tasks || []) as unknown as Array<{
+    subject_id: string | null
+    chapter_id: string | null
+    status: string
+    task_date: string
+    subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    chapter: { id: string; name: string } | Array<{ id: string; name: string }> | null
+  }>).map((task) => ({
+    ...task,
+    subject: Array.isArray(task.subject) ? task.subject[0] || null : task.subject,
+    chapter: Array.isArray(task.chapter) ? task.chapter[0] || null : task.chapter,
+  }))
+
+  const weakAreas = new Map<string, WeakArea & { score: number }>()
+  const upsertWeakArea = (area: WeakArea, score: number) => {
+    const key = `${area.subject_id || 'general'}:${area.chapter_id || area.chapter_name || area.reason}`
+    const existing = weakAreas.get(key)
+    if (!existing || score > existing.score) {
+      weakAreas.set(key, { ...area, score })
+    }
+  }
+
+  const bySubject = new Map<string, typeof normalizedTasks>()
+  const byChapter = new Map<string, typeof normalizedTasks>()
+  for (const task of normalizedTasks) {
+    if (task.subject_id) {
+      bySubject.set(task.subject_id, [...(bySubject.get(task.subject_id) || []), task])
+    }
+    if (task.chapter_id) {
+      byChapter.set(task.chapter_id, [...(byChapter.get(task.chapter_id) || []), task])
+    }
+  }
+
+  for (const task of normalizedTasks) {
+    if (task.status === 'completed' || task.task_date >= today) continue
+    upsertWeakArea({
+      subject_id: task.subject_id,
+      subject_name: task.subject?.name || task.subject_id,
+      chapter_id: task.chapter_id,
+      chapter_name: task.chapter?.name || null,
+      reason: 'Pending overdue task',
+      priority: 'high',
+      suggested_action: `Finish the overdue ${task.chapter?.name || task.subject?.name || 'task'} today, then mark mistakes for revision.`,
+    }, 90)
+  }
+
+  for (const [chapterId, chapterTasks] of byChapter.entries()) {
+    const total = chapterTasks.length
+    const pending = chapterTasks.filter((task) => task.status !== 'completed').length
+    if (total < 2 || pending < 2) continue
+    const sample = chapterTasks[0]
+    const pendingRate = pending / total
+    upsertWeakArea({
+      subject_id: sample.subject_id,
+      subject_name: sample.subject?.name || sample.subject_id,
+      chapter_id: chapterId,
+      chapter_name: sample.chapter?.name || null,
+      reason: `${pending} incomplete tasks in this chapter`,
+      priority: pendingRate >= 0.75 ? 'high' : 'medium',
+      suggested_action: `Revise ${sample.chapter?.name || 'this chapter'} and complete two pending practice tasks before moving ahead.`,
+    }, 60 + pending)
+  }
+
+  for (const [subjectId, subjectTasks] of bySubject.entries()) {
+    const total = subjectTasks.length
+    const completed = subjectTasks.filter((task) => task.status === 'completed').length
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+    if (total < 3 || percentage >= 40) continue
+    const sample = subjectTasks[0]
+    upsertWeakArea({
+      subject_id: subjectId,
+      subject_name: sample.subject?.name || subjectId,
+      chapter_id: null,
+      chapter_name: null,
+      reason: `Low subject progress (${percentage}%)`,
+      priority: percentage < 25 ? 'high' : 'medium',
+      suggested_action: `Do a focused ${sample.subject?.name || subjectId} catch-up block and complete the next pending chapter task.`,
+    }, 50 + (40 - percentage))
+  }
+
+  const { data: mockRows, error: mockError } = await supabase
+    .from('mock_tests')
+    .select('weak_areas, exam_id, test_date')
+    .eq('user_id', userId)
+    .eq('exam_id', plan.exam_id)
+    .order('test_date', { ascending: false })
+    .limit(10)
+
+  if (mockError) throw mockError
+
+  const mockWeakAreaCounts = new Map<string, number>()
+  for (const row of mockRows || []) {
+    const values = Array.isArray(row.weak_areas) ? row.weak_areas : []
+    for (const area of values) {
+      if (typeof area !== 'string' || !area.trim()) continue
+      const key = area.trim()
+      mockWeakAreaCounts.set(key, (mockWeakAreaCounts.get(key) || 0) + 1)
+    }
+  }
+
+  for (const [area, count] of mockWeakAreaCounts.entries()) {
+    upsertWeakArea({
+      subject_id: null,
+      subject_name: null,
+      chapter_id: null,
+      chapter_name: area,
+      reason: `Mentioned in ${count} mock result${count > 1 ? 's' : ''}`,
+      priority: count >= 2 ? 'high' : 'medium',
+      suggested_action: `Add ${area} to tomorrow's revision and review the related mock mistakes.`,
+    }, 55 + count * 5)
+  }
+
+  return [...weakAreas.values()]
+    .sort((a, b) => b.score - a.score)
+    .map(({ score: _score, ...area }) => area)
+    .slice(0, 8)
 }
 
 export async function getActivePlanSubjectDetail(userId: string, subjectId: string): Promise<ActivePlanSubjectDetail> {

@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { getPYQQuestions, getPYQYears, getSubjects } from "@/lib/queries/index"
+import { getPYQFilterData, getPYQQuestions } from "@/lib/queries/index"
 import { PYQContent } from "@/components/dashboard/pyq-content"
 
 export const metadata = {
@@ -8,18 +8,19 @@ export const metadata = {
 }
 
 export default async function PYQPage() {
-  const [questions, subjects, years] = await Promise.all([
+  const [questions, filterData] = await Promise.all([
     getPYQQuestions(),
-    getSubjects(),
-    getPYQYears(),
+    getPYQFilterData(),
   ])
 
   return (
     <Suspense fallback={<PYQSkeleton />}>
       <PYQContent 
         questions={questions}
-        subjects={subjects}
-        years={years}
+        exams={filterData.exams}
+        subjects={filterData.subjects}
+        chapters={filterData.chapters}
+        years={filterData.years}
       />
     </Suspense>
   )

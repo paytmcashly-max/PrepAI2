@@ -183,6 +183,8 @@ export interface PYQQuestion {
   frequency: number
   created_at: string
   subject?: Subject
+  exam?: Exam | null
+  chapter_ref?: Chapter | null
 }
 
 export interface MotivationalQuote {
@@ -241,6 +243,16 @@ export interface ActivePlanSubjectDetail {
   completedTasks: number
   totalTasks: number
   percentage: number
+}
+
+export interface WeakArea {
+  subject_id: string | null
+  subject_name: string | null
+  chapter_id: string | null
+  chapter_name: string | null
+  reason: string
+  priority: 'low' | 'medium' | 'high'
+  suggested_action: string
 }
 
 export interface PlanSettingsData {

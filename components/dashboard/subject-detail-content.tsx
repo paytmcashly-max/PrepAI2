@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, BookOpen, CheckCircle2, Circle, Play } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, BookOpen, CheckCircle2, Circle, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +37,10 @@ export function SubjectDetailContent({ detail }: SubjectDetailContentProps) {
   const completedChapters = detail.chapters.filter((chapter) => chapter.status === 'completed').length
   const inProgressChapters = detail.chapters.filter((chapter) => chapter.status === 'in_progress').length
   const totalChapters = detail.chapters.length
+  const weakChapters = detail.chapters
+    .filter((chapter) => chapter.totalTasks >= 2 && chapter.completedTasks < chapter.totalTasks)
+    .sort((a, b) => (a.percentage - b.percentage) || (b.totalTasks - a.totalTasks))
+    .slice(0, 5)
 
   return (
     <div className="space-y-6 p-6">
@@ -101,6 +105,36 @@ export function SubjectDetailContent({ detail }: SubjectDetailContentProps) {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-card/50 backdrop-blur">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Weak Chapters
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {weakChapters.length > 0 ? (
+                <div className="space-y-3">
+                  {weakChapters.map((chapter) => (
+                    <div key={chapter.id} className="rounded-lg border p-3">
+                      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                        <p className="min-w-0 break-words font-medium leading-relaxed">{chapter.name}</p>
+                        <Badge variant="outline">{chapter.completedTasks}/{chapter.totalTasks} tasks</Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Revise this chapter and clear pending practice before the next mock.
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No weak chapters detected from active-plan task completion.
+                </p>
+              )}
             </CardContent>
           </Card>
 

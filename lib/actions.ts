@@ -1,13 +1,17 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { randomUUID } from 'node:crypto'
 import { generateStudyPlan } from '@/lib/services/generate-study-plan'
 
 type Level = 'weak' | 'average' | 'good'
 type StudyLanguage = 'hindi' | 'english'
+type PYQSource = 'ai_generated' | 'verified_pyq'
 const allowedLevels = new Set<Level>(['weak', 'average', 'good'])
 const allowedStudyLanguages = new Set<StudyLanguage>(['hindi', 'english'])
+const allowedPYQSources = new Set<PYQSource>(['ai_generated', 'verified_pyq'])
 
 function assertLevel(value: string, label: string): Level {
   if (allowedLevels.has(value as Level)) return value as Level
@@ -32,6 +36,26 @@ function assertDate(value: string) {
 function assertStudyLanguage(value: string): StudyLanguage {
   if (allowedStudyLanguages.has(value as StudyLanguage)) return value as StudyLanguage
   throw new Error('Study language must be Hindi or English.')
+}
+
+function getAdminEmails() {
+  return (process.env.PYQ_ADMIN_EMAILS || process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+async function assertPYQAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) throw new Error('Not authenticated')
+
+  const adminEmails = getAdminEmails()
+  if (!adminEmails.includes(user.email.toLowerCase())) {
+    throw new Error('PYQ import is restricted to configured admins.')
+  }
+
+  return user
 }
 
 export async function completeOnboarding(data: {
@@ -435,6 +459,85 @@ export async function createMockResult(data: {
   revalidatePath('/dashboard/mock-tests', 'page')
   revalidatePath('/dashboard', 'page')
   return result
+}
+
+// ============ PYQ ADMIN IMPORT ============
+export async function createPYQQuestion(data: {
+  exam_id: string
+  year: number
+  subject_id: string
+  chapter_id?: string | null
+  difficulty: string
+  question: string
+  options: string[]
+  answer: string
+  explanation?: string | null
+  source: string
+  is_verified: boolean
+}) {
+  await assertPYQAdmin()
+
+  const examId = data.exam_id?.trim()
+  const subjectId = data.subject_id?.trim()
+  const chapterId = data.chapter_id?.trim() || null
+  const year = Number(data.year)
+  const difficulty = data.difficulty?.trim()
+  const source = allowedPYQSources.has(data.source as PYQSource) ? data.source as PYQSource : null
+  const question = data.question?.trim()
+  const answer = data.answer?.trim()
+  const explanation = data.explanation?.trim() || null
+  const options = (data.options || []).map((option) => option.trim()).filter(Boolean)
+
+  if (!examId || !subjectId || !Number.isInteger(year) || year < 1900 || year > 2100) {
+    throw new Error('Please provide exam, subject, and a valid year.')
+  }
+  if (!['easy', 'medium', 'hard'].includes(difficulty)) {
+    throw new Error('Difficulty must be easy, medium, or hard.')
+  }
+  if (!question || !answer) {
+    throw new Error('Question and answer are required.')
+  }
+  if (!source) {
+    throw new Error('Source must be ai_generated or verified_pyq.')
+  }
+
+  const isVerified = source === 'verified_pyq'
+  if (source === 'verified_pyq' && !data.is_verified) {
+    throw new Error('Verified previous-year questions must be marked verified.')
+  }
+
+  const admin = createAdminClient()
+  const { data: chapter } = chapterId
+    ? await admin.from('chapters').select('name').eq('id', chapterId).single()
+    : { data: null }
+
+  const { data: inserted, error } = await admin
+    .from('pyq_questions')
+    .insert({
+      id: `manual-pyq-${randomUUID()}`,
+      exam_id: examId,
+      year,
+      subject_id: subjectId,
+      chapter_id: chapterId,
+      chapter: chapter?.name || null,
+      topic: chapter?.name || null,
+      difficulty,
+      question,
+      options,
+      answer,
+      explanation,
+      source,
+      is_verified: isVerified,
+      frequency: 1,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  revalidatePath('/dashboard/pyq', 'page')
+  revalidatePath('/dashboard/pyq/admin', 'page')
+  return inserted
 }
 
 // ============ MOCK TEST ATTEMPTS ============
