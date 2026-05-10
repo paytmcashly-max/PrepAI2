@@ -286,6 +286,11 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">{area.reason}</p>
                   <p className="mt-2 break-words text-sm">{area.suggested_action}</p>
+                  {area.actionTarget && (
+                    <Button asChild variant="outline" size="sm" className="mt-3">
+                      <Link href={area.actionTarget}>Review now</Link>
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

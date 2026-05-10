@@ -674,6 +674,7 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
   if (!plan) return []
 
   const today = new Date().toISOString().split('T')[0]
+  const currentDay = getCalendarDay(plan.start_date)
   const { data: tasks, error: tasksError } = await supabase
     .from('user_daily_tasks')
     .select('subject_id, chapter_id, status, task_date, subject:subjects(id, name), chapter:chapters(id, name)')
@@ -726,6 +727,7 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
       reason: 'Pending overdue task',
       priority: 'high',
       suggested_action: `Finish the overdue ${task.chapter?.name || task.subject?.name || 'task'} today, then mark mistakes for revision.`,
+      actionTarget: '/dashboard/tasks?focus=today#today-tasks',
     }, 90)
   }
 
@@ -743,24 +745,28 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
       reason: `${pending} incomplete tasks in this chapter`,
       priority: pendingRate >= 0.75 ? 'high' : 'medium',
       suggested_action: `Revise ${sample.chapter?.name || 'this chapter'} and complete two pending practice tasks before moving ahead.`,
+      actionTarget: sample.subject_id ? `/dashboard/subjects/${sample.subject_id}` : '/dashboard/tasks?focus=today#today-tasks',
     }, 60 + pending)
   }
 
-  for (const [subjectId, subjectTasks] of bySubject.entries()) {
-    const total = subjectTasks.length
-    const completed = subjectTasks.filter((task) => task.status === 'completed').length
-    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
-    if (total < 3 || percentage >= 40) continue
-    const sample = subjectTasks[0]
-    upsertWeakArea({
-      subject_id: subjectId,
-      subject_name: sample.subject?.name || subjectId,
-      chapter_id: null,
-      chapter_name: null,
-      reason: `Low subject progress (${percentage}%)`,
-      priority: percentage < 25 ? 'high' : 'medium',
-      suggested_action: `Do a focused ${sample.subject?.name || subjectId} catch-up block and complete the next pending chapter task.`,
-    }, 50 + (40 - percentage))
+  if (currentDay >= 7) {
+    for (const [subjectId, subjectTasks] of bySubject.entries()) {
+      const total = subjectTasks.length
+      const completed = subjectTasks.filter((task) => task.status === 'completed').length
+      const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+      if (total < 3 || percentage >= 40) continue
+      const sample = subjectTasks[0]
+      upsertWeakArea({
+        subject_id: subjectId,
+        subject_name: sample.subject?.name || subjectId,
+        chapter_id: null,
+        chapter_name: null,
+        reason: `Low subject progress (${percentage}%)`,
+        priority: percentage < 25 ? 'high' : 'medium',
+        suggested_action: `Do a focused ${sample.subject?.name || subjectId} catch-up block and complete the next pending chapter task.`,
+        actionTarget: `/dashboard/subjects/${subjectId}`,
+      }, 50 + (40 - percentage))
+    }
   }
 
   const { data: mockRows, error: mockError } = await supabase
@@ -792,6 +798,7 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
       reason: `Mentioned in ${count} mock result${count > 1 ? 's' : ''}`,
       priority: count >= 2 ? 'high' : 'medium',
       suggested_action: `Add ${area} to tomorrow's revision and review the related mock mistakes.`,
+      actionTarget: '/dashboard/mock-tests',
     }, 55 + count * 5)
   }
 

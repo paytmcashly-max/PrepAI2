@@ -106,6 +106,9 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
         <div>
           <h1 className="text-3xl font-bold tracking-tight">PYQ Practice</h1>
           <p className="text-muted-foreground">Practice verified and clearly marked unverified previous-year questions</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Only verified_pyq questions should be treated as real previous-year questions.
+          </p>
         </div>
         <Button asChild variant="outline">
           <Link href="/dashboard/pyq/admin">
@@ -338,8 +341,9 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               const sourceLabel = question.is_verified
                 ? 'Verified PYQ'
                 : question.source === 'ai_generated'
-                  ? 'AI generated'
+                  ? 'AI-generated / Unverified'
                   : 'Unverified'
+              const SourceIcon = question.is_verified ? ShieldCheck : Sparkles
 
               return (
                 <Card key={question.id}>
@@ -354,8 +358,11 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                             {chapterName}
                           </Badge>
                         )}
-                        <Badge variant={question.is_verified ? 'default' : 'outline'} className="gap-1">
-                          {question.is_verified ? <ShieldCheck className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+                        <Badge
+                          variant={question.is_verified ? 'default' : 'outline'}
+                          className={question.is_verified ? 'gap-1' : 'gap-1 border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'}
+                        >
+                          <SourceIcon className="h-3 w-3" />
                           {sourceLabel}
                         </Badge>
                       </div>

@@ -108,14 +108,28 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
       )}
 
       {isConfigured && !isAdmin && (
-        <Alert variant="destructive">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertTitle>Restricted import</AlertTitle>
-          <AlertDescription>Your account is not configured as a PYQ import admin.</AlertDescription>
-        </Alert>
+        <Card>
+          <CardContent className="py-10">
+            <div className="mx-auto flex max-w-md flex-col items-center gap-3 text-center">
+              <div className="rounded-full bg-destructive/10 p-3 text-destructive">
+                <ShieldAlert className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">Restricted access</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Your account is not configured as a PYQ import admin. You can still review PYQs from the main practice page.
+                </p>
+              </div>
+              <Button asChild variant="outline">
+                <Link href="/dashboard/pyq">Back to PYQ Practice</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      <Card>
+      {isAdmin && isConfigured && (
+        <Card>
         <CardHeader>
           <CardTitle>Question Details</CardTitle>
           <CardDescription>Do not mark generated/demo questions as verified PYQs.</CardDescription>
@@ -210,7 +224,8 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
             {isPending ? 'Saving...' : 'Save PYQ'}
           </Button>
         </CardContent>
-      </Card>
+        </Card>
+      )}
     </div>
   )
 }

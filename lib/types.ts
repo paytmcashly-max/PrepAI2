@@ -253,6 +253,7 @@ export interface WeakArea {
   reason: string
   priority: 'low' | 'medium' | 'high'
   suggested_action: string
+  actionTarget?: string | null
 }
 
 export interface PlanSettingsData {

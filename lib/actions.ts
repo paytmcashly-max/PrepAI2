@@ -507,9 +507,31 @@ export async function createPYQQuestion(data: {
   }
 
   const admin = createAdminClient()
-  const { data: chapter } = chapterId
-    ? await admin.from('chapters').select('name').eq('id', chapterId).single()
-    : { data: null }
+  const [
+    examResult,
+    subjectResult,
+    examSubjectResult,
+    chapterResult,
+  ] = await Promise.all([
+    admin.from('exams').select('id').eq('id', examId).single(),
+    admin.from('subjects').select('id').eq('id', subjectId).single(),
+    admin.from('exam_subjects').select('exam_id, subject_id').eq('exam_id', examId).eq('subject_id', subjectId).single(),
+    chapterId
+      ? admin.from('chapters').select('id, name, exam_id, subject_id').eq('id', chapterId).single()
+      : Promise.resolve({ data: null, error: null }),
+  ])
+
+  if (examResult.error || !examResult.data) throw new Error('Selected exam does not exist.')
+  if (subjectResult.error || !subjectResult.data) throw new Error('Selected subject does not exist.')
+  if (examSubjectResult.error || !examSubjectResult.data) {
+    throw new Error('Selected subject does not belong to the selected exam.')
+  }
+
+  const chapter = chapterResult.data
+  if (chapterResult.error) throw new Error('Selected chapter does not exist.')
+  if (chapter && (chapter.exam_id !== examId || chapter.subject_id !== subjectId)) {
+    throw new Error('Selected chapter does not belong to the selected exam and subject.')
+  }
 
   const { data: inserted, error } = await admin
     .from('pyq_questions')
