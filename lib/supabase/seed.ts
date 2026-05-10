@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 type SeedSubject = {
   id: string;
@@ -77,7 +78,7 @@ function slugify(value: string) {
 }
 
 export async function seedDatabase(data: SeedData) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   try {
     if (data.subjects?.length) {
