@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { seedDatabase } from '@/lib/supabase/seed';
+import { getMasterSeedData, seedDatabase } from '@/lib/supabase/seed';
+
+export const runtime = 'nodejs';
 
 /**
  * POST /api/admin/seed
@@ -29,18 +31,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const seedData = await request.json();
+    const seedData = getMasterSeedData();
 
-    if (seedData.dailyRoadmap || seedData.dailyPlans || seedData.dailyTasks) {
+    if (!seedData.exams && !seedData.subjects && !seedData.chapters && !seedData.quote_bank) {
       return NextResponse.json(
-        { error: 'Static daily plan seeding is not allowed. Seed only master data.' },
-        { status: 400 }
-      );
-    }
-
-    if (!seedData.exams && !seedData.subjects && !seedData.chapters && !seedData.pyqQuestions && !seedData.quotes) {
-      return NextResponse.json(
-        { error: 'Invalid seed data: missing master data fields' },
+        { error: 'Invalid supabase/master-seed.json: missing master data fields' },
         { status: 400 }
       );
     }
@@ -54,8 +49,14 @@ export async function POST(request: NextRequest) {
           data: {
             subjectsSeeded: seedData.subjects?.length || 0,
             examsSeeded: seedData.exams?.length || 0,
+            examSubjectsSeeded: seedData.exam_subjects?.length || 0,
             chaptersSeeded: seedData.chapters?.length || 0,
-            pyqsSeeded: seedData.pyqQuestions?.length || 0,
+            taskTemplatesSeeded: seedData.task_templates?.length || 0,
+            revisionRulesSeeded: seedData.revision_rules?.length || 0,
+            mockRulesSeeded: seedData.mock_rules?.length || 0,
+            physicalRulesSeeded: seedData.physical_rules?.length || 0,
+            quotesSeeded: seedData.quote_bank?.length || 0,
+            pyqsSeeded: seedData.pyqQuestions?.length || seedData.pyq_questions?.length || 0,
           }
         },
         { status: 200 }

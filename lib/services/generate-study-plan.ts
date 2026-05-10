@@ -42,8 +42,8 @@ interface PlannedTask {
   status: 'pending'
 }
 
-const policePhysicalExams = new Set(['bihar-si', 'up-police', 'ssc-gd'])
-const baseSubjectOrder = ['maths', 'gk-gs', 'hindi', 'reasoning', 'english', 'general-awareness', 'computer']
+const policePhysicalExams = new Set(['bihar_si', 'up_police', 'ssc_gd', 'bihar-si', 'up-police', 'ssc-gd'])
+const baseSubjectOrder = ['maths', 'gk_gs', 'gk-gs', 'hindi', 'english', 'reasoning', 'general-awareness', 'computer']
 
 function addDays(dateValue: string, daysToAdd: number) {
   const date = new Date(`${dateValue}T00:00:00`)

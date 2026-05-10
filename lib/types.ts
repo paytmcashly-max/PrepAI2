@@ -4,8 +4,12 @@ export interface Exam {
   id: string
   name: string
   level: string | null
+  category: string | null
+  primary_language: string | null
   focus: string[]
+  recommended_for: string[]
   selection_stages: string[]
+  source_notes: string | null
   created_at: string
 }
 
@@ -14,6 +18,7 @@ export interface Subject {
   name: string
   icon: string | null
   color: string | null
+  order_index: number
   created_at: string
 }
 
@@ -21,11 +26,14 @@ export interface Chapter {
   id: string
   exam_id: string | null
   subject_id: string
+  chapter_key: string | null
   name: string
   priority: 'low' | 'medium' | 'high'
   difficulty: 'easy' | 'medium' | 'hard'
   estimated_minutes: number
   order_index: number
+  tags: string[]
+  aliases: string[]
   created_at: string
 }
 
@@ -180,6 +188,7 @@ export interface MotivationalQuote {
   id: string
   quote: string
   author: string | null
+  category?: string | null
   created_at: string
 }
 

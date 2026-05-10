@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  BookText,
   Brain,
   Calculator,
   Dumbbell,
@@ -12,6 +13,7 @@ import {
 
 const iconRegistry: Record<string, LucideIcon> = {
   BookOpen,
+  BookText,
   Brain,
   Calculator,
   Dumbbell,
@@ -32,4 +34,3 @@ export function SubjectIcon({ icon, className }: SubjectIconProps) {
 
   return <ResolvedIcon className={className} />
 }
-

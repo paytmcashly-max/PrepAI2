@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { OnboardingForm } from '@/components/onboarding/onboarding-form'
+import { getMasterExams } from '@/lib/queries'
 
 export default async function OnboardingPage() {
   const supabase = await createClient()
@@ -10,16 +11,13 @@ export default async function OnboardingPage() {
     redirect('/auth/login')
   }
 
-  const [{ data: profile }, { data: exams }] = await Promise.all([
+  const [{ data: profile }, exams] = await Promise.all([
     supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single(),
-    supabase
-      .from('exams')
-      .select('id, name, level')
-      .order('name'),
+    getMasterExams(),
   ])
 
   const onboardingCompleted = profile?.onboarding_completed ?? Boolean(profile?.exam_target)
@@ -28,5 +26,5 @@ export default async function OnboardingPage() {
     redirect('/dashboard')
   }
 
-  return <OnboardingForm exams={exams || []} />
+  return <OnboardingForm exams={exams} />
 }

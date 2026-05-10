@@ -1,0 +1,4060 @@
+{
+  "version": "2.0.0",
+  "file_type": "dynamic_master_seed",
+  "app": "PrepAI2",
+  "generated_at": "2026-05-10T11:03:30.835354+00:00",
+  "description": "Master seed data for dynamic competitive exam plan generation. This file does not contain fixed daily plans; it contains exams, subjects, chapters, templates and rules.",
+  "sources": [
+    {
+      "name": "BPSSC official syllabus",
+      "url": "https://bpssc.bihar.gov.in/Syllabus.htm",
+      "used_for": [
+        "Bihar Police SI exam structure and syllabus categories"
+      ]
+    },
+    {
+      "name": "UPPRPB official syllabus/notice portal",
+      "url": "https://uppbpb.gov.in/Home/Syllabus",
+      "used_for": [
+        "UP Police official syllabus access and paper subject categories"
+      ]
+    },
+    {
+      "name": "SSC Constable GD official notice",
+      "url": "https://ssc.gov.in/api/attachment/uploads/masterData/NoticeBoards/Notice_of_CTGD_2026.pdf",
+      "used_for": [
+        "SSC GD exam stages and CBE subject categories"
+      ]
+    }
+  ],
+  "import_order": [
+    "exams",
+    "subjects",
+    "exam_subjects",
+    "chapters",
+    "task_templates",
+    "revision_rules",
+    "mock_rules",
+    "physical_rules",
+    "quote_bank"
+  ],
+  "planner_rules": {
+    "phase_percentages": [
+      {
+        "id": "foundation",
+        "name": "Foundation",
+        "percentage": 25,
+        "goal": "Basics, habit building, beginner-level tasks."
+      },
+      {
+        "id": "core_syllabus",
+        "name": "Core Syllabus",
+        "percentage": 35,
+        "goal": "Main chapters and regular practice."
+      },
+      {
+        "id": "practice",
+        "name": "Practice",
+        "percentage": 25,
+        "goal": "PYQ, mixed practice and mock tests."
+      },
+      {
+        "id": "revision",
+        "name": "Revision",
+        "percentage": 15,
+        "goal": "Weak topics, full revision and mocks."
+      }
+    ],
+    "chapter_selection": [
+      {
+        "max_days": 45,
+        "include_priorities": [
+          "high"
+        ],
+        "strategy": "fast_track"
+      },
+      {
+        "max_days": 90,
+        "include_priorities": [
+          "high",
+          "medium"
+        ],
+        "strategy": "balanced"
+      },
+      {
+        "max_days": 999,
+        "include_priorities": [
+          "high",
+          "medium",
+          "low"
+        ],
+        "strategy": "full_syllabus"
+      }
+    ],
+    "level_adjustments": {
+      "maths_level": {
+        "weak": {
+          "extra_practice_multiplier": 1.35,
+          "concept_time_multiplier": 1.2
+        },
+        "average": {
+          "extra_practice_multiplier": 1.0,
+          "concept_time_multiplier": 1.0
+        },
+        "good": {
+          "extra_practice_multiplier": 0.85,
+          "concept_time_multiplier": 0.8
+        }
+      },
+      "physical_level": {
+        "weak": {
+          "progression": "slow",
+          "intensity_multiplier": 0.75
+        },
+        "average": {
+          "progression": "normal",
+          "intensity_multiplier": 1.0
+        },
+        "good": {
+          "progression": "fast",
+          "intensity_multiplier": 1.15
+        }
+      }
+    },
+    "daily_task_mix": {
+      "default": [
+        "maths",
+        "gk_gs",
+        "hindi",
+        "reasoning",
+        "physical"
+      ],
+      "ssc_gd": [
+        "maths",
+        "gk_gs",
+        "reasoning",
+        "hindi_or_english",
+        "physical"
+      ]
+    }
+  },
+  "exams": [
+    {
+      "id": "bihar_si",
+      "name": "Bihar Police SI",
+      "level": "Graduation",
+      "category": "state_police_si",
+      "primary_language": "Hindi",
+      "focus": [
+        "GK/GS",
+        "Current Affairs",
+        "Hindi",
+        "Maths",
+        "Reasoning",
+        "Physical"
+      ],
+      "selection_stages": [
+        "Prelims",
+        "Mains",
+        "Physical Test",
+        "Document Verification",
+        "Medical"
+      ],
+      "recommended_for": [
+        "Bihar Police SI",
+        "Bihar Police Sergeant",
+        "State Police SI beginner preparation"
+      ],
+      "source_notes": "BPSSC official syllabus page and SI-equivalent syllabus PDF."
+    },
+    {
+      "id": "up_police",
+      "name": "UP Police",
+      "level": "10th/12th/Graduation depending on post",
+      "category": "state_police",
+      "primary_language": "Hindi",
+      "focus": [
+        "General Knowledge",
+        "General Hindi",
+        "Numerical & Mental Ability",
+        "Mental Aptitude/IQ/Reasoning",
+        "Physical"
+      ],
+      "selection_stages": [
+        "Written Exam",
+        "Physical Test",
+        "Document Verification",
+        "Medical"
+      ],
+      "recommended_for": [
+        "UP Police Constable",
+        "UP Police SI beginner preparation"
+      ],
+      "source_notes": "UPPRPB official syllabus/notice pages for Civil Police and recruitment notices."
+    },
+    {
+      "id": "ssc_gd",
+      "name": "SSC GD Constable",
+      "level": "10th",
+      "category": "central_force_constable",
+      "primary_language": "Hindi/English",
+      "focus": [
+        "General Intelligence & Reasoning",
+        "GK/General Awareness",
+        "Elementary Mathematics",
+        "English/Hindi",
+        "Physical"
+      ],
+      "selection_stages": [
+        "Computer Based Examination",
+        "PST/PET",
+        "Medical",
+        "Document Verification"
+      ],
+      "recommended_for": [
+        "SSC GD",
+        "CAPF Constable",
+        "Rifleman GD"
+      ],
+      "source_notes": "SSC Constable GD official notice."
+    }
+  ],
+  "subjects": [
+    {
+      "id": "maths",
+      "name": "Maths",
+      "icon": "Calculator",
+      "color": "blue",
+      "order_index": 1
+    },
+    {
+      "id": "gk_gs",
+      "name": "GK / GS",
+      "icon": "BookOpen",
+      "color": "emerald",
+      "order_index": 2
+    },
+    {
+      "id": "hindi",
+      "name": "Hindi",
+      "icon": "Languages",
+      "color": "orange",
+      "order_index": 3
+    },
+    {
+      "id": "english",
+      "name": "English",
+      "icon": "BookText",
+      "color": "sky",
+      "order_index": 4
+    },
+    {
+      "id": "reasoning",
+      "name": "Reasoning",
+      "icon": "Brain",
+      "color": "purple",
+      "order_index": 5
+    },
+    {
+      "id": "physical",
+      "name": "Physical",
+      "icon": "Dumbbell",
+      "color": "red",
+      "order_index": 6
+    }
+  ],
+  "exam_subjects": [
+    {
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "weight": 30,
+      "is_core": true
+    },
+    {
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "weight": 20,
+      "is_core": true
+    },
+    {
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "weight": 15,
+      "is_core": true
+    },
+    {
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "weight": 15,
+      "is_core": true
+    },
+    {
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "weight": 20,
+      "is_core": true
+    },
+    {
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "weight": 25,
+      "is_core": true
+    },
+    {
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "weight": 25,
+      "is_core": true
+    },
+    {
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "weight": 20,
+      "is_core": true
+    },
+    {
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "weight": 20,
+      "is_core": true
+    },
+    {
+      "exam_id": "up_police",
+      "subject_id": "physical",
+      "weight": 10,
+      "is_core": true
+    },
+    {
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "weight": 25,
+      "is_core": true
+    },
+    {
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "weight": 25,
+      "is_core": true
+    },
+    {
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "weight": 25,
+      "is_core": true
+    },
+    {
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "weight": 12,
+      "is_core": false
+    },
+    {
+      "exam_id": "ssc_gd",
+      "subject_id": "english",
+      "weight": 13,
+      "is_core": false
+    },
+    {
+      "exam_id": "ssc_gd",
+      "subject_id": "physical",
+      "weight": 10,
+      "is_core": true
+    }
+  ],
+  "chapters": [
+    {
+      "id": "5d8845da-f2d3-5906-90c7-855507e08960",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_number_system_basics",
+      "name": "Number System Basics",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "5d7b8e30-ed40-5f21-bb23-b7d9b0d9bd73",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_simplification_and_bodmas",
+      "name": "Simplification & BODMAS",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 2,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "07f5437b-01c6-5cfc-9ff2-7b2b021d1915",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_percentage",
+      "name": "Percentage",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 300,
+      "order_index": 3,
+      "tags": [
+        "must_do",
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "9f949529-d338-5d40-87be-851681d14da5",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_ratio_and_proportion",
+      "name": "Ratio & Proportion",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 240,
+      "order_index": 4,
+      "tags": [
+        "must_do",
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "87bf9a58-90d4-5586-81c5-3c69808b2650",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_average",
+      "name": "Average",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 220,
+      "order_index": 5,
+      "tags": [
+        "must_do",
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "0570237f-c690-50e8-b3d8-8c5b531f55d8",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_profit_and_loss",
+      "name": "Profit & Loss",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 6,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "afc71a92-1ec6-5668-b47a-3c78c6cf44b1",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_simple_interest_and_compound_interest",
+      "name": "Simple Interest & Compound Interest",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 7,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "2508edb0-71bf-517e-9a5d-95e59a0b4467",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_time_and_work",
+      "name": "Time & Work",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 280,
+      "order_index": 8,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "07b3fd62-cb8a-5479-970e-f758affc1736",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_time_speed_and_distance",
+      "name": "Time, Speed & Distance",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 280,
+      "order_index": 9,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "266dd31d-f6fb-5b39-8d5e-b0ea4482a841",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_mensuration_basics",
+      "name": "Mensuration Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 10,
+      "tags": [
+        "geometry"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "502dd021-0d3d-506a-9c2c-b9e1798c1b9b",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_data_interpretation_basics",
+      "name": "Data Interpretation Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 200,
+      "order_index": 11,
+      "tags": [
+        "practice"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "96dd5653-4865-5060-af6c-d2d4e0333d69",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "chapter_key": "bihar_si_maths_mixed_arithmetic_practice",
+      "name": "Mixed Arithmetic Practice",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 360,
+      "order_index": 12,
+      "tags": [
+        "revision",
+        "mixed"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "1bd54892-a87b-5314-9758-fcc41d617032",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_current_affairs___national_and_bihar",
+      "name": "Current Affairs - National & Bihar",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 500,
+      "order_index": 1,
+      "tags": [
+        "daily",
+        "must_do"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "84824c64-ff54-533d-a512-fda68e564ba4",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_bihar_gk___geography_rivers_and_districts",
+      "name": "Bihar GK - Geography, Rivers & Districts",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 360,
+      "order_index": 2,
+      "tags": [
+        "state_gk"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "37dfc4e9-15c1-54b4-a656-91c59d5d8126",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_bihar_gk___history_culture_and_economy",
+      "name": "Bihar GK - History, Culture & Economy",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 360,
+      "order_index": 3,
+      "tags": [
+        "state_gk"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "45d90180-a982-5050-9616-ef080d6054dc",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_ancient_indian_history",
+      "name": "Ancient Indian History",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 320,
+      "order_index": 4,
+      "tags": [
+        "history"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "282d2b3f-222a-5c1e-a95d-9288f1cd72b6",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_medieval_indian_history",
+      "name": "Medieval Indian History",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 280,
+      "order_index": 5,
+      "tags": [
+        "history"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "4ced6a6d-20d0-5de4-b549-5de72a9b1d8e",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_modern_indian_history",
+      "name": "Modern Indian History",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 420,
+      "order_index": 6,
+      "tags": [
+        "history",
+        "freedom_struggle"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "3d450c30-e5d8-5b89-9cd1-14b02e596984",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_indian_geography",
+      "name": "Indian Geography",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 360,
+      "order_index": 7,
+      "tags": [
+        "geography"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "5eee89ae-242b-57ac-8082-24b6fbc6b5e4",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_indian_polity___constitution_basics",
+      "name": "Indian Polity - Constitution Basics",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 360,
+      "order_index": 8,
+      "tags": [
+        "polity"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7464e38a-072e-5f31-83ef-39f484efca3e",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_indian_polity___president_pm_and_parliament",
+      "name": "Indian Polity - President, PM & Parliament",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 320,
+      "order_index": 9,
+      "tags": [
+        "polity"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "b0112184-f764-52f8-99d2-feeed570a1db",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_economy_basics",
+      "name": "Economy Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 10,
+      "tags": [
+        "economy"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7e8c2213-344c-535e-9eea-58f673f9aba7",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_general_science___physics",
+      "name": "General Science - Physics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 11,
+      "tags": [
+        "science"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "83d8117a-c895-5770-98ee-a972aeaf9f7e",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_general_science___chemistry",
+      "name": "General Science - Chemistry",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 12,
+      "tags": [
+        "science"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "565ea251-482c-5a8f-b0c8-4f6502dfc4d8",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_general_science___biology",
+      "name": "General Science - Biology",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 13,
+      "tags": [
+        "science"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "daa74179-e35c-5013-bd85-073288c896ad",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "chapter_key": "bihar_si_gk_gs_environment_and_ecology_basics",
+      "name": "Environment & Ecology Basics",
+      "priority": "low",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 14,
+      "tags": [
+        "environment"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f338b8e8-1c42-563b-8926-c36ab96d0f9e",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_वर्ण_शब्द_और_वाक्य_basics",
+      "name": "वर्ण, शब्द और वाक्य basics",
+      "priority": "medium",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7d70af2d-af86-5767-b295-917e619111d5",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_विलोम_शब्द",
+      "name": "विलोम शब्द",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 200,
+      "order_index": 2,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "c03eee1b-6a79-5650-8311-922a44d4aba5",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_पर्यायवाची_शब्द",
+      "name": "पर्यायवाची शब्द",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 200,
+      "order_index": 3,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "d6dc224e-7253-5776-b1e3-52733133da0e",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_मुहावरे_और_लोकोक्तियाँ",
+      "name": "मुहावरे और लोकोक्तियाँ",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 4,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "ba148ee0-7f9f-5fb5-bf4d-1ba01538162b",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_संधि",
+      "name": "संधि",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 5,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "842abd80-f6d6-533c-9f2d-387f7afb2af4",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_समास",
+      "name": "समास",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 6,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "107fd0a1-38ef-5575-b145-351859d517ff",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_शब्द_शुद्धि",
+      "name": "शब्द शुद्धि",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 200,
+      "order_index": 7,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "6d8f381b-5367-57e9-b48b-ad985a302b5e",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_वाक्य_शुद्धि",
+      "name": "वाक्य शुद्धि",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 8,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "483c6599-856d-536e-9214-2fa7c941d01f",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_गद्यांश",
+      "name": "गद्यांश",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 9,
+      "tags": [
+        "comprehension"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "4fde7e06-6daa-5c0b-97e0-0bce500a88f1",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "chapter_key": "bihar_si_hindi_रस_छंद_और_अलंकार",
+      "name": "रस, छंद और अलंकार",
+      "priority": "low",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 10,
+      "tags": [
+        "literature"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "6b744a88-0dd6-5fb9-bf39-3a0af8c1cc8d",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_analogy",
+      "name": "Analogy",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 200,
+      "order_index": 1,
+      "tags": [
+        "verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "5c59d785-27a9-55dc-9bed-811382f93a3f",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_series",
+      "name": "Series",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 220,
+      "order_index": 2,
+      "tags": [
+        "verbal",
+        "non_verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "42e06492-1b97-5c53-86c3-b4527eab3d65",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_classification",
+      "name": "Classification",
+      "priority": "medium",
+      "difficulty": "easy",
+      "estimated_minutes": 160,
+      "order_index": 3,
+      "tags": [
+        "verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "b68b5abc-f054-5e39-84c7-180a6e1efcbd",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_coding_decoding",
+      "name": "Coding-Decoding",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 4,
+      "tags": [
+        "verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "5de0fd4e-f951-5caf-983e-ec428ab89f5d",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_direction_sense",
+      "name": "Direction Sense",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 5,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "5b1e1631-f177-5fa7-a4d9-b5974543deb6",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_blood_relation",
+      "name": "Blood Relation",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 6,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f2c99984-871b-5ffe-9717-56d99a77ae65",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_order_and_ranking",
+      "name": "Order & Ranking",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 7,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "dcae3fa6-6d9e-5523-9364-0b5140a68a3b",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_syllogism",
+      "name": "Syllogism",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 8,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "71230759-acb4-550e-911f-7b399e3dcdfc",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_venn_diagram",
+      "name": "Venn Diagram",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 9,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f9000717-40d9-57e1-acc6-199dfa33458a",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_calendar_and_clock_basics",
+      "name": "Calendar & Clock Basics",
+      "priority": "low",
+      "difficulty": "medium",
+      "estimated_minutes": 200,
+      "order_index": 10,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "ce31f57d-f085-5382-8854-9ab294c1beeb",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_puzzle_and_seating_arrangement",
+      "name": "Puzzle & Seating Arrangement",
+      "priority": "medium",
+      "difficulty": "hard",
+      "estimated_minutes": 260,
+      "order_index": 11,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "75bfaafe-48cf-57c0-853d-afe7eb873c66",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "chapter_key": "bihar_si_reasoning_mixed_reasoning_practice",
+      "name": "Mixed Reasoning Practice",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 320,
+      "order_index": 12,
+      "tags": [
+        "revision",
+        "mixed"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7552b7f6-c16f-5dd0-9ec2-1e11b9a814e8",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_walking_jogging_habit",
+      "name": "Walking/Jogging Habit",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 300,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "48017185-f93a-5a26-98d4-c7ae6e1c99b2",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_endurance_running",
+      "name": "Endurance Running",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 600,
+      "order_index": 2,
+      "tags": [
+        "running"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "32c4db55-1d3d-5f46-8fbd-40a4d0fab76c",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_sprint_practice",
+      "name": "Sprint Practice",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 300,
+      "order_index": 3,
+      "tags": [
+        "running"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "db209f97-6d10-54d2-b220-1f31fb09e73f",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_push_ups_and_upper_body_strength",
+      "name": "Push-ups & Upper Body Strength",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 300,
+      "order_index": 4,
+      "tags": [
+        "strength"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "d6e2b432-8c7e-5897-8a3c-f8589dd85569",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_squats_and_leg_strength",
+      "name": "Squats & Leg Strength",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 300,
+      "order_index": 5,
+      "tags": [
+        "strength"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "b195f283-227c-588e-bd60-19f57d38ef1a",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_core_training",
+      "name": "Core Training",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 6,
+      "tags": [
+        "strength"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "e8bc5d67-08c0-5524-806a-6b60b7cc5f84",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_long_jump_basics",
+      "name": "Long Jump Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 7,
+      "tags": [
+        "event"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "27f4ce85-399e-5ab3-a236-60bde920b747",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_high_jump_basics",
+      "name": "High Jump Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 8,
+      "tags": [
+        "event"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f72dabc5-1259-5424-9cd5-bf213f19cef0",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_shot_put_basics",
+      "name": "Shot Put Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 9,
+      "tags": [
+        "event"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "0359a510-cdd6-5fc4-a835-c48469552dd2",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "chapter_key": "bihar_si_physical_stretching_and_recovery",
+      "name": "Stretching & Recovery",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 240,
+      "order_index": 10,
+      "tags": [
+        "recovery"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "3d3469e1-e627-58eb-8829-5eebe93214b1",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_number_system_basics",
+      "name": "Number System Basics",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "bd9ce66d-ac0e-53ce-b7be-a872879177bc",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_simplification",
+      "name": "Simplification",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 2,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "84dbcddd-a90a-53f7-97a4-5ce6842e1fb1",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_percentage",
+      "name": "Percentage",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 280,
+      "order_index": 3,
+      "tags": [
+        "must_do"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f28300f4-db8e-52de-9d79-6b16d24479e6",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_ratio_and_proportion",
+      "name": "Ratio & Proportion",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 240,
+      "order_index": 4,
+      "tags": [
+        "must_do"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f6c1a481-c519-5545-8f6c-d655819c6e71",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_average",
+      "name": "Average",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 220,
+      "order_index": 5,
+      "tags": [
+        "must_do"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "e8ee4e9b-32c6-5c28-8f70-0f64c456d113",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_profit_loss_and_discount",
+      "name": "Profit, Loss & Discount",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 280,
+      "order_index": 6,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "d3540814-da46-5ec7-b73e-cdd801800824",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_simple_and_compound_interest",
+      "name": "Simple & Compound Interest",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 7,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "cfe73651-fe77-5c07-9837-079bd3f3f6f2",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_time_and_work",
+      "name": "Time & Work",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 8,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "1505be37-121a-52d9-a2c7-853c8490cd89",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_speed_distance_and_time",
+      "name": "Speed, Distance & Time",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 9,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "c96746c0-2759-5dc9-a98e-bbf4d712bf1e",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_mensuration",
+      "name": "Mensuration",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 10,
+      "tags": [
+        "geometry"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "157ae833-8f6e-5ee6-abd9-c60404441f2c",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "chapter_key": "up_police_maths_data_interpretation",
+      "name": "Data Interpretation",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 11,
+      "tags": [
+        "practice"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "03002294-586f-598d-9293-8c8028a54740",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_current_affairs___national_and_up",
+      "name": "Current Affairs - National & UP",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 500,
+      "order_index": 1,
+      "tags": [
+        "daily",
+        "must_do"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7b1cf8bf-f2da-5ab7-bc7d-f7746b0eaadc",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_up_gk___geography_rivers_and_districts",
+      "name": "UP GK - Geography, Rivers & Districts",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 360,
+      "order_index": 2,
+      "tags": [
+        "state_gk"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "3f1faa90-60e7-5f44-9644-3dd3e0f9de44",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_up_gk___history_culture_and_economy",
+      "name": "UP GK - History, Culture & Economy",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 360,
+      "order_index": 3,
+      "tags": [
+        "state_gk"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "ff0bd1e0-7fbc-5418-a1e7-a5dce2b5d409",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_indian_history",
+      "name": "Indian History",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 420,
+      "order_index": 4,
+      "tags": [
+        "history"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "9a71e63a-abae-5811-b035-ca14b5214293",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_indian_geography",
+      "name": "Indian Geography",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 360,
+      "order_index": 5,
+      "tags": [
+        "geography"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "763e09de-23b1-5c18-8f88-349a1e99f238",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_indian_constitution_and_polity",
+      "name": "Indian Constitution & Polity",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 420,
+      "order_index": 6,
+      "tags": [
+        "polity"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "4b244eb8-7003-51fd-97eb-1765fb22d779",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_indian_economy_basics",
+      "name": "Indian Economy Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 7,
+      "tags": [
+        "economy"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "bbf1088e-c2db-5bce-8e31-9a6c9aec705e",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_general_science",
+      "name": "General Science",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 420,
+      "order_index": 8,
+      "tags": [
+        "science"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "b04a0216-a258-5270-bfa0-89fca24f979f",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_environment_and_social_issues",
+      "name": "Environment & Social Issues",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 9,
+      "tags": [
+        "environment"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "c2e566a4-03ec-5bd7-96ca-5ea19aec6e97",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "chapter_key": "up_police_gk_gs_computer_awareness_basics",
+      "name": "Computer Awareness Basics",
+      "priority": "low",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 10,
+      "tags": [
+        "computer"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "fc21bce1-3913-50ef-a45e-d399d7f8c79f",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "chapter_key": "up_police_hindi_हिन्दी_व्याकरण_basics",
+      "name": "हिन्दी व्याकरण basics",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 220,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "ec5978fe-af4d-57e0-b59f-81633566d9b6",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "chapter_key": "up_police_hindi_विलोम_और_पर्यायवाची",
+      "name": "विलोम और पर्यायवाची",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 260,
+      "order_index": 2,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "1d7c7da2-3c66-5f92-9789-72788c77d846",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "chapter_key": "up_police_hindi_मुहावरे_और_लोकोक्तियाँ",
+      "name": "मुहावरे और लोकोक्तियाँ",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 280,
+      "order_index": 3,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7b2a98dd-dbc5-5c16-bd96-906833c35c8d",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "chapter_key": "up_police_hindi_तत्सम_तद्भव_और_वर्तनी",
+      "name": "तत्सम-तद्भव और वर्तनी",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 4,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7d5e1772-9dc3-5372-bd9c-4483bb9a49cf",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "chapter_key": "up_police_hindi_संधि",
+      "name": "संधि",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 5,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "79b4f458-f284-51cd-8874-7f68e6324004",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "chapter_key": "up_police_hindi_समास",
+      "name": "समास",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 6,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "9cc40404-62d2-5072-a423-1d5b5158ef2b",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "chapter_key": "up_police_hindi_शब्द_शुद्धि",
+      "name": "शब्द शुद्धि",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 7,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "6229ed26-a7f2-5b3e-b255-a98b0577f377",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "chapter_key": "up_police_hindi_वाक्य_शुद्धि",
+      "name": "वाक्य शुद्धि",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 8,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "05c7febc-32fc-50a2-b3a5-57d4483595be",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "chapter_key": "up_police_hindi_गद्यांश",
+      "name": "गद्यांश",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 9,
+      "tags": [
+        "comprehension"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "6625b3d2-51d5-54cb-8b03-3a0c0543cbfa",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_analogy",
+      "name": "Analogy",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 1,
+      "tags": [
+        "mental_ability"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "9895b400-c1c1-508b-962d-3f02a57f200d",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_series",
+      "name": "Series",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 220,
+      "order_index": 2,
+      "tags": [
+        "mental_ability"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "8c3f0a1b-0408-56e4-9458-1f6a3cb13807",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_coding_decoding",
+      "name": "Coding-Decoding",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 3,
+      "tags": [
+        "mental_ability"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "10f376e2-d19e-5b7b-abee-aa1c98364dd5",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_direction_sense",
+      "name": "Direction Sense",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 4,
+      "tags": [
+        "mental_ability"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "9c545e19-d4a2-5a43-b7f8-613140d247c7",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_blood_relation",
+      "name": "Blood Relation",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 5,
+      "tags": [
+        "mental_ability"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "bff75a78-0afb-5ca8-9faf-8d3813e6bf8c",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_order_and_ranking",
+      "name": "Order & Ranking",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 6,
+      "tags": [
+        "mental_ability"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "9030eadb-3ead-52fb-b25e-a89b75bebbe1",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_syllogism",
+      "name": "Syllogism",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 7,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "4dcec4b4-c9bd-56aa-84a5-71828bb89b2c",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_venn_diagram",
+      "name": "Venn Diagram",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 8,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "2565bafd-a298-532a-9bc5-a3cb854f9ce7",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_decision_making_and_problem_solving",
+      "name": "Decision Making & Problem Solving",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 9,
+      "tags": [
+        "aptitude"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "2ab834b6-06af-5b99-8830-1e71d0c60ca5",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_mental_aptitude_and_iq",
+      "name": "Mental Aptitude & IQ",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 300,
+      "order_index": 10,
+      "tags": [
+        "aptitude"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "13f9c8a5-9288-5d89-81c8-5bdd2b3fb3d4",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "chapter_key": "up_police_reasoning_puzzle_and_seating_arrangement",
+      "name": "Puzzle & Seating Arrangement",
+      "priority": "medium",
+      "difficulty": "hard",
+      "estimated_minutes": 260,
+      "order_index": 11,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "36b84a80-9e0d-5bd7-9a5e-7d0ee13a756e",
+      "exam_id": "up_police",
+      "subject_id": "physical",
+      "chapter_key": "up_police_physical_walking_jogging_habit",
+      "name": "Walking/Jogging Habit",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 300,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "b95d0792-54e3-51c3-b5a9-81baa4d24064",
+      "exam_id": "up_police",
+      "subject_id": "physical",
+      "chapter_key": "up_police_physical_endurance_running",
+      "name": "Endurance Running",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 600,
+      "order_index": 2,
+      "tags": [
+        "running"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "a13a90bb-8280-5f44-bf5e-c0e46f0b3edc",
+      "exam_id": "up_police",
+      "subject_id": "physical",
+      "chapter_key": "up_police_physical_sprint_practice",
+      "name": "Sprint Practice",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 300,
+      "order_index": 3,
+      "tags": [
+        "running"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f96445c4-e093-52ae-89a0-f6ad0bcf467d",
+      "exam_id": "up_police",
+      "subject_id": "physical",
+      "chapter_key": "up_police_physical_strength_training",
+      "name": "Strength Training",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 420,
+      "order_index": 4,
+      "tags": [
+        "strength"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "19a7b957-f24b-5ea0-a368-e2d823e23587",
+      "exam_id": "up_police",
+      "subject_id": "physical",
+      "chapter_key": "up_police_physical_long_jump_practice",
+      "name": "Long Jump Practice",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 5,
+      "tags": [
+        "event"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "4f5edd3a-dfcb-5d5a-bcf5-8d344f8f5021",
+      "exam_id": "up_police",
+      "subject_id": "physical",
+      "chapter_key": "up_police_physical_stretching_and_recovery",
+      "name": "Stretching & Recovery",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 240,
+      "order_index": 6,
+      "tags": [
+        "recovery"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "621bd5e6-d9fc-50e8-99f3-d3f6e192a6b5",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_number_system",
+      "name": "Number System",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 200,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "570bcf2b-45dc-52e3-a007-16c8bc7825d2",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_simplification",
+      "name": "Simplification",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 200,
+      "order_index": 2,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "2197cc1b-aee9-5c21-a9ee-0fdee589f410",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_percentage",
+      "name": "Percentage",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 280,
+      "order_index": 3,
+      "tags": [
+        "must_do"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "b6a00467-52bb-5fce-a687-799cc140ee4f",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_ratio_and_proportion",
+      "name": "Ratio & Proportion",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 240,
+      "order_index": 4,
+      "tags": [
+        "must_do"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "fe0c3e3f-841f-5d6d-a0bc-bdbe1660294e",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_average",
+      "name": "Average",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 220,
+      "order_index": 5,
+      "tags": [
+        "must_do"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "3f697238-7011-5045-b492-1415491fc1d0",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_profit_and_loss",
+      "name": "Profit & Loss",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 6,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "b32435d3-71ba-5c28-bbc1-2f061bd6c6f4",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_discount",
+      "name": "Discount",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 7,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "ead44ae7-33da-58a2-b53d-d975fc802da5",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_simple_interest",
+      "name": "Simple Interest",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 200,
+      "order_index": 8,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "eaa17a25-6caa-567b-ba2d-b58d3f6bbd02",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_time_and_work",
+      "name": "Time & Work",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 9,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "70883399-89da-532e-a018-933a709c6447",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_time_speed_and_distance",
+      "name": "Time, Speed & Distance",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 10,
+      "tags": [
+        "arithmetic"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "31484595-d183-5cd2-bf09-b46f07f710aa",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_mensuration_basics",
+      "name": "Mensuration Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 11,
+      "tags": [
+        "geometry"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "815cad96-1929-59c0-b78c-992da4fab01b",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "chapter_key": "ssc_gd_maths_data_interpretation_basics",
+      "name": "Data Interpretation Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 12,
+      "tags": [
+        "practice"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "960daf49-86a3-5d06-8140-c6781b3393be",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_current_affairs",
+      "name": "Current Affairs",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 480,
+      "order_index": 1,
+      "tags": [
+        "daily"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7c5f5d95-33ea-5a4e-996c-d49a35bd1d85",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_india_and_neighbouring_countries",
+      "name": "India and Neighbouring Countries",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 2,
+      "tags": [
+        "general_awareness"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "11b94715-1ca8-51ab-a60d-db7e8c5df1d9",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_history",
+      "name": "History",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 360,
+      "order_index": 3,
+      "tags": [
+        "history"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "52bc0753-81bf-551a-a5ab-961b3a8cd1c2",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_geography",
+      "name": "Geography",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 320,
+      "order_index": 4,
+      "tags": [
+        "geography"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "fd1694ac-2301-5439-bc40-50c78f45fa11",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_polity_and_constitution",
+      "name": "Polity and Constitution",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 320,
+      "order_index": 5,
+      "tags": [
+        "polity"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "9ba49925-0685-5310-b684-cfbcbdfe568a",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_economics_basics",
+      "name": "Economics Basics",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 6,
+      "tags": [
+        "economy"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "c3181b4a-3b7c-5e1e-b98d-118c8eb2ec37",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_general_science",
+      "name": "General Science",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 420,
+      "order_index": 7,
+      "tags": [
+        "science"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "cf95b7a5-06ee-5bf9-8b69-8ac4ed6d2d75",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_sports",
+      "name": "Sports",
+      "priority": "low",
+      "difficulty": "easy",
+      "estimated_minutes": 160,
+      "order_index": 8,
+      "tags": [
+        "static_gk"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "efc1799f-0e9b-555e-957f-4f79beb9665c",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_culture",
+      "name": "Culture",
+      "priority": "low",
+      "difficulty": "medium",
+      "estimated_minutes": 160,
+      "order_index": 9,
+      "tags": [
+        "static_gk"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "5403a924-fd5a-55be-8f79-9b3602c783bd",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "chapter_key": "ssc_gd_gk_gs_books_awards_and_important_days",
+      "name": "Books, Awards and Important Days",
+      "priority": "low",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 10,
+      "tags": [
+        "static_gk"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f54149ae-0832-5854-b80e-dd6fae1c7968",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_analogies",
+      "name": "Analogies",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 200,
+      "order_index": 1,
+      "tags": [
+        "general_intelligence"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "3bc58407-c7fe-5993-a114-f86c11c559af",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_similarities_and_differences",
+      "name": "Similarities and Differences",
+      "priority": "medium",
+      "difficulty": "easy",
+      "estimated_minutes": 160,
+      "order_index": 2,
+      "tags": [
+        "general_intelligence"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7d0f1dc7-7881-5dba-b6e4-f4f3e4904817",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_spatial_visualization",
+      "name": "Spatial Visualization",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 3,
+      "tags": [
+        "non_verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "c30ce687-cdb9-5a08-86e0-85862f173274",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_spatial_orientation",
+      "name": "Spatial Orientation",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 4,
+      "tags": [
+        "non_verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "9b0dc4fc-073b-548a-9bd3-cbf5fd035899",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_visual_memory",
+      "name": "Visual Memory",
+      "priority": "low",
+      "difficulty": "medium",
+      "estimated_minutes": 120,
+      "order_index": 5,
+      "tags": [
+        "non_verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "a129b25e-7b2c-5f75-9ad0-3c93177d7546",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_discrimination_and_observation",
+      "name": "Discrimination and Observation",
+      "priority": "medium",
+      "difficulty": "easy",
+      "estimated_minutes": 160,
+      "order_index": 6,
+      "tags": [
+        "general_intelligence"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "beac5493-1eb5-594e-a3a0-fda6a77aebba",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_relationship_concepts",
+      "name": "Relationship Concepts",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 7,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "fee9aacb-3157-52ba-9f95-dfcf7460a41c",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_arithmetical_reasoning",
+      "name": "Arithmetical Reasoning",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 8,
+      "tags": [
+        "logical"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "043b3127-d861-5a5a-a171-8faa9530d5b8",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_figural_classification",
+      "name": "Figural Classification",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 9,
+      "tags": [
+        "non_verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "834366cf-9699-5f00-ab91-968deda5b09b",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_arithmetic_number_series",
+      "name": "Arithmetic Number Series",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 220,
+      "order_index": 10,
+      "tags": [
+        "series"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "7b936513-2265-587f-a17e-b46aa7c7419a",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_non_verbal_series",
+      "name": "Non-Verbal Series",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 200,
+      "order_index": 11,
+      "tags": [
+        "non_verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "b49c5b6c-a81e-5e7a-bbb9-6ef596c2ec65",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "chapter_key": "ssc_gd_reasoning_coding_decoding",
+      "name": "Coding-Decoding",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 12,
+      "tags": [
+        "verbal"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "121d234a-e28b-570a-a026-f234f2857765",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "chapter_key": "ssc_gd_hindi_हिन्दी_वर्णमाला_और_वर्तनी",
+      "name": "हिन्दी वर्णमाला और वर्तनी",
+      "priority": "medium",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "4b2bd980-65b0-5415-8e94-0a8efd9de530",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "chapter_key": "ssc_gd_hindi_विलोम_पर्यायवाची",
+      "name": "विलोम/पर्यायवाची",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 220,
+      "order_index": 2,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f0448f94-ae83-5532-9261-d0d71165f9c9",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "chapter_key": "ssc_gd_hindi_मुहावरे_और_लोकोक्तियाँ",
+      "name": "मुहावरे और लोकोक्तियाँ",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 3,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "d6135220-acc7-597c-b449-9401c0c9cebf",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "chapter_key": "ssc_gd_hindi_संधि_और_समास",
+      "name": "संधि और समास",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 4,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f09c3e28-8536-50fb-84a9-201c85e81a1b",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "chapter_key": "ssc_gd_hindi_शब्द_वाक्य_शुद्धि",
+      "name": "शब्द/वाक्य शुद्धि",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 5,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "5594a108-ef24-5636-b5e1-7c45b11caf41",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "chapter_key": "ssc_gd_hindi_गद्यांश",
+      "name": "गद्यांश",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 220,
+      "order_index": 6,
+      "tags": [
+        "comprehension"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f3538bda-17f6-5968-be51-45c2c7f00d2e",
+      "exam_id": "ssc_gd",
+      "subject_id": "english",
+      "chapter_key": "ssc_gd_english_english_grammar_basics",
+      "name": "English Grammar Basics",
+      "priority": "medium",
+      "difficulty": "easy",
+      "estimated_minutes": 180,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "127fd5b8-cdc9-56f8-8916-c67f9de255f1",
+      "exam_id": "ssc_gd",
+      "subject_id": "english",
+      "chapter_key": "ssc_gd_english_vocabulary___synonyms_and_antonyms",
+      "name": "Vocabulary - Synonyms & Antonyms",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 220,
+      "order_index": 2,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "e1089770-e79e-5937-9680-7d2ea0dd0976",
+      "exam_id": "ssc_gd",
+      "subject_id": "english",
+      "chapter_key": "ssc_gd_english_error_detection",
+      "name": "Error Detection",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 260,
+      "order_index": 3,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "8c4bd50f-7a01-5e9f-9f42-460f52fb6ea6",
+      "exam_id": "ssc_gd",
+      "subject_id": "english",
+      "chapter_key": "ssc_gd_english_fill_in_the_blanks",
+      "name": "Fill in the Blanks",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 4,
+      "tags": [
+        "grammar"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "2508dc2d-b8dc-57b3-85e2-97d2d81e2385",
+      "exam_id": "ssc_gd",
+      "subject_id": "english",
+      "chapter_key": "ssc_gd_english_idioms_and_phrases",
+      "name": "Idioms and Phrases",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 180,
+      "order_index": 5,
+      "tags": [
+        "vocab"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "d387bca6-2aa5-5234-89ce-f48768269e50",
+      "exam_id": "ssc_gd",
+      "subject_id": "english",
+      "chapter_key": "ssc_gd_english_reading_comprehension",
+      "name": "Reading Comprehension",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 6,
+      "tags": [
+        "comprehension"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "92c787ff-fc1e-507e-b4ba-2d83e02b42aa",
+      "exam_id": "ssc_gd",
+      "subject_id": "physical",
+      "chapter_key": "ssc_gd_physical_walking_jogging_habit",
+      "name": "Walking/Jogging Habit",
+      "priority": "high",
+      "difficulty": "easy",
+      "estimated_minutes": 300,
+      "order_index": 1,
+      "tags": [
+        "foundation"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "3798575c-6695-5e08-8408-5c73d8ae9f31",
+      "exam_id": "ssc_gd",
+      "subject_id": "physical",
+      "chapter_key": "ssc_gd_physical_endurance_running",
+      "name": "Endurance Running",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 700,
+      "order_index": 2,
+      "tags": [
+        "running"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "fa2c2799-4810-5453-bda6-230fe9145d79",
+      "exam_id": "ssc_gd",
+      "subject_id": "physical",
+      "chapter_key": "ssc_gd_physical_sprint_practice",
+      "name": "Sprint Practice",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 300,
+      "order_index": 3,
+      "tags": [
+        "running"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "bca987d1-a4f0-5a69-ba41-37f22c66ceb6",
+      "exam_id": "ssc_gd",
+      "subject_id": "physical",
+      "chapter_key": "ssc_gd_physical_bodyweight_strength",
+      "name": "Bodyweight Strength",
+      "priority": "medium",
+      "difficulty": "medium",
+      "estimated_minutes": 420,
+      "order_index": 4,
+      "tags": [
+        "strength"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "4bcfeaa4-918b-5eb1-a943-661bfe31e697",
+      "exam_id": "ssc_gd",
+      "subject_id": "physical",
+      "chapter_key": "ssc_gd_physical_mobility_and_flexibility",
+      "name": "Mobility & Flexibility",
+      "priority": "medium",
+      "difficulty": "easy",
+      "estimated_minutes": 240,
+      "order_index": 5,
+      "tags": [
+        "recovery"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "f3eedc48-92bd-5bf3-970c-e3565018c8fa",
+      "exam_id": "ssc_gd",
+      "subject_id": "physical",
+      "chapter_key": "ssc_gd_physical_pst_pet_simulation",
+      "name": "PST/PET Simulation",
+      "priority": "high",
+      "difficulty": "medium",
+      "estimated_minutes": 240,
+      "order_index": 6,
+      "tags": [
+        "test"
+      ],
+      "aliases": []
+    }
+  ],
+  "task_templates": [
+    {
+      "id": "8714f94c-ea64-509f-acc0-ca4e3f016496",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "de64574a-96aa-5b32-b382-391990c76a43",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "64e3cb3a-18b3-516c-a447-ff4f0ae4a115",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "7e501e4b-149e-5908-a080-a0af97bda4bc",
+      "exam_id": "bihar_si",
+      "subject_id": "maths",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "371b3f4e-c249-50bd-ae6e-3b8283a1052e",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "d00933a5-3e51-5c54-856e-56e8b93d4803",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "b15e9ca2-68e2-5225-8a84-789df1ced137",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "fcb56dc5-6284-5b86-9c53-dbc2ba486bcc",
+      "exam_id": "bihar_si",
+      "subject_id": "gk_gs",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "7f2856a5-9697-50c3-80ef-53fe175d5620",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "c920075d-9126-5869-9032-c868964b9046",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "73f487a0-c2f9-51d7-ba86-b77adfdd13d7",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "4f365fce-2493-55b4-8524-183747ae7872",
+      "exam_id": "bihar_si",
+      "subject_id": "hindi",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "5bbf5b56-f3aa-5e5d-8200-a67ba9f68fe4",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "2033c07e-df5a-5fd5-bcfc-c8aa1bb19338",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "a6f606b1-9547-5b91-b36f-92d6e511bde6",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "72f4f7d8-e3f2-558f-a029-41f46be5e1b0",
+      "exam_id": "bihar_si",
+      "subject_id": "reasoning",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "16d8d0e1-7008-5b6a-95db-e7484fbc0d00",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "task_type": "physical",
+      "title_template": "{chapter}: physical training",
+      "description_template": "Warm-up, workout aur cool-down complete karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "5 min warm-up",
+        "Main workout complete karo",
+        "Stretching/cool-down karo",
+        "Injury ho to rest lo"
+      ]
+    },
+    {
+      "id": "19ab7f7a-3eb6-5788-82cf-70b414fffc52",
+      "exam_id": "bihar_si",
+      "subject_id": "physical",
+      "task_type": "revision",
+      "title_template": "Recovery + mobility",
+      "description_template": "Light walk/stretching aur recovery routine.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Slow walk",
+        "Stretching",
+        "Hydration/sleep check"
+      ]
+    },
+    {
+      "id": "0d8f1749-f4b6-5425-a419-548dcff52cd8",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "2b5a6405-5e75-5a34-b0c9-e15e9223daef",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "d7ce412c-3e66-5826-8caa-5b91eee481bf",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "9f5838d6-8701-5503-9ec8-9daebbad62ca",
+      "exam_id": "up_police",
+      "subject_id": "maths",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "b6dc68fb-658b-546b-8018-f1306ada81b3",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "036eb135-0442-55b8-8703-ecc355b1fc8e",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "d6c91240-4d82-5c45-bf19-9bc8a9591af3",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "58a26987-3cb2-563c-81f4-c573b50c7ccf",
+      "exam_id": "up_police",
+      "subject_id": "gk_gs",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "f1f8c39c-d303-5164-9478-4906bcb30bca",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "de3bb7ee-2a00-5d0e-af88-4b8617299aa4",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "19dd2053-be04-503a-9359-cebd3f441102",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "66f1a148-6254-5d11-9824-0b07d78ba13d",
+      "exam_id": "up_police",
+      "subject_id": "hindi",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "a33ac037-d5d3-5192-ab48-fb248583d90b",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "68c0af66-9763-529f-9222-c109ba4916d7",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "3e78ff51-3075-53ed-8eb0-c5a8e21369e8",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "d51b2001-a609-506b-bd24-eae40398af9c",
+      "exam_id": "up_police",
+      "subject_id": "reasoning",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "3d7ac58d-bc98-5336-b901-42b9414de916",
+      "exam_id": "up_police",
+      "subject_id": "physical",
+      "task_type": "physical",
+      "title_template": "{chapter}: physical training",
+      "description_template": "Warm-up, workout aur cool-down complete karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "5 min warm-up",
+        "Main workout complete karo",
+        "Stretching/cool-down karo",
+        "Injury ho to rest lo"
+      ]
+    },
+    {
+      "id": "3ca94ddd-6ec1-5a09-94af-ca80f52e32a4",
+      "exam_id": "up_police",
+      "subject_id": "physical",
+      "task_type": "revision",
+      "title_template": "Recovery + mobility",
+      "description_template": "Light walk/stretching aur recovery routine.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Slow walk",
+        "Stretching",
+        "Hydration/sleep check"
+      ]
+    },
+    {
+      "id": "207e878e-8be1-5cd1-8095-9cec32703a4e",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "405099f7-9dfd-5af3-882b-b9ce7e2f37ca",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "a0eff0e7-f7b2-508e-b1d5-7d6cfd5ca6bd",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "b35fa705-c41a-5227-a0fa-5257e776aaec",
+      "exam_id": "ssc_gd",
+      "subject_id": "maths",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "ecad20cd-4af3-5b47-aa43-4f152a02399f",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "dd3362cc-1418-5c7f-8845-f1fba9ae1ee3",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "b830097f-088a-594f-92f4-6ebb974ee512",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "fb472fab-5cf6-508a-bfd6-b713a331816c",
+      "exam_id": "ssc_gd",
+      "subject_id": "gk_gs",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "a679e9b7-6886-5605-acc1-215dfb2a9b08",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "9336e992-595f-583a-bc07-f5a2401910a4",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "137a06ca-1361-5425-8d7b-f1abe74b3de5",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "ea989e6d-ef8a-594c-8d6a-ee51c116380b",
+      "exam_id": "ssc_gd",
+      "subject_id": "hindi",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "7ded3a10-b607-5d04-b9ad-407da6b6bd51",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "task_type": "concept",
+      "title_template": "{chapter}: concept clear karo",
+      "description_template": "Lecture/reading ke through basics samjho aur short notes banao.",
+      "estimated_minutes": 30,
+      "priority": "high",
+      "how_to_study": [
+        "Concept samjho",
+        "Notebook me formula/rules likho",
+        "2 examples khud solve karo"
+      ]
+    },
+    {
+      "id": "551e2cb9-ed05-530f-8fc8-596e4401ab3d",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "task_type": "practice",
+      "title_template": "{chapter}: practice set",
+      "description_template": "Topic ke questions solve karo aur wrong questions mark karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "Timer ke bina start karo",
+        "Khud solve karo",
+        "Wrong questions ko error notebook me likho"
+      ]
+    },
+    {
+      "id": "019ac2a4-bdee-5f19-b46c-8bd737688a48",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "task_type": "revision",
+      "title_template": "{chapter}: revision",
+      "description_template": "Purane notes aur wrong questions revise karo.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Notes revise karo",
+        "Marked mistakes solve karo",
+        "End me quick self-test lo"
+      ]
+    },
+    {
+      "id": "39cff0ef-5e19-5783-bfa8-421ee00a7a15",
+      "exam_id": "ssc_gd",
+      "subject_id": "reasoning",
+      "task_type": "pyq",
+      "title_template": "{chapter}: PYQ practice",
+      "description_template": "Verified PYQ/memory-based questions solve karo.",
+      "estimated_minutes": 45,
+      "priority": "medium",
+      "how_to_study": [
+        "Question attempt karo",
+        "Answer check karo",
+        "Explanation note karo"
+      ]
+    },
+    {
+      "id": "09577142-7cd8-5905-bcac-8d327556ef5a",
+      "exam_id": "ssc_gd",
+      "subject_id": "english",
+      "task_type": "concept",
+      "title_template": "{chapter}: English concept",
+      "description_template": "Grammar/vocabulary basics samjho.",
+      "estimated_minutes": 30,
+      "priority": "medium",
+      "how_to_study": [
+        "Rule samjho",
+        "Examples likho",
+        "Short practice karo"
+      ]
+    },
+    {
+      "id": "fca52bcf-4c88-5ebc-ba93-8e3e8a738c59",
+      "exam_id": "ssc_gd",
+      "subject_id": "english",
+      "task_type": "practice",
+      "title_template": "{chapter}: English practice",
+      "description_template": "Topic-wise English questions solve karo.",
+      "estimated_minutes": 35,
+      "priority": "medium",
+      "how_to_study": [
+        "Questions solve karo",
+        "New words note karo",
+        "Wrong rules revise karo"
+      ]
+    },
+    {
+      "id": "f0ba75e5-47dc-56e2-b8aa-b9435158f3c7",
+      "exam_id": "ssc_gd",
+      "subject_id": "physical",
+      "task_type": "physical",
+      "title_template": "{chapter}: physical training",
+      "description_template": "Warm-up, workout aur cool-down complete karo.",
+      "estimated_minutes": 40,
+      "priority": "high",
+      "how_to_study": [
+        "5 min warm-up",
+        "Main workout complete karo",
+        "Stretching/cool-down karo",
+        "Injury ho to rest lo"
+      ]
+    },
+    {
+      "id": "b0724ba3-678c-5b8c-b0ef-a8da9525399c",
+      "exam_id": "ssc_gd",
+      "subject_id": "physical",
+      "task_type": "revision",
+      "title_template": "Recovery + mobility",
+      "description_template": "Light walk/stretching aur recovery routine.",
+      "estimated_minutes": 25,
+      "priority": "medium",
+      "how_to_study": [
+        "Slow walk",
+        "Stretching",
+        "Hydration/sleep check"
+      ]
+    }
+  ],
+  "revision_rules": [
+    {
+      "id": "44636d0a-9514-5aaa-bbae-5b6788158364",
+      "exam_id": "bihar_si",
+      "frequency": "weekly",
+      "rule_config": {
+        "every_n_days": 7,
+        "task_title": "Weekly Revision + Wrong Question Review",
+        "estimated_minutes": 75,
+        "include_subjects": "all_active_subjects",
+        "instructions": [
+          "Week ke notes revise karo",
+          "Wrong questions dobara solve karo",
+          "Weak chapters mark karo"
+        ]
+      }
+    },
+    {
+      "id": "d7928550-a31f-59ef-972c-4e2545e65172",
+      "exam_id": "bihar_si",
+      "frequency": "phase_review",
+      "rule_config": {
+        "at_percentages": [
+          25,
+          60,
+          85,
+          100
+        ],
+        "task_title": "Phase Review + Progress Audit",
+        "estimated_minutes": 90,
+        "instructions": [
+          "Completed chapters check karo",
+          "Weak topics list banao",
+          "Next phase focus decide karo"
+        ]
+      }
+    },
+    {
+      "id": "c3eb92e6-5270-5930-a810-e9b479f4e8d7",
+      "exam_id": "bihar_si",
+      "frequency": "spaced_repetition",
+      "rule_config": {
+        "after_days": [
+          1,
+          7,
+          21
+        ],
+        "task_title": "Spaced Revision",
+        "estimated_minutes": 20,
+        "instructions": [
+          "Old topic ka quick recall",
+          "2-3 questions solve",
+          "Agar bhool gaye ho to topic mark karo"
+        ]
+      }
+    },
+    {
+      "id": "e7d76bb0-de14-5a41-a804-e3650cd966af",
+      "exam_id": "up_police",
+      "frequency": "weekly",
+      "rule_config": {
+        "every_n_days": 7,
+        "task_title": "Weekly Revision + Wrong Question Review",
+        "estimated_minutes": 75,
+        "include_subjects": "all_active_subjects",
+        "instructions": [
+          "Week ke notes revise karo",
+          "Wrong questions dobara solve karo",
+          "Weak chapters mark karo"
+        ]
+      }
+    },
+    {
+      "id": "cf60f9c5-7781-5463-b1c1-85500f0c398b",
+      "exam_id": "up_police",
+      "frequency": "phase_review",
+      "rule_config": {
+        "at_percentages": [
+          25,
+          60,
+          85,
+          100
+        ],
+        "task_title": "Phase Review + Progress Audit",
+        "estimated_minutes": 90,
+        "instructions": [
+          "Completed chapters check karo",
+          "Weak topics list banao",
+          "Next phase focus decide karo"
+        ]
+      }
+    },
+    {
+      "id": "20a501de-c82b-509e-9c0f-09c369e7aa97",
+      "exam_id": "up_police",
+      "frequency": "spaced_repetition",
+      "rule_config": {
+        "after_days": [
+          1,
+          7,
+          21
+        ],
+        "task_title": "Spaced Revision",
+        "estimated_minutes": 20,
+        "instructions": [
+          "Old topic ka quick recall",
+          "2-3 questions solve",
+          "Agar bhool gaye ho to topic mark karo"
+        ]
+      }
+    },
+    {
+      "id": "905fc078-97a4-5543-8007-32c3a9b78301",
+      "exam_id": "ssc_gd",
+      "frequency": "weekly",
+      "rule_config": {
+        "every_n_days": 7,
+        "task_title": "Weekly Revision + Wrong Question Review",
+        "estimated_minutes": 75,
+        "include_subjects": "all_active_subjects",
+        "instructions": [
+          "Week ke notes revise karo",
+          "Wrong questions dobara solve karo",
+          "Weak chapters mark karo"
+        ]
+      }
+    },
+    {
+      "id": "836ca149-84f6-50dd-b9a6-3a9e462f9c6c",
+      "exam_id": "ssc_gd",
+      "frequency": "phase_review",
+      "rule_config": {
+        "at_percentages": [
+          25,
+          60,
+          85,
+          100
+        ],
+        "task_title": "Phase Review + Progress Audit",
+        "estimated_minutes": 90,
+        "instructions": [
+          "Completed chapters check karo",
+          "Weak topics list banao",
+          "Next phase focus decide karo"
+        ]
+      }
+    },
+    {
+      "id": "c0da95c8-8508-5be8-b5d7-d638fc337216",
+      "exam_id": "ssc_gd",
+      "frequency": "spaced_repetition",
+      "rule_config": {
+        "after_days": [
+          1,
+          7,
+          21
+        ],
+        "task_title": "Spaced Revision",
+        "estimated_minutes": 20,
+        "instructions": [
+          "Old topic ka quick recall",
+          "2-3 questions solve",
+          "Agar bhool gaye ho to topic mark karo"
+        ]
+      }
+    }
+  ],
+  "mock_rules": [
+    {
+      "id": "c3c46e28-bc61-50ae-9569-3b436cc8c219",
+      "exam_id": "bihar_si",
+      "start_after_phase": "foundation",
+      "frequency_days": 7,
+      "mock_type": "mini_mock",
+      "rule_config": {
+        "name": "Mini Mock",
+        "questions": 50,
+        "duration_minutes": 45,
+        "analysis_minutes": 30,
+        "instructions": [
+          "Mock do",
+          "Score save karo",
+          "Weak areas mark karo"
+        ]
+      }
+    },
+    {
+      "id": "7f4af0d7-99cf-5273-b22f-d85d31949be2",
+      "exam_id": "bihar_si",
+      "start_after_phase": "practice",
+      "frequency_days": 14,
+      "mock_type": "full_mock",
+      "rule_config": {
+        "name": "Full Mock",
+        "duration_minutes": 120,
+        "analysis_minutes": 45,
+        "instructions": [
+          "Full-length mock do",
+          "Mistake notebook update karo",
+          "Next 3 din weak topic revise karo"
+        ]
+      }
+    },
+    {
+      "id": "c28d0063-876e-5e73-b604-17d28b8292dc",
+      "exam_id": "up_police",
+      "start_after_phase": "foundation",
+      "frequency_days": 7,
+      "mock_type": "mini_mock",
+      "rule_config": {
+        "name": "Mini Mock",
+        "questions": 50,
+        "duration_minutes": 45,
+        "analysis_minutes": 30,
+        "instructions": [
+          "Mock do",
+          "Score save karo",
+          "Weak areas mark karo"
+        ]
+      }
+    },
+    {
+      "id": "ff9f39d3-cb66-5fd0-8de6-625c8bdfa406",
+      "exam_id": "up_police",
+      "start_after_phase": "practice",
+      "frequency_days": 14,
+      "mock_type": "full_mock",
+      "rule_config": {
+        "name": "Full Mock",
+        "duration_minutes": 120,
+        "analysis_minutes": 45,
+        "instructions": [
+          "Full-length mock do",
+          "Mistake notebook update karo",
+          "Next 3 din weak topic revise karo"
+        ]
+      }
+    },
+    {
+      "id": "c760feaf-4d2e-542c-861d-9bc0df18cb5b",
+      "exam_id": "ssc_gd",
+      "start_after_phase": "foundation",
+      "frequency_days": 7,
+      "mock_type": "mini_mock",
+      "rule_config": {
+        "name": "Mini Mock",
+        "questions": 50,
+        "duration_minutes": 45,
+        "analysis_minutes": 30,
+        "instructions": [
+          "Mock do",
+          "Score save karo",
+          "Weak areas mark karo"
+        ]
+      }
+    },
+    {
+      "id": "dc064027-0d11-5826-8331-c795f1b4ed1a",
+      "exam_id": "ssc_gd",
+      "start_after_phase": "practice",
+      "frequency_days": 14,
+      "mock_type": "full_mock",
+      "rule_config": {
+        "name": "Full Mock",
+        "duration_minutes": 60,
+        "analysis_minutes": 45,
+        "instructions": [
+          "Full-length mock do",
+          "Mistake notebook update karo",
+          "Next 3 din weak topic revise karo"
+        ]
+      }
+    }
+  ],
+  "physical_rules": [
+    {
+      "id": "8ffe2f6b-29ef-5070-bbde-07fffa94dc91",
+      "exam_id": "bihar_si",
+      "level": "weak",
+      "rule_config": {
+        "week_1": "1 km walk + 500 m jog",
+        "week_2": "1.5 km walk/jog",
+        "week_3": "2 km easy run/walk",
+        "progression": "distance slowly badhao; speed baad me lao",
+        "strength": [
+          "push-ups beginner sets",
+          "squats",
+          "core"
+        ],
+        "rest_days_per_week": 1
+      }
+    },
+    {
+      "id": "c902542c-8af0-56ed-90cf-f09f5c5c9b65",
+      "exam_id": "bihar_si",
+      "level": "average",
+      "rule_config": {
+        "week_1": "1.5-2 km easy run",
+        "week_2": "2-2.5 km run + light sprint",
+        "week_3": "2.5-3 km run",
+        "progression": "endurance + sprint dono balance karo",
+        "strength": [
+          "push-ups",
+          "squats",
+          "plank"
+        ],
+        "rest_days_per_week": 1
+      }
+    },
+    {
+      "id": "f4f5e6f0-182a-5fe3-b945-630d42826d82",
+      "exam_id": "bihar_si",
+      "level": "good",
+      "rule_config": {
+        "week_1": "2.5-3 km run",
+        "week_2": "3 km run + sprint intervals",
+        "week_3": "timed run practice",
+        "progression": "timing improve karo, overtraining mat karo",
+        "strength": [
+          "push-ups",
+          "squats",
+          "core",
+          "jump drills"
+        ],
+        "rest_days_per_week": 1
+      }
+    },
+    {
+      "id": "77be448d-3a04-56d9-a3d6-993e098813fb",
+      "exam_id": "up_police",
+      "level": "weak",
+      "rule_config": {
+        "week_1": "1 km walk + 500 m jog",
+        "week_2": "1.5 km walk/jog",
+        "week_3": "2 km easy run/walk",
+        "progression": "distance slowly badhao; speed baad me lao",
+        "strength": [
+          "push-ups beginner sets",
+          "squats",
+          "core"
+        ],
+        "rest_days_per_week": 1
+      }
+    },
+    {
+      "id": "fa085959-c577-5ba1-b34d-5170bd3d3aa4",
+      "exam_id": "up_police",
+      "level": "average",
+      "rule_config": {
+        "week_1": "1.5-2 km easy run",
+        "week_2": "2-2.5 km run + light sprint",
+        "week_3": "2.5-3 km run",
+        "progression": "endurance + sprint dono balance karo",
+        "strength": [
+          "push-ups",
+          "squats",
+          "plank"
+        ],
+        "rest_days_per_week": 1
+      }
+    },
+    {
+      "id": "ce7ae28c-1161-57ea-9246-f157a63c813d",
+      "exam_id": "up_police",
+      "level": "good",
+      "rule_config": {
+        "week_1": "2.5-3 km run",
+        "week_2": "3 km run + sprint intervals",
+        "week_3": "timed run practice",
+        "progression": "timing improve karo, overtraining mat karo",
+        "strength": [
+          "push-ups",
+          "squats",
+          "core",
+          "jump drills"
+        ],
+        "rest_days_per_week": 1
+      }
+    },
+    {
+      "id": "34317c85-5ddc-568c-80dc-15ae8e3dd06a",
+      "exam_id": "ssc_gd",
+      "level": "weak",
+      "rule_config": {
+        "week_1": "1 km walk + 500 m jog",
+        "week_2": "1.5 km walk/jog",
+        "week_3": "2 km easy run/walk",
+        "progression": "distance slowly badhao; speed baad me lao",
+        "strength": [
+          "push-ups beginner sets",
+          "squats",
+          "core"
+        ],
+        "rest_days_per_week": 1
+      }
+    },
+    {
+      "id": "97366ff5-a4ba-582a-99e6-e0cecc91a4ef",
+      "exam_id": "ssc_gd",
+      "level": "average",
+      "rule_config": {
+        "week_1": "1.5-2 km easy run",
+        "week_2": "2-2.5 km run + light sprint",
+        "week_3": "2.5-3 km run",
+        "progression": "endurance + sprint dono balance karo",
+        "strength": [
+          "push-ups",
+          "squats",
+          "plank"
+        ],
+        "rest_days_per_week": 1
+      }
+    },
+    {
+      "id": "6b71ad4a-6cdf-5a2c-a4e6-b2161a992c67",
+      "exam_id": "ssc_gd",
+      "level": "good",
+      "rule_config": {
+        "week_1": "2.5-3 km run",
+        "week_2": "3 km run + sprint intervals",
+        "week_3": "timed run practice",
+        "progression": "timing improve karo, overtraining mat karo",
+        "strength": [
+          "push-ups",
+          "squats",
+          "core",
+          "jump drills"
+        ],
+        "rest_days_per_week": 1
+      }
+    }
+  ],
+  "quote_bank": [
+    {
+      "id": "2d0b3cdc-3560-563f-b8b6-9d98b08edac4",
+      "text": "Roj thoda padho, lekin roj padho.",
+      "category": "discipline"
+    },
+    {
+      "id": "fc8172f5-c86a-5aed-985c-999836bb16b2",
+      "text": "Weak maths ka solution sirf daily practice hai.",
+      "category": "maths"
+    },
+    {
+      "id": "7c9f81b4-35a9-5c9b-bf90-1da660b31a45",
+      "text": "Video dekhna padhai nahi; questions solve karna padhai hai.",
+      "category": "study_method"
+    },
+    {
+      "id": "5ab35202-3268-5543-86dd-aa2524557f98",
+      "text": "Running me consistency selection ka silent factor hai.",
+      "category": "physical"
+    },
+    {
+      "id": "75589b81-3bda-55fd-ade4-965f88a826b2",
+      "text": "Ek teacher, ek book, daily revision — यही base है.",
+      "category": "beginner"
+    },
+    {
+      "id": "68b7f2f9-4d2b-55f5-93a5-f1e433491848",
+      "text": "Mock score se darna nahi, usse direction milti hai.",
+      "category": "mock"
+    },
+    {
+      "id": "8a9a0a94-1e3c-5307-b9fb-d22bb9fd0e2c",
+      "text": "General category me safe score ke liye basics + speed dono chahiye.",
+      "category": "exam"
+    },
+    {
+      "id": "687e6e83-0008-5b99-84fa-f80f555bb7ad",
+      "text": "Galat questions tumhare personal teachers hain.",
+      "category": "mistakes"
+    }
+  ],
+  "notes": {
+    "do_not_seed": [
+      "user profiles",
+      "user daily tasks",
+      "task completions",
+      "mock test records",
+      "user notes",
+      "real PYQ data unless verified"
+    ],
+    "pyq_policy": "AI-generated questions must use source='ai_generated' and is_verified=false. Verified paper questions should use source='verified_pyq' and is_verified=true."
+  }
+}

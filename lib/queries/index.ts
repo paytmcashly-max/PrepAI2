@@ -1,6 +1,7 @@
 // Server-side queries for PrepTrack
 import { createClient } from '@/lib/supabase/server'
 import type {
+  Exam,
   Subject,
   Chapter,
   RoadmapPhase,
@@ -27,9 +28,28 @@ function getCalendarDay(startDate: string) {
 // ============ SUBJECTS ============
 export async function getSubjects(): Promise<Subject[]> {
   const supabase = await createClient()
+  const { data: linkedSubjects, error: linkedSubjectsError } = await supabase
+    .from('exam_subjects')
+    .select('subject:subjects(*)')
+
+  if (!linkedSubjectsError && linkedSubjects && linkedSubjects.length > 0) {
+    const subjectsById = new Map<string, Subject>()
+    for (const row of linkedSubjects) {
+      const subject = Array.isArray(row.subject) ? row.subject[0] : row.subject
+      if (subject?.id && !subjectsById.has(subject.id)) {
+        subjectsById.set(subject.id, subject as Subject)
+      }
+    }
+
+    return [...subjectsById.values()].sort((a, b) => (
+      (a.order_index || 0) - (b.order_index || 0) || a.name.localeCompare(b.name)
+    ))
+  }
+
   const { data, error } = await supabase
     .from('subjects')
     .select('*')
+    .order('order_index')
     .order('name')
 
   if (error) throw error
@@ -228,6 +248,34 @@ export async function getMockTests(): Promise<MockTest[]> {
   return data || []
 }
 
+// ============ EXAMS ============
+export async function getMasterExams(): Promise<Exam[]> {
+  const supabase = await createClient()
+  const { data: linkedExams, error: linkedExamsError } = await supabase
+    .from('exam_subjects')
+    .select('exam:exams(*)')
+
+  if (!linkedExamsError && linkedExams && linkedExams.length > 0) {
+    const examsById = new Map<string, Exam>()
+    for (const row of linkedExams) {
+      const exam = Array.isArray(row.exam) ? row.exam[0] : row.exam
+      if (exam?.id && !examsById.has(exam.id)) {
+        examsById.set(exam.id, exam as Exam)
+      }
+    }
+
+    return [...examsById.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  const { data, error } = await supabase
+    .from('exams')
+    .select('*')
+    .order('name')
+
+  if (error) throw error
+  return data || []
+}
+
 export async function getUserMockResults(userId: string): Promise<MockTest[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -330,13 +378,20 @@ export async function getPYQYears(): Promise<number[]> {
 export async function getRandomQuote(): Promise<MotivationalQuote | null> {
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from('motivational_quotes')
-    .select('*')
+    .from('quote_bank')
+    .select('id, text, category, author, created_at')
 
   if (error) throw error
   if (!data || data.length === 0) return null
 
-  return data[Math.floor(Math.random() * data.length)]
+  const quote = data[Math.floor(Math.random() * data.length)]
+  return {
+    id: quote.id,
+    quote: quote.text,
+    category: quote.category,
+    author: quote.author,
+    created_at: quote.created_at,
+  }
 }
 
 // ============ DASHBOARD STATS ============

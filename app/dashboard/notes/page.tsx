@@ -13,7 +13,7 @@ export default async function NotesPage() {
     getSubjects(),
     supabase
       .from('chapters')
-      .select('id, exam_id, subject_id, name, priority, difficulty, estimated_minutes, order_index, created_at')
+      .select('id, exam_id, subject_id, chapter_key, name, priority, difficulty, estimated_minutes, order_index, tags, aliases, created_at')
       .order('order_index'),
   ])
 
