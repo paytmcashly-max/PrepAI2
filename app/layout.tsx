@@ -6,9 +6,12 @@ import './globals.css'
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: {
+    default: 'PrepAI',
+    template: '%s | PrepAI',
+  },
+  description: 'AI-powered SSC CGL preparation with study planning, notes, mock tests, and PYQs.',
+  generator: 'PrepAI',
   icons: {
     icon: [
       {

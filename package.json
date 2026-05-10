@@ -2,11 +2,14 @@
   "name": "my-project",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.0.9",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ignore-pattern .next/** --ignore-pattern node_modules/**"
+    "lint": "eslint . --ignore-pattern .next/** --ignore-pattern node_modules/**",
+    "typecheck": "tsc --noEmit",
+    "audit": "corepack pnpm audit --audit-level moderate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -67,6 +70,8 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.4",
     "postcss": "^8.5",
     "tailwindcss": "^4.2.0",
     "tw-animate-css": "1.3.3",

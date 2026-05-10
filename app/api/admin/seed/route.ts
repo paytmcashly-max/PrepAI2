@@ -23,8 +23,14 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     const adminKey = process.env.ADMIN_SEED_KEY;
 
-    // If admin key is set, validate it
-    if (adminKey && authHeader !== `Bearer ${adminKey}`) {
+    if (!adminKey) {
+      return NextResponse.json(
+        { error: 'Seed endpoint is not configured' },
+        { status: 503 }
+      );
+    }
+
+    if (authHeader !== `Bearer ${adminKey}`) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

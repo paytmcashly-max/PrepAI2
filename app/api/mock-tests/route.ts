@@ -38,7 +38,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, totalQuestions, timeLimitMinutes, passingScore } = body;
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const description = typeof body.description === 'string' ? body.description.trim() : null;
+    const totalQuestions = Number(body.totalQuestions);
+    const durationMinutes = Number(body.durationMinutes ?? body.timeLimitMinutes);
+
+    if (!title || !Number.isFinite(totalQuestions) || totalQuestions <= 0 || !Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      return NextResponse.json({ error: 'Invalid mock test payload' }, { status: 400 });
+    }
 
     const { data, error } = await supabase
       .from('mock_tests')
@@ -46,9 +53,8 @@ export async function POST(request: NextRequest) {
         title,
         description,
         total_questions: totalQuestions,
-        time_limit_minutes: timeLimitMinutes,
-        passing_score: passingScore,
-        created_by: user.id,
+        duration_minutes: durationMinutes,
+        is_active: true,
       })
       .select()
       .single();

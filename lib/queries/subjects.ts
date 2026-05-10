@@ -18,6 +18,10 @@ export interface ChapterWithProgress {
   status: 'not_started' | 'in_progress' | 'completed'
 }
 
+interface SubjectProgressCompletion {
+  daily_tasks: { subject_id: string | null } | { subject_id: string | null }[] | null
+}
+
 export async function getSubjects() {
   const supabase = await createClient()
   
@@ -94,9 +98,10 @@ export async function getSubjectProgress(userId: string) {
   // Calculate progress per subject
   const subjectProgress = subjects?.map(subject => {
     const totalChapters = subject.chapters?.length || 0
-    const completedTasks = completions?.filter(
-      c => c.daily_tasks?.subject_id === subject.id
-    ).length || 0
+    const completedTasks = (completions as SubjectProgressCompletion[] | null)?.filter(c => {
+      const dailyTask = Array.isArray(c.daily_tasks) ? c.daily_tasks[0] : c.daily_tasks
+      return dailyTask?.subject_id === subject.id
+    }).length || 0
     
     // Estimate chapter completion based on task completion
     const estimatedCompletedChapters = Math.min(

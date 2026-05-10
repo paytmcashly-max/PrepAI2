@@ -43,11 +43,11 @@ export default function MockTestsPage() {
 
           for (const test of testsData) {
             const { data: testAttempts } = await supabase
-              .from('test_attempts')
+              .from('mock_test_attempts')
               .select('*')
               .eq('mock_test_id', test.id)
               .eq('user_id', user.id)
-              .order('start_time', { ascending: false });
+              .order('started_at', { ascending: false });
 
             if (testAttempts) {
               attemptsMap.set(test.id, testAttempts);
@@ -112,12 +112,18 @@ export default function MockTestsPage() {
               {mockTests.map((test, index) => {
                 const testAttempts = attempts.get(test.id) || [];
                 const completedAttempts = testAttempts.filter(a => a.status === 'completed');
+                const attemptScore = (attempt: any) => (
+                  attempt.total_marks > 0
+                    ? Math.round(((attempt.marks_obtained || 0) / attempt.total_marks) * 100)
+                    : 0
+                );
                 const bestScore = completedAttempts.length > 0
-                  ? Math.max(...completedAttempts.map(a => a.score || 0))
+                  ? Math.max(...completedAttempts.map(attemptScore))
                   : null;
                 const avgScore = completedAttempts.length > 0
-                  ? Math.round(completedAttempts.reduce((sum, a) => sum + (a.score || 0), 0) / completedAttempts.length)
+                  ? Math.round(completedAttempts.reduce((sum, a) => sum + attemptScore(a), 0) / completedAttempts.length)
                   : null;
+                const latestCompletedAttempt = completedAttempts[0];
 
                 return (
                   <motion.div
@@ -138,7 +144,7 @@ export default function MockTestsPage() {
                         </div>
                         <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-3">
                           <p className="text-xs text-muted-foreground mb-1">Duration</p>
-                          <p className="text-2xl font-bold text-foreground">{test.time_limit_minutes}m</p>
+                          <p className="text-2xl font-bold text-foreground">{test.duration_minutes}m</p>
                         </div>
                       </div>
 
@@ -173,7 +179,7 @@ export default function MockTestsPage() {
                       {completedAttempts.length > 0 && (
                         <Button
                           variant="outline"
-                          onClick={() => router.push(`/mock-tests/${test.id}/results`)}
+                          onClick={() => router.push(`/mock-tests/${test.id}/results/${latestCompletedAttempt.id}`)}
                           className="flex-1"
                         >
                           View Results
@@ -203,10 +209,10 @@ export default function MockTestsPage() {
                   {(() => {
                     const allCompleted = Array.from(attempts.values())
                       .flat()
-                      .filter(a => a.status === 'completed' && a.score);
+                      .filter(a => a.status === 'completed' && a.total_marks > 0);
                     if (allCompleted.length === 0) return '—';
                     const avg = Math.round(
-                      allCompleted.reduce((sum, a) => sum + (a.score || 0), 0) / allCompleted.length
+                      allCompleted.reduce((sum, a) => sum + (((a.marks_obtained || 0) / a.total_marks) * 100), 0) / allCompleted.length
                     );
                     return `${avg}%`;
                   })()}

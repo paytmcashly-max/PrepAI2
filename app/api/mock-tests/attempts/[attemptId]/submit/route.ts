@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { calculateScore } from '@/lib/services/mock-test-engine';
+
+interface MockTestQuestion {
+  id: string;
+  subject_id: string | null;
+  correct_answer: string;
+  subject?: { name: string | null } | { name: string | null }[] | null;
+}
 
 export async function POST(
   request: NextRequest,
@@ -16,12 +22,12 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { answers } = body;
+    const answers = body.answers && typeof body.answers === 'object' ? body.answers as Record<string, string> : {};
 
     // Get the attempt
     const { data: attempt, error: attemptError } = await supabase
-      .from('test_attempts')
-      .select('*, mock_tests(*)')
+      .from('mock_test_attempts')
+      .select('*, mock_test:mock_tests(*)')
       .eq('id', attemptId)
       .eq('user_id', user.id)
       .single();
@@ -32,29 +38,34 @@ export async function POST(
 
     // Get all questions for this test
     const { data: questions, error: questionsError } = await supabase
-      .from('questions')
-      .select('*')
+      .from('mock_test_questions')
+      .select('id, subject_id, correct_answer, subject:subjects(name)')
       .eq('mock_test_id', attempt.mock_test_id);
 
     if (questionsError) throw questionsError;
 
-    // Calculate score
-    const score = calculateScore(questions || [], answers);
-    const percentage = score.percentage;
-    const passed = percentage >= (attempt.mock_tests?.passing_score || 60);
+    const typedQuestions = (questions || []) as unknown as MockTestQuestion[];
+    const correct = typedQuestions.filter(q => answers[q.id] === q.correct_answer).length;
+    const unanswered = typedQuestions.filter(q => !answers[q.id]).length;
+    const wrong = Math.max(0, typedQuestions.length - correct - unanswered);
+    const totalMarks = typedQuestions.length;
+    const startedAt = attempt.started_at ? new Date(attempt.started_at).getTime() : Date.now();
+    const timeTakenSeconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
 
     // Update attempt with final data
     const { data: updatedAttempt, error: updateError } = await supabase
-      .from('test_attempts')
+      .from('mock_test_attempts')
       .update({
         answers,
-        end_time: new Date().toISOString(),
-        score: percentage,
+        completed_at: new Date().toISOString(),
+        marks_obtained: correct,
+        total_marks: totalMarks,
+        correct_answers: correct,
+        wrong_answers: wrong,
+        unanswered,
+        time_taken_seconds: timeTakenSeconds,
+        weak_areas: [],
         status: 'completed',
-        passed,
-        correct_count: score.correct,
-        wrong_count: score.wrong,
-        unanswered_count: score.unanswered,
       })
       .eq('id', attemptId)
       .select()
@@ -64,31 +75,37 @@ export async function POST(
 
     // Create performance summary
     const subjectPerformance: Record<string, any> = {};
-    for (const subject of [...new Set(questions?.map(q => q.subject) || [])]) {
-      const subjectQuestions = questions?.filter(q => q.subject === subject) || [];
-      let correct = 0;
+    const subjectNameFor = (question: MockTestQuestion) => {
+      const subject = Array.isArray(question.subject) ? question.subject[0] : question.subject;
+      return subject?.name || 'General';
+    };
+
+    for (const subject of [...new Set(typedQuestions.map(subjectNameFor))]) {
+      const subjectQuestions = typedQuestions.filter(q => subjectNameFor(q) === subject);
+      let subjectCorrect = 0;
 
       for (const q of subjectQuestions) {
         if (answers[q.id] === q.correct_answer) {
-          correct++;
+          subjectCorrect++;
         }
       }
 
       subjectPerformance[subject] = {
-        correct,
+        correct: subjectCorrect,
         total: subjectQuestions.length,
-        percentage: subjectQuestions.length > 0 ? Math.round((correct / subjectQuestions.length) * 100) : 0,
+        percentage: subjectQuestions.length > 0 ? Math.round((subjectCorrect / subjectQuestions.length) * 100) : 0,
       };
     }
+
+    const percentage = totalMarks > 0 ? Math.round((correct / totalMarks) * 100) : 0;
 
     return NextResponse.json({
       attempt: updatedAttempt,
       performance: {
         overall: percentage,
-        passed,
-        correct: score.correct,
-        wrong: score.wrong,
-        unanswered: score.unanswered,
+        correct,
+        wrong,
+        unanswered,
         bySubject: subjectPerformance,
       },
     });

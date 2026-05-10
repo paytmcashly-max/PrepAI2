@@ -45,7 +45,7 @@ export default function TestAttemptPage() {
 
         // Get attempt
         const { data: attemptData } = await supabase
-          .from('test_attempts')
+          .from('mock_test_attempts')
           .select('*')
           .eq('id', attemptId)
           .eq('user_id', user.id)
@@ -58,18 +58,18 @@ export default function TestAttemptPage() {
 
         // Get questions
         const { data: questionsData } = await supabase
-          .from('questions')
-          .select('*')
+          .from('mock_test_questions')
+          .select('*, subject:subjects(name)')
           .eq('mock_test_id', testId)
-          .order('number', { ascending: true });
+          .order('order_index', { ascending: true });
 
         setQuestions(questionsData || []);
 
         // Set initial time remaining
         if (attemptData && testData) {
           const remaining = getTimeRemaining(
-            new Date(attemptData.start_time),
-            testData.time_limit_minutes
+            new Date(attemptData.started_at),
+            testData.duration_minutes
           );
           setTimeRemaining(remaining);
         }
@@ -203,10 +203,10 @@ export default function TestAttemptPage() {
             >
               <div className="mb-6">
                 <div className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-3">
-                  {currentQuestion.subject}
+                  {currentQuestion.subject?.name || 'General'}
                 </div>
                 <h2 className="text-2xl font-bold text-foreground mb-4">
-                  Q{currentQuestion.number}: {currentQuestion.content}
+                  Q{currentQuestion.order_index + 1}: {currentQuestion.question}
                 </h2>
 
                 {/* Options */}

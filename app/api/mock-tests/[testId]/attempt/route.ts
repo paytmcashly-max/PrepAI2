@@ -14,15 +14,30 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create new test attempt
+    const { data: mockTest, error: mockTestError } = await supabase
+      .from('mock_tests')
+      .select('total_questions')
+      .eq('id', testId)
+      .single();
+
+    if (mockTestError || !mockTest) {
+      return NextResponse.json({ error: 'Mock test not found' }, { status: 404 });
+    }
+
     const { data: attempt, error: attemptError } = await supabase
-      .from('test_attempts')
+      .from('mock_test_attempts')
       .insert({
         mock_test_id: testId,
         user_id: user.id,
         answers: {},
-        start_time: new Date().toISOString(),
-        status: 'in-progress',
+        test_date: new Date().toISOString().split('T')[0],
+        total_marks: mockTest.total_questions,
+        marks_obtained: 0,
+        correct_answers: 0,
+        wrong_answers: 0,
+        unanswered: mockTest.total_questions,
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -54,11 +69,11 @@ export async function GET(
 
     // Get user's attempts for this test
     const { data, error } = await supabase
-      .from('test_attempts')
+      .from('mock_test_attempts')
       .select('*')
       .eq('mock_test_id', testId)
       .eq('user_id', user.id)
-      .order('start_time', { ascending: false });
+      .order('started_at', { ascending: false });
 
     if (error) throw error;
 
