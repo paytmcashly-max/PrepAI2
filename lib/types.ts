@@ -198,6 +198,9 @@ export interface PYQQuestion {
   verification_status: PYQVerificationStatus | null
   reviewed_by: string | null
   reviewed_at: string | null
+  review_note: string | null
+  updated_by: string | null
+  updated_at: string | null
   is_verified: boolean
   frequency: number
   created_at: string

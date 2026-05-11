@@ -18,6 +18,13 @@ const allowedPYQSources = new Set<PYQSource>([
   'memory_based',
   'ai_generated',
 ])
+const allowedPYQVerificationStatuses = new Set<PYQVerificationStatus>([
+  'official_verified',
+  'third_party_reviewed',
+  'in_review',
+  'memory_based',
+  'ai_practice',
+])
 
 function assertLevel(value: string, label: string): Level {
   if (allowedLevels.has(value as Level)) return value as Level
@@ -66,6 +73,152 @@ async function assertPYQAdmin() {
   }
 
   return user
+}
+
+type PYQWriteInput = {
+  exam_id: string
+  year: number
+  subject_id: string
+  chapter_id?: string | null
+  difficulty: string
+  question: string
+  options: string[]
+  answer: string
+  explanation?: string | null
+  source_reference?: string | null
+  source_name?: string | null
+  source_url?: string | null
+  verification_status?: string | null
+  source: string
+  is_verified?: boolean
+  review_note?: string | null
+}
+
+async function normalizePYQWriteInput(data: PYQWriteInput) {
+  const examId = data.exam_id?.trim()
+  const subjectId = data.subject_id?.trim()
+  const chapterId = data.chapter_id?.trim() || null
+  const year = Number(data.year)
+  const difficulty = data.difficulty?.trim()
+  const source = allowedPYQSources.has(data.source as PYQSource) ? data.source as PYQSource : null
+  const requestedStatus = allowedPYQVerificationStatuses.has(data.verification_status as PYQVerificationStatus)
+    ? data.verification_status as PYQVerificationStatus
+    : null
+  const question = data.question?.trim()
+  const answer = data.answer?.trim()
+  const explanation = data.explanation?.trim() || null
+  const sourceReference = data.source_reference?.trim() || null
+  const sourceName = data.source_name?.trim() || null
+  const sourceUrl = data.source_url?.trim() || null
+  const reviewNote = data.review_note?.trim() || null
+  const options = (data.options || []).map((option) => option.trim()).filter(Boolean)
+
+  if (!examId || !subjectId || !Number.isInteger(year) || year < 1900 || year > 2100) {
+    throw new Error('Please provide exam, subject, and a valid year.')
+  }
+  if (!['easy', 'medium', 'hard'].includes(difficulty)) {
+    throw new Error('Difficulty must be easy, medium, or hard.')
+  }
+  if (!question || !answer) {
+    throw new Error('Question and answer are required.')
+  }
+  if (!source) {
+    throw new Error('Source must be official verified, trusted third-party, memory-based, or AI-generated.')
+  }
+
+  const isVerified = source === 'verified_pyq'
+  if (data.is_verified && source !== 'verified_pyq') {
+    throw new Error('Only official verified PYQs can be marked verified.')
+  }
+  if (sourceUrl?.startsWith('http')) {
+    try {
+      new URL(sourceUrl)
+    } catch {
+      throw new Error('Source URL must be a valid URL when it starts with http.')
+    }
+  }
+
+  let verificationStatus: PYQVerificationStatus
+  switch (source) {
+    case 'verified_pyq':
+      verificationStatus = 'official_verified'
+      if (!chapterId) {
+        throw new Error('Official verified PYQs must be linked to a chapter.')
+      }
+      if (!sourceReference) {
+        throw new Error('Official verified PYQs require an official/question-paper source reference.')
+      }
+      break
+    case 'trusted_third_party':
+      verificationStatus = requestedStatus === 'third_party_reviewed' ? 'third_party_reviewed' : 'in_review'
+      if (!sourceReference) {
+        throw new Error('Trusted third-party practice requires a source reference.')
+      }
+      if (!sourceName) {
+        throw new Error('Trusted third-party practice requires a source name.')
+      }
+      break
+    case 'memory_based':
+      verificationStatus = 'memory_based'
+      if (!sourceReference) {
+        throw new Error('Memory-based/unofficial practice requires a source reference.')
+      }
+      break
+    case 'ai_generated':
+      verificationStatus = 'ai_practice'
+      break
+  }
+
+  const admin = createAdminClient()
+  const [
+    examResult,
+    subjectResult,
+    examSubjectResult,
+    chapterResult,
+  ] = await Promise.all([
+    admin.from('exams').select('id').eq('id', examId).single(),
+    admin.from('subjects').select('id').eq('id', subjectId).single(),
+    admin.from('exam_subjects').select('exam_id, subject_id').eq('exam_id', examId).eq('subject_id', subjectId).single(),
+    chapterId
+      ? admin.from('chapters').select('id, name, exam_id, subject_id').eq('id', chapterId).single()
+      : Promise.resolve({ data: null, error: null }),
+  ])
+
+  if (examResult.error || !examResult.data) throw new Error('Selected exam does not exist.')
+  if (subjectResult.error || !subjectResult.data) throw new Error('Selected subject does not exist.')
+  if (examSubjectResult.error || !examSubjectResult.data) {
+    throw new Error('Selected subject does not belong to the selected exam.')
+  }
+
+  const chapter = chapterResult.data
+  if (chapterResult.error) throw new Error('Selected chapter does not exist.')
+  if (chapter && (chapter.exam_id !== examId || chapter.subject_id !== subjectId)) {
+    throw new Error('Selected chapter does not belong to the selected exam and subject.')
+  }
+
+  return {
+    admin,
+    values: {
+      exam_id: examId,
+      year,
+      subject_id: subjectId,
+      chapter_id: chapterId,
+      chapter: chapter?.name || null,
+      topic: chapter?.name || null,
+      difficulty,
+      question,
+      options,
+      answer,
+      explanation,
+      source_reference: sourceReference,
+      source_name: sourceName,
+      source_url: sourceUrl,
+      source,
+      is_verified: isVerified,
+      verification_status: verificationStatus,
+      review_note: reviewNote,
+    },
+  }
 }
 
 export async function completeOnboarding(data: {
@@ -583,127 +736,17 @@ export async function createPYQQuestion(data: {
   is_verified: boolean
 }) {
   const user = await assertPYQAdmin()
-
-  const examId = data.exam_id?.trim()
-  const subjectId = data.subject_id?.trim()
-  const chapterId = data.chapter_id?.trim() || null
-  const year = Number(data.year)
-  const difficulty = data.difficulty?.trim()
-  const source = allowedPYQSources.has(data.source as PYQSource) ? data.source as PYQSource : null
-  const question = data.question?.trim()
-  const answer = data.answer?.trim()
-  const explanation = data.explanation?.trim() || null
-  const sourceReference = data.source_reference?.trim() || null
-  const sourceName = data.source_name?.trim() || null
-  const sourceUrl = data.source_url?.trim() || null
-  const options = (data.options || []).map((option) => option.trim()).filter(Boolean)
-
-  if (!examId || !subjectId || !Number.isInteger(year) || year < 1900 || year > 2100) {
-    throw new Error('Please provide exam, subject, and a valid year.')
-  }
-  if (!['easy', 'medium', 'hard'].includes(difficulty)) {
-    throw new Error('Difficulty must be easy, medium, or hard.')
-  }
-  if (!question || !answer) {
-    throw new Error('Question and answer are required.')
-  }
-  if (!source) {
-    throw new Error('Source must be official verified, trusted third-party, memory-based, or AI-generated.')
-  }
-
-  const isVerified = source === 'verified_pyq'
-  if (data.is_verified && source !== 'verified_pyq') {
-    throw new Error('Only official verified PYQs can be marked verified.')
-  }
-  if (sourceUrl?.startsWith('http')) {
-    try {
-      new URL(sourceUrl)
-    } catch {
-      throw new Error('Source URL must be a valid URL when it starts with http.')
-    }
-  }
-
-  let verificationStatus: PYQVerificationStatus
-  switch (source) {
-    case 'verified_pyq':
-      verificationStatus = 'official_verified'
-      if (!chapterId) {
-        throw new Error('Official verified PYQs must be linked to a chapter.')
-      }
-      if (!sourceReference) {
-        throw new Error('Official verified PYQs require an official/question-paper source reference.')
-      }
-      break
-    case 'trusted_third_party':
-      verificationStatus = data.verification_status === 'third_party_reviewed' ? 'third_party_reviewed' : 'in_review'
-      if (!sourceReference) {
-        throw new Error('Trusted third-party practice requires a source reference.')
-      }
-      if (!sourceName) {
-        throw new Error('Trusted third-party practice requires a source name.')
-      }
-      break
-    case 'memory_based':
-      verificationStatus = 'memory_based'
-      if (!sourceReference) {
-        throw new Error('Memory-based/unofficial practice requires a source reference.')
-      }
-      break
-    case 'ai_generated':
-      verificationStatus = 'ai_practice'
-      break
-  }
-
-  const admin = createAdminClient()
-  const [
-    examResult,
-    subjectResult,
-    examSubjectResult,
-    chapterResult,
-  ] = await Promise.all([
-    admin.from('exams').select('id').eq('id', examId).single(),
-    admin.from('subjects').select('id').eq('id', subjectId).single(),
-    admin.from('exam_subjects').select('exam_id, subject_id').eq('exam_id', examId).eq('subject_id', subjectId).single(),
-    chapterId
-      ? admin.from('chapters').select('id, name, exam_id, subject_id').eq('id', chapterId).single()
-      : Promise.resolve({ data: null, error: null }),
-  ])
-
-  if (examResult.error || !examResult.data) throw new Error('Selected exam does not exist.')
-  if (subjectResult.error || !subjectResult.data) throw new Error('Selected subject does not exist.')
-  if (examSubjectResult.error || !examSubjectResult.data) {
-    throw new Error('Selected subject does not belong to the selected exam.')
-  }
-
-  const chapter = chapterResult.data
-  if (chapterResult.error) throw new Error('Selected chapter does not exist.')
-  if (chapter && (chapter.exam_id !== examId || chapter.subject_id !== subjectId)) {
-    throw new Error('Selected chapter does not belong to the selected exam and subject.')
-  }
+  const { admin, values } = await normalizePYQWriteInput(data)
 
   const { data: inserted, error } = await admin
     .from('pyq_questions')
     .insert({
       id: `manual-pyq-${randomUUID()}`,
-      exam_id: examId,
-      year,
-      subject_id: subjectId,
-      chapter_id: chapterId,
-      chapter: chapter?.name || null,
-      topic: chapter?.name || null,
-      difficulty,
-      question,
-      options,
-      answer,
-      explanation,
-      source_reference: sourceReference,
-      source_name: sourceName,
-      source_url: sourceUrl,
-      source,
-      is_verified: isVerified,
-      verification_status: verificationStatus,
+      ...values,
       reviewed_by: user.email || null,
       reviewed_at: new Date().toISOString(),
+      updated_by: user.email || null,
+      updated_at: new Date().toISOString(),
       frequency: 1,
     })
     .select()
@@ -805,6 +848,77 @@ export async function updatePYQReviewStatus(
   revalidatePath('/dashboard/pyq/review', 'page')
   revalidatePath('/dashboard/admin/debug', 'page')
   return updated
+}
+
+export async function updatePYQQuestion(questionId: string, data: PYQWriteInput) {
+  const user = await assertPYQAdmin()
+  const id = questionId?.trim()
+  if (!id) throw new Error('Question ID is required.')
+
+  const { admin, values } = await normalizePYQWriteInput(data)
+
+  const { data: existing, error: existingError } = await admin
+    .from('pyq_questions')
+    .select('id')
+    .eq('id', id)
+    .single()
+
+  if (existingError || !existing) {
+    throw new Error('PYQ question was not found.')
+  }
+
+  const now = new Date().toISOString()
+  const { data: updated, error } = await admin
+    .from('pyq_questions')
+    .update({
+      ...values,
+      reviewed_by: user.email || null,
+      reviewed_at: now,
+      updated_by: user.email || null,
+      updated_at: now,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+
+  revalidatePath('/dashboard/pyq', 'page')
+  revalidatePath('/dashboard/pyq/review', 'page')
+  revalidatePath('/dashboard/pyq/admin', 'page')
+  revalidatePath(`/dashboard/pyq/admin/${id}/edit`, 'page')
+  revalidatePath('/dashboard/admin/debug', 'page')
+  return updated
+}
+
+export async function deletePYQQuestion(questionId: string) {
+  await assertPYQAdmin()
+  const id = questionId?.trim()
+  if (!id) throw new Error('Question ID is required.')
+
+  const admin = createAdminClient()
+  const { data: existing, error: existingError } = await admin
+    .from('pyq_questions')
+    .select('id, source, is_verified')
+    .eq('id', id)
+    .single()
+
+  if (existingError || !existing) {
+    throw new Error('PYQ question was not found.')
+  }
+
+  const { error } = await admin
+    .from('pyq_questions')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+
+  revalidatePath('/dashboard/pyq', 'page')
+  revalidatePath('/dashboard/pyq/review', 'page')
+  revalidatePath('/dashboard/pyq/admin', 'page')
+  revalidatePath('/dashboard/admin/debug', 'page')
+  return { success: true }
 }
 
 // ============ MOCK TEST ATTEMPTS ============

@@ -524,6 +524,18 @@ export async function getPYQQuestions(filters?: {
   return data || []
 }
 
+export async function getPYQQuestionById(questionId: string): Promise<PYQQuestion | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('pyq_questions')
+    .select('*, subject:subjects(*), exam:exams(*), chapter_ref:chapters(*)')
+    .eq('id', questionId)
+    .maybeSingle()
+
+  if (error) throw error
+  return data || null
+}
+
 export async function getPYQReviewRows(): Promise<PYQQuestion[]> {
   const supabase = await createClient()
   const { data, error } = await supabase

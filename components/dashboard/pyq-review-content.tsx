@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
-import { ArrowLeft, CheckCircle2, ExternalLink, RotateCcw, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ExternalLink, Pencil, RotateCcw, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -140,6 +140,12 @@ function QuestionReviewCard({ question }: { question: PYQQuestion }) {
         </div>
 
         <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:flex-wrap">
+          <Button type="button" variant="secondary" asChild className="w-full sm:w-fit">
+            <Link href={`/dashboard/pyq/admin/${encodeURIComponent(question.id)}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit row
+            </Link>
+          </Button>
           {isInReview && (
             <>
               <Button

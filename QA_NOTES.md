@@ -132,6 +132,25 @@ PYQ third-party review workflow on 2026-05-11:
 - Third-party reviewed count is now `1`; third-party in-review count is now `4`.
 - Verified-only filter still returns `0` because third-party reviewed rows are not official verified PYQs.
 
+PYQ admin correction workflow on 2026-05-11:
+
+- Added admin-only `/dashboard/pyq/admin/[questionId]/edit` for safe PYQ/practice row corrections.
+- Added audit columns through migration `20260511020000_pyq_admin_correction_audit.sql`: `review_note`, `updated_by`, and `updated_at`.
+- Edit form supports exam, year, subject, chapter, difficulty, question, options, answer, explanation, source reference, source name, source URL, source, verification status, and review note.
+- Server action `updatePYQQuestion()` reuses source-specific validation:
+  - `verified_pyq` requires chapter, answer, source reference, and saves `is_verified = true`
+  - `trusted_third_party` requires source name and source reference, and saves `is_verified = false`
+  - `memory_based` requires source reference and saves `is_verified = false`
+  - `ai_generated` saves as unverified practice
+  - subject/exam and chapter/exam/subject mappings are validated before update
+- Server action `deletePYQQuestion()` is admin-only and revalidates PYQ, review, and admin debug pages.
+- Review queue cards now include an Edit button for correction before status changes.
+- Manual import page includes an admin-only Review Queue button.
+- Edit smoke test updated `tb-bihar-si-2022-mains-s1-q005` with a review note while keeping `source = trusted_third_party`, `verification_status = third_party_reviewed`, and `is_verified = false`.
+- Delete smoke test inserted and deleted one temporary unverified QA row only; final temporary row count was `0`.
+- Invalid trust transitions were rejected: `trusted_third_party` with `is_verified = true` and `verified_pyq` without `source_reference`.
+- Verified-only filter remains official-only; live official verified count remains `0`, trusted third-party reviewed count `1`, trusted third-party in-review count `4`.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -146,6 +165,10 @@ PYQ third-party review workflow on 2026-05-11:
 - Verified post-import PYQ counts: total `16`, official verified `0`, trusted third-party `5`, AI practice `11`, verified-only filter `0`.
 - Added `/dashboard/pyq/review` and promoted one Testbook row to `third_party_reviewed` while preserving `source = trusted_third_party` and `is_verified = false`.
 - Verified post-review PYQ counts: total `16`, official verified `0`, trusted third-party `5`, third-party in review `4`, third-party reviewed `1`, verified-only filter `0`.
+- Added and applied `supabase/migrations/20260511020000_pyq_admin_correction_audit.sql`.
+- Verified live audit columns are present on `pyq_questions`: `review_note`, `updated_by`, `updated_at`.
+- Updated one Testbook row through correction smoke data and deleted one temporary QA row.
+- Verified invalid source/verification combinations are rejected by `pyq_source_verification_check`.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
