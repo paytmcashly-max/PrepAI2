@@ -15,10 +15,6 @@ import { createClient } from '@/lib/supabase/server'
 import { isAdminEmail } from '@/lib/admin-auth'
 import { getAdminDebugSnapshot } from '@/lib/queries'
 
-export const metadata = {
-  title: 'Admin Debug | PrepTrack',
-}
-
 function MetricCard({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
   return (
     <Card className="min-w-0 overflow-hidden">

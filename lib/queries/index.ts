@@ -960,7 +960,12 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
     .filter((task) => task.status === 'pending' && task.task_date < todayString)
     .slice(0, 10)
   const currentWeekRevisionTasks = tasks
-    .filter((task) => task.task_type === 'revision' && task.task_date >= weekStartString && task.task_date <= weekEndString)
+    .filter((task) => (
+      task.status === 'pending'
+      && task.task_type === 'revision'
+      && task.task_date >= weekStartString
+      && task.task_date <= weekEndString
+    ))
     .slice(0, 10)
 
   const chapterMap = new Map<string, RevisionWeakChapter>()

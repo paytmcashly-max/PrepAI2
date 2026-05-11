@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'node:crypto'
 import { generateStudyPlan } from '@/lib/services/generate-study-plan'
+import { getAdminEmails } from '@/lib/admin-auth'
 
 type Level = 'weak' | 'average' | 'good'
 type StudyLanguage = 'hindi' | 'english'
@@ -47,13 +48,6 @@ function normalizeTaskIds(taskIds: string[]) {
 function assertISODate(value: string) {
   const date = assertDate(value)
   return date
-}
-
-function getAdminEmails() {
-  return (process.env.PYQ_ADMIN_EMAILS || process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean)
 }
 
 async function assertPYQAdmin() {

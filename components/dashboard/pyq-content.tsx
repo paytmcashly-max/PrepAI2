@@ -13,7 +13,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select'
-import { 
+import {
   FileText, 
   Calendar, 
   BookOpen, 
@@ -29,6 +29,7 @@ import {
   Upload,
 } from 'lucide-react'
 import type { Chapter, Exam, PYQQuestion, Subject } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 interface PYQContentProps {
   questions: PYQQuestion[]
@@ -348,13 +349,13 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               return (
                 <Card key={question.id}>
                   <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <div className="mb-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <Badge variant="outline">{question.year}</Badge>
                         <Badge variant="outline">{examName}</Badge>
                         <Badge variant="secondary">{subjectName}</Badge>
                         {chapterName && (
-                          <Badge variant="outline" className="bg-muted/50">
+                          <Badge variant="outline" className="max-w-full whitespace-normal break-words bg-muted/50 leading-relaxed">
                             {chapterName}
                           </Badge>
                         )}
@@ -366,7 +367,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                           {sourceLabel}
                         </Badge>
                       </div>
-                      <Badge className={getDifficultyColor(question.difficulty)}>
+                      <Badge className={cn('w-fit', getDifficultyColor(question.difficulty))}>
                         {question.difficulty}
                       </Badge>
                     </div>
@@ -391,8 +392,8 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-4 border-t border-border">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm text-muted-foreground">
                         {question.frequency > 1 && (
                           <span className="flex items-center gap-1">
                             <TrendingUp className="h-4 w-4" />
@@ -408,7 +409,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                         variant="ghost"
                         size="sm"
                         onClick={() => setExpandedQuestion(isExpanded ? null : question.id)}
-                        className="flex items-center gap-1"
+                        className="w-fit"
                       >
                         {isExpanded ? (
                           <>
