@@ -151,6 +151,25 @@ PYQ admin correction workflow on 2026-05-11:
 - Invalid trust transitions were rejected: `trusted_third_party` with `is_verified = true` and `verified_pyq` without `source_reference`.
 - Verified-only filter remains official-only; live official verified count remains `0`, trusted third-party reviewed count `1`, trusted third-party in-review count `4`.
 
+PYQ auto-validation pipeline on 2026-05-11:
+
+- Added migration `20260511030000_pyq_auto_validation.sql`.
+- Extended `verification_status` to support `official_verified`, `system_validated`, `needs_manual_review`, `third_party_reviewed`, `in_review`, `memory_based`, `ai_practice`, and `auto_rejected`.
+- Added `auto_review_score`, `auto_review_flags`, `auto_reviewed_at`, and `auto_rejection_reason` to `pyq_questions`.
+- Added trusted third-party source config in `lib/pyq-trust.ts` for Testbook, Adda247, SSCAdda, and CareerPower.
+- Added `autoValidatePYQInput()` and integrated it into `createPYQQuestion()` and `updatePYQQuestion()`.
+- Clean trusted-source rows can become `system_validated` while staying `source = trusted_third_party` and `is_verified = false`.
+- Incomplete trusted-source rows can become `needs_manual_review`.
+- Duplicate rows are flagged with `possible_duplicate`.
+- Auto-rejected rows are hidden from the student PYQ page and shown only in admin review/debug surfaces.
+- Review queue now has sections for Needs Manual Review, System Validated, Human Reviewed, and Auto Rejected.
+- Admin actions now support mark human reviewed, send to manual review, mark memory-based, reject row, and restore rejected row.
+- Student PYQ page hides `needs_manual_review` and `auto_rejected` rows unless the user is an admin.
+- Verified-only filter remains official-only: `source = verified_pyq` and `is_verified = true`.
+- Live migration was applied and the new columns were confirmed readable.
+- Temporary QA rows verified the new statuses: `system_validated`, `needs_manual_review`, duplicate flagged, and `auto_rejected`; all temporary rows were deleted.
+- Non-admin review/edit access remains protected through server-side `notFound()` checks on `/dashboard/pyq/review` and `/dashboard/pyq/admin/[questionId]/edit`.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -169,6 +188,9 @@ PYQ admin correction workflow on 2026-05-11:
 - Verified live audit columns are present on `pyq_questions`: `review_note`, `updated_by`, `updated_at`.
 - Updated one Testbook row through correction smoke data and deleted one temporary QA row.
 - Verified invalid source/verification combinations are rejected by `pyq_source_verification_check`.
+- Added and applied `supabase/migrations/20260511030000_pyq_auto_validation.sql`.
+- Verified temporary auto-validation rows were accepted with the expected statuses and then deleted.
+- Verified live official verified count remains `0`; temporary QA row count returned `0`.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

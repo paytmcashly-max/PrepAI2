@@ -61,8 +61,10 @@ const SOURCE_OPTIONS: Array<{ value: PYQSource; label: string; warning: string }
 
 function statusesForSource(source: PYQSource): PYQVerificationStatus[] {
   if (source === 'verified_pyq') return ['official_verified']
-  if (source === 'trusted_third_party') return ['in_review', 'third_party_reviewed']
-  if (source === 'memory_based') return ['memory_based']
+  if (source === 'trusted_third_party') {
+    return ['system_validated', 'needs_manual_review', 'third_party_reviewed', 'in_review', 'auto_rejected']
+  }
+  if (source === 'memory_based') return ['memory_based', 'needs_manual_review', 'auto_rejected']
   return ['ai_practice']
 }
 

@@ -38,9 +38,10 @@ interface PYQContentProps {
   subjects: Subject[]
   chapters: Chapter[]
   years: number[]
+  isAdmin?: boolean
 }
 
-export function PYQContent({ questions, exams, subjects, chapters, years }: PYQContentProps) {
+export function PYQContent({ questions, exams, subjects, chapters, years, isAdmin = false }: PYQContentProps) {
   const [filterExam, setFilterExam] = useState<string>('all')
   const [filterYear, setFilterYear] = useState<string>('all')
   const [filterSubject, setFilterSubject] = useState<string>('all')
@@ -62,6 +63,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
     if (filterChapter !== 'all' && q.chapter_id !== filterChapter) return false
     if (filterDifficulty !== 'all' && q.difficulty !== filterDifficulty) return false
     if (verifiedOnly && !(q.source === 'verified_pyq' && q.is_verified)) return false
+    if (!isAdmin && (q.verification_status === 'needs_manual_review' || q.verification_status === 'auto_rejected')) return false
     return true
   })
 
@@ -120,12 +122,27 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
       }
     }
     if (source === 'trusted_third_party') {
+      const isSystemValidated = verificationStatus === 'system_validated'
       const isReviewed = verificationStatus === 'third_party_reviewed'
+      const needsReview = verificationStatus === 'needs_manual_review' || verificationStatus === 'in_review'
+      const isRejected = verificationStatus === 'auto_rejected'
       return {
-        label: isReviewed ? 'Third-party Reviewed Practice' : 'Third-party Practice / In Review',
-        helper: 'Not official verified',
-        icon: BookOpen,
-        className: 'gap-1 border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
+        label: isSystemValidated
+          ? 'System Validated Third-party Practice'
+          : isReviewed
+            ? 'Human Reviewed Third-party Practice'
+            : isRejected
+              ? 'Auto Rejected'
+              : needsReview
+                ? 'Needs Manual Review'
+                : 'Third-party Practice / In Review',
+        helper: isRejected ? 'Hidden from students; needs admin correction' : 'Not official verified',
+        icon: isRejected ? ShieldAlert : BookOpen,
+        className: isRejected
+          ? 'gap-1 border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300'
+          : needsReview
+            ? 'gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+            : 'gap-1 border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
       }
     }
     if (source === 'memory_based') {

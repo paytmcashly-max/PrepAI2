@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'node:crypto'
 import { generateStudyPlan } from '@/lib/services/generate-study-plan'
 import { getAdminEmails } from '@/lib/admin-auth'
+import { autoValidatePYQInput } from '@/lib/pyq-trust'
 import type { PYQSource, PYQVerificationStatus } from '@/lib/types'
 
 type Level = 'weak' | 'average' | 'good'
@@ -20,10 +21,13 @@ const allowedPYQSources = new Set<PYQSource>([
 ])
 const allowedPYQVerificationStatuses = new Set<PYQVerificationStatus>([
   'official_verified',
+  'system_validated',
+  'needs_manual_review',
   'third_party_reviewed',
   'in_review',
   'memory_based',
   'ai_practice',
+  'auto_rejected',
 ])
 
 function assertLevel(value: string, label: string): Level {
@@ -94,7 +98,7 @@ type PYQWriteInput = {
   review_note?: string | null
 }
 
-async function normalizePYQWriteInput(data: PYQWriteInput) {
+async function normalizePYQWriteInput(data: PYQWriteInput, existingQuestionId?: string) {
   const examId = data.exam_id?.trim()
   const subjectId = data.subject_id?.trim()
   const chapterId = data.chapter_id?.trim() || null
@@ -119,8 +123,11 @@ async function normalizePYQWriteInput(data: PYQWriteInput) {
   if (!['easy', 'medium', 'hard'].includes(difficulty)) {
     throw new Error('Difficulty must be easy, medium, or hard.')
   }
-  if (!question || !answer) {
-    throw new Error('Question and answer are required.')
+  if (!question) {
+    throw new Error('Question is required.')
+  }
+  if (!answer && source !== 'trusted_third_party') {
+    throw new Error('Answer is required.')
   }
   if (!source) {
     throw new Error('Source must be official verified, trusted third-party, memory-based, or AI-generated.')
@@ -136,37 +143,6 @@ async function normalizePYQWriteInput(data: PYQWriteInput) {
     } catch {
       throw new Error('Source URL must be a valid URL when it starts with http.')
     }
-  }
-
-  let verificationStatus: PYQVerificationStatus
-  switch (source) {
-    case 'verified_pyq':
-      verificationStatus = 'official_verified'
-      if (!chapterId) {
-        throw new Error('Official verified PYQs must be linked to a chapter.')
-      }
-      if (!sourceReference) {
-        throw new Error('Official verified PYQs require an official/question-paper source reference.')
-      }
-      break
-    case 'trusted_third_party':
-      verificationStatus = requestedStatus === 'third_party_reviewed' ? 'third_party_reviewed' : 'in_review'
-      if (!sourceReference) {
-        throw new Error('Trusted third-party practice requires a source reference.')
-      }
-      if (!sourceName) {
-        throw new Error('Trusted third-party practice requires a source name.')
-      }
-      break
-    case 'memory_based':
-      verificationStatus = 'memory_based'
-      if (!sourceReference) {
-        throw new Error('Memory-based/unofficial practice requires a source reference.')
-      }
-      break
-    case 'ai_generated':
-      verificationStatus = 'ai_practice'
-      break
   }
 
   const admin = createAdminClient()
@@ -196,6 +172,57 @@ async function normalizePYQWriteInput(data: PYQWriteInput) {
     throw new Error('Selected chapter does not belong to the selected exam and subject.')
   }
 
+  const duplicateQuery = admin
+    .from('pyq_questions')
+    .select('id')
+    .eq('exam_id', examId)
+    .eq('year', year)
+    .eq('question', question)
+    .eq('source_reference', sourceReference || '')
+
+  if (existingQuestionId) duplicateQuery.neq('id', existingQuestionId)
+  const { data: duplicateRows, error: duplicateError } = await duplicateQuery.limit(1)
+  if (duplicateError) throw duplicateError
+
+  const autoValidation = autoValidatePYQInput({
+    source,
+    source_name: sourceName,
+    source_reference: sourceReference,
+    source_url: sourceUrl,
+    exam_id: examId,
+    year,
+    subject_id: subjectId,
+    chapter_id: chapterId,
+    question,
+    answer,
+    mappingValid: Boolean(examResult.data && subjectResult.data && examSubjectResult.data && (!chapter || (chapter.exam_id === examId && chapter.subject_id === subjectId))),
+    duplicateFound: Boolean(duplicateRows?.length),
+  })
+
+  if (autoValidation.auto_review_flags.includes('invalid_source_url')) {
+    throw new Error('Source URL must be a valid URL when it starts with http.')
+  }
+
+  let verificationStatus = autoValidation.verification_status
+  if (source === 'trusted_third_party') {
+    if (requestedStatus === 'third_party_reviewed') verificationStatus = 'third_party_reviewed'
+    if (requestedStatus === 'needs_manual_review') verificationStatus = 'needs_manual_review'
+    if (requestedStatus === 'in_review') verificationStatus = 'in_review'
+    if (requestedStatus === 'auto_rejected') verificationStatus = 'auto_rejected'
+  }
+  if (source === 'memory_based') {
+    verificationStatus = 'memory_based'
+    if (!sourceReference) {
+      throw new Error('Memory-based/unofficial practice requires a source reference.')
+    }
+  }
+  if (source === 'ai_generated') verificationStatus = 'ai_practice'
+  if (source === 'verified_pyq') {
+    if (verificationStatus !== 'official_verified') {
+      throw new Error('Official verified PYQs require official source evidence, chapter, answer, and valid exam/subject/chapter mapping.')
+    }
+  }
+
   return {
     admin,
     values: {
@@ -217,6 +244,12 @@ async function normalizePYQWriteInput(data: PYQWriteInput) {
       is_verified: isVerified,
       verification_status: verificationStatus,
       review_note: reviewNote,
+      auto_review_score: autoValidation.auto_review_score,
+      auto_review_flags: autoValidation.auto_review_flags,
+      auto_reviewed_at: new Date().toISOString(),
+      auto_rejection_reason: verificationStatus === 'auto_rejected'
+        ? autoValidation.auto_rejection_reason || 'Auto-validation rejected this row.'
+        : null,
     },
   }
 }
@@ -756,18 +789,20 @@ export async function createPYQQuestion(data: {
 
   revalidatePath('/dashboard/pyq', 'page')
   revalidatePath('/dashboard/pyq/admin', 'page')
+  revalidatePath('/dashboard/pyq/review', 'page')
+  revalidatePath('/dashboard/admin/debug', 'page')
   return inserted
 }
 
 export async function updatePYQReviewStatus(
   questionId: string,
-  status: Extract<PYQVerificationStatus, 'in_review' | 'third_party_reviewed' | 'memory_based'>
+  status: Extract<PYQVerificationStatus, 'needs_manual_review' | 'third_party_reviewed' | 'in_review' | 'memory_based' | 'auto_rejected'>
 ) {
   const user = await assertPYQAdmin()
   const id = questionId?.trim()
 
   if (!id) throw new Error('Question ID is required.')
-  if (!['in_review', 'third_party_reviewed', 'memory_based'].includes(status)) {
+  if (!['needs_manual_review', 'in_review', 'third_party_reviewed', 'memory_based', 'auto_rejected'].includes(status)) {
     throw new Error('Unsupported PYQ review status.')
   }
 
@@ -793,11 +828,12 @@ export async function updatePYQReviewStatus(
     is_verified: false
     reviewed_by: string | null
     reviewed_at: string
+    auto_rejection_reason?: string | null
   }
 
   if (status === 'third_party_reviewed') {
-    if (currentSource !== 'trusted_third_party' || currentStatus !== 'in_review') {
-      throw new Error('Only third-party rows currently in review can be marked reviewed.')
+    if (currentSource !== 'trusted_third_party' || currentStatus === 'auto_rejected') {
+      throw new Error('Only non-rejected third-party rows can be marked human reviewed.')
     }
     updatePayload = {
       source: 'trusted_third_party',
@@ -805,21 +841,35 @@ export async function updatePYQReviewStatus(
       is_verified: false,
       reviewed_by: user.email || null,
       reviewed_at: new Date().toISOString(),
+      auto_rejection_reason: null,
     }
-  } else if (status === 'in_review') {
-    if (currentSource !== 'trusted_third_party' || currentStatus !== 'third_party_reviewed') {
-      throw new Error('Only reviewed third-party rows can be sent back to in review.')
+  } else if (status === 'needs_manual_review' || status === 'in_review') {
+    if (currentSource !== 'trusted_third_party') {
+      throw new Error('Only third-party rows can be sent to manual review.')
     }
     updatePayload = {
       source: 'trusted_third_party',
-      verification_status: 'in_review',
+      verification_status: status,
       is_verified: false,
       reviewed_by: user.email || null,
       reviewed_at: new Date().toISOString(),
+      auto_rejection_reason: null,
+    }
+  } else if (status === 'auto_rejected') {
+    if (currentSource !== 'trusted_third_party') {
+      throw new Error('Only third-party rows can be auto-rejected from this workflow.')
+    }
+    updatePayload = {
+      source: 'trusted_third_party',
+      verification_status: 'auto_rejected',
+      is_verified: false,
+      reviewed_by: user.email || null,
+      reviewed_at: new Date().toISOString(),
+      auto_rejection_reason: 'Rejected during admin review.',
     }
   } else {
-    if (currentSource !== 'trusted_third_party' || currentStatus !== 'in_review') {
-      throw new Error('Only third-party rows currently in review can be reclassified as memory-based.')
+    if (currentSource !== 'trusted_third_party') {
+      throw new Error('Only third-party rows can be reclassified as memory-based.')
     }
     if (!existing.source_reference?.trim()) {
       throw new Error('Memory-based rows require a source reference.')
@@ -830,6 +880,7 @@ export async function updatePYQReviewStatus(
       is_verified: false,
       reviewed_by: user.email || null,
       reviewed_at: new Date().toISOString(),
+      auto_rejection_reason: null,
     }
   }
 
@@ -855,7 +906,7 @@ export async function updatePYQQuestion(questionId: string, data: PYQWriteInput)
   const id = questionId?.trim()
   if (!id) throw new Error('Question ID is required.')
 
-  const { admin, values } = await normalizePYQWriteInput(data)
+  const { admin, values } = await normalizePYQWriteInput(data, id)
 
   const { data: existing, error: existingError } = await admin
     .from('pyq_questions')

@@ -16,7 +16,7 @@ interface PYQReviewContentProps {
   questions: PYQQuestion[]
 }
 
-type ReviewAction = Extract<PYQVerificationStatus, 'in_review' | 'third_party_reviewed' | 'memory_based'>
+type ReviewAction = Extract<PYQVerificationStatus, 'needs_manual_review' | 'third_party_reviewed' | 'memory_based' | 'auto_rejected'>
 
 function formatStatus(status: string | null) {
   if (!status) return 'Unknown'
@@ -30,8 +30,9 @@ function QuestionReviewCard({ question }: { question: PYQQuestion }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [pendingAction, setPendingAction] = useState<ReviewAction | null>(null)
-  const isInReview = question.verification_status === 'in_review'
+  const isSystemValidated = question.verification_status === 'system_validated'
   const isReviewed = question.verification_status === 'third_party_reviewed'
+  const isRejected = question.verification_status === 'auto_rejected'
 
   const runAction = (status: ReviewAction) => {
     setPendingAction(status)
@@ -42,7 +43,9 @@ function QuestionReviewCard({ question }: { question: PYQQuestion }) {
           ? 'Marked as third-party reviewed'
           : status === 'memory_based'
             ? 'Reclassified as memory-based'
-            : 'Sent back to in review'
+            : status === 'auto_rejected'
+              ? 'Rejected row'
+              : 'Sent to manual review'
         toast.success(label)
         router.refresh()
       } catch (error) {
@@ -119,6 +122,24 @@ function QuestionReviewCard({ question }: { question: PYQQuestion }) {
             <p className="font-medium text-muted-foreground">Current status</p>
             <p className="break-words">{formatStatus(question.verification_status)}</p>
           </div>
+          {typeof question.auto_review_score === 'number' && (
+            <div className="min-w-0">
+              <p className="font-medium text-muted-foreground">Auto review score</p>
+              <p className="break-words">{question.auto_review_score}</p>
+            </div>
+          )}
+          {question.auto_review_flags && question.auto_review_flags.length > 0 && (
+            <div className="min-w-0 md:col-span-2">
+              <p className="font-medium text-muted-foreground">Auto review flags</p>
+              <p className="break-words leading-relaxed">{question.auto_review_flags.join(', ')}</p>
+            </div>
+          )}
+          {question.auto_rejection_reason && (
+            <div className="min-w-0 md:col-span-2">
+              <p className="font-medium text-muted-foreground">Auto rejection reason</p>
+              <p className="break-words leading-relaxed">{question.auto_rejection_reason}</p>
+            </div>
+          )}
           <div className="min-w-0 md:col-span-2">
             <p className="font-medium text-muted-foreground">Source reference</p>
             <p className="break-words leading-relaxed">{question.source_reference || 'Not provided'}</p>
@@ -146,7 +167,7 @@ function QuestionReviewCard({ question }: { question: PYQQuestion }) {
               Edit row
             </Link>
           </Button>
-          {isInReview && (
+          {!isReviewed && !isRejected && (
             <>
               <Button
                 type="button"
@@ -167,18 +188,28 @@ function QuestionReviewCard({ question }: { question: PYQQuestion }) {
                 <ShieldAlert className="mr-2 h-4 w-4" />
                 {pendingAction === 'memory_based' ? 'Saving...' : 'Mark memory-based'}
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => runAction('auto_rejected')}
+                disabled={isPending}
+                className="w-full sm:w-fit"
+              >
+                <ShieldAlert className="mr-2 h-4 w-4" />
+                {pendingAction === 'auto_rejected' ? 'Saving...' : 'Reject row'}
+              </Button>
             </>
           )}
-          {isReviewed && (
+          {(isReviewed || isSystemValidated || isRejected) && (
             <Button
               type="button"
               variant="outline"
-              onClick={() => runAction('in_review')}
+              onClick={() => runAction('needs_manual_review')}
               disabled={isPending}
               className="w-full sm:w-fit"
             >
               <RotateCcw className="mr-2 h-4 w-4" />
-              {pendingAction === 'in_review' ? 'Saving...' : 'Send back to in review'}
+              {pendingAction === 'needs_manual_review' ? 'Saving...' : isRejected ? 'Restore to manual review' : 'Send to manual review'}
             </Button>
           )}
         </div>
@@ -189,11 +220,19 @@ function QuestionReviewCard({ question }: { question: PYQQuestion }) {
 
 export function PYQReviewContent({ questions }: PYQReviewContentProps) {
   const inReview = useMemo(
-    () => questions.filter((question) => question.verification_status === 'in_review'),
+    () => questions.filter((question) => question.verification_status === 'needs_manual_review' || question.verification_status === 'in_review'),
+    [questions]
+  )
+  const systemValidated = useMemo(
+    () => questions.filter((question) => question.verification_status === 'system_validated'),
     [questions]
   )
   const reviewed = useMemo(
     () => questions.filter((question) => question.verification_status === 'third_party_reviewed'),
+    [questions]
+  )
+  const rejected = useMemo(
+    () => questions.filter((question) => question.verification_status === 'auto_rejected'),
     [questions]
   )
 
@@ -212,9 +251,11 @@ export function PYQReviewContent({ questions }: PYQReviewContentProps) {
             Review third-party practice rows without promoting them to official verified PYQs.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          <Badge variant="outline" className="justify-center px-3 py-1.5">In review: {inReview.length}</Badge>
-          <Badge variant="secondary" className="justify-center px-3 py-1.5">Reviewed: {reviewed.length}</Badge>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <Badge variant="outline" className="justify-center px-3 py-1.5">Manual: {inReview.length}</Badge>
+          <Badge variant="outline" className="justify-center px-3 py-1.5">System: {systemValidated.length}</Badge>
+          <Badge variant="secondary" className="justify-center px-3 py-1.5">Human: {reviewed.length}</Badge>
+          <Badge variant="destructive" className="justify-center px-3 py-1.5">Rejected: {rejected.length}</Badge>
         </div>
       </div>
 
@@ -228,7 +269,7 @@ export function PYQReviewContent({ questions }: PYQReviewContentProps) {
 
       <section className="space-y-4">
         <div className="min-w-0">
-          <h2 className="break-words text-xl font-semibold">Needs Review</h2>
+          <h2 className="break-words text-xl font-semibold">Needs Manual Review</h2>
           <p className="break-words text-sm text-muted-foreground">
             Rows from trusted third-party sources that are still marked `in_review`.
           </p>
@@ -246,6 +287,18 @@ export function PYQReviewContent({ questions }: PYQReviewContentProps) {
         )}
       </section>
 
+      {systemValidated.length > 0 && (
+        <section className="space-y-4">
+          <div className="min-w-0">
+            <h2 className="break-words text-xl font-semibold">System Validated</h2>
+            <p className="break-words text-sm text-muted-foreground">
+              Clean trusted-source practice rows. These are not official verified PYQs.
+            </p>
+          </div>
+          {systemValidated.map((question) => <QuestionReviewCard key={question.id} question={question} />)}
+        </section>
+      )}
+
       {reviewed.length > 0 && (
         <section className="space-y-4">
           <div className="min-w-0">
@@ -255,6 +308,18 @@ export function PYQReviewContent({ questions }: PYQReviewContentProps) {
             </p>
           </div>
           {reviewed.map((question) => <QuestionReviewCard key={question.id} question={question} />)}
+        </section>
+      )}
+
+      {rejected.length > 0 && (
+        <section className="space-y-4">
+          <div className="min-w-0">
+            <h2 className="break-words text-xl font-semibold">Auto Rejected</h2>
+            <p className="break-words text-sm text-muted-foreground">
+              Hidden rows that need correction before they can return to practice review.
+            </p>
+          </div>
+          {rejected.map((question) => <QuestionReviewCard key={question.id} question={question} />)}
         </section>
       )}
     </div>

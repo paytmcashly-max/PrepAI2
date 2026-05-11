@@ -173,10 +173,13 @@ export type PYQSource =
 
 export type PYQVerificationStatus =
   | 'official_verified'
+  | 'system_validated'
+  | 'needs_manual_review'
   | 'third_party_reviewed'
   | 'in_review'
   | 'memory_based'
   | 'ai_practice'
+  | 'auto_rejected'
 
 export interface PYQQuestion {
   id: string
@@ -201,6 +204,10 @@ export interface PYQQuestion {
   review_note: string | null
   updated_by: string | null
   updated_at: string | null
+  auto_review_score: number | null
+  auto_review_flags: string[] | null
+  auto_reviewed_at: string | null
+  auto_rejection_reason: string | null
   is_verified: boolean
   frequency: number
   created_at: string
@@ -370,8 +377,11 @@ export interface AdminDebugSnapshot {
     total: number
     verified: number
     trustedThirdParty: number
+    systemValidated: number
+    needsManualReview: number
     trustedThirdPartyInReview: number
     trustedThirdPartyReviewed: number
+    autoRejected: number
     memoryBased: number
     aiPractice: number
   }

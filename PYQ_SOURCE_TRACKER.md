@@ -19,8 +19,8 @@ Last updated: 2026-05-11
 | source | when to use | verification status | import rule |
 |---|---|---|---|
 | `verified_pyq` | Official question paper, official answer key, or exact official response sheet with question text and answer reference. | `official_verified` | Can be imported only with `is_verified = true`, chapter, answer, and complete `source_reference`. |
-| `trusted_third_party` | Exact candidate PDF or reputable third-party paper collection that has been manually reviewed but is not official. | `in_review` or `third_party_reviewed` | Can be imported as practice only with `is_verified = false`, `source_name`, and `source_reference`. Never call official. |
-| `memory_based` | Memory-based article/list, reconstructed paper, or candidate recall. | `memory_based` | Can be imported only as unofficial practice with `is_verified = false` and a clear source reference, or kept rejected in this tracker. |
+| `trusted_third_party` | Exact candidate PDF or reputable third-party paper collection from Testbook, Adda247, SSCAdda, CareerPower, or another reviewed source that is not official. | `system_validated`, `needs_manual_review`, `third_party_reviewed`, `in_review`, or `auto_rejected` | Can be imported as practice only with `is_verified = false`. Clean trusted-source rows may be system validated, but never called official. |
+| `memory_based` | Memory-based article/list, reconstructed paper, or candidate recall. | `memory_based` or `needs_manual_review` | Can be imported only as unofficial practice with `is_verified = false` and a clear source reference, or kept rejected in this tracker. |
 | `ai_generated` | AI/demo/practice questions. | `ai_practice` | Can be imported as practice only with `is_verified = false`; source reference is optional. |
 
 Rejected sources stay only in this tracker and must not be inserted into `pyq_questions`.

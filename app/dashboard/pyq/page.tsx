@@ -1,6 +1,8 @@
 import { Suspense } from "react"
 import { getPYQFilterData, getPYQQuestions } from "@/lib/queries/index"
 import { PYQContent } from "@/components/dashboard/pyq-content"
+import { createClient } from "@/lib/supabase/server"
+import { isAdminEmail } from "@/lib/admin-auth"
 
 export const metadata = {
   title: "Previous Year Questions | PrepTrack",
@@ -8,8 +10,11 @@ export const metadata = {
 }
 
 export default async function PYQPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const isAdmin = isAdminEmail(user?.email)
   const [questions, filterData] = await Promise.all([
-    getPYQQuestions(),
+    getPYQQuestions({ includeAdminOnly: isAdmin }),
     getPYQFilterData(),
   ])
 
@@ -21,6 +26,7 @@ export default async function PYQPage() {
         subjects={filterData.subjects}
         chapters={filterData.chapters}
         years={filterData.years}
+        isAdmin={isAdmin}
       />
     </Suspense>
   )
