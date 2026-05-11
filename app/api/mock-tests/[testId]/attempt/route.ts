@@ -17,12 +17,16 @@ export async function POST(
 
     const { data: mockTest, error: mockTestError } = await supabase
       .from('mock_tests')
-      .select('total_questions')
+      .select('id, total_questions, is_active')
       .eq('id', testId)
       .single();
 
     if (mockTestError || !mockTest) {
       return NextResponse.json({ error: 'Mock test not found' }, { status: 404 });
+    }
+
+    if (!mockTest.is_active || !mockTest.total_questions || mockTest.total_questions <= 0) {
+      return NextResponse.json({ error: 'This mock question set is not available yet.' }, { status: 400 });
     }
 
     const { data: attempt, error: attemptError } = await supabase

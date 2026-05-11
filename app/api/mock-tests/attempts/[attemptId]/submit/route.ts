@@ -1,10 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
+import { pyqAnswersMatch } from '@/lib/pyq-answer';
 import { NextRequest, NextResponse } from 'next/server';
 
 interface MockTestQuestion {
   id: string;
   subject_id: string | null;
   correct_answer: string;
+  options: string[] | null;
+  source_question_id: string | null;
   subject?: { name: string | null } | { name: string | null }[] | null;
 }
 
@@ -39,18 +42,32 @@ export async function POST(
     // Get all questions for this test
     const { data: questions, error: questionsError } = await supabase
       .from('mock_test_questions')
-      .select('id, subject_id, correct_answer, subject:subjects(name)')
+      .select('id, subject_id, correct_answer, options, source_question_id, subject:subjects(name)')
       .eq('mock_test_id', attempt.mock_test_id);
 
     if (questionsError) throw questionsError;
 
     const typedQuestions = (questions || []) as unknown as MockTestQuestion[];
-    const correct = typedQuestions.filter(q => answers[q.id] === q.correct_answer).length;
+    const isCorrectAnswer = (question: MockTestQuestion) => pyqAnswersMatch(
+      answers[question.id],
+      question.correct_answer,
+      question.options || [],
+    );
+    const correct = typedQuestions.filter(isCorrectAnswer).length;
     const unanswered = typedQuestions.filter(q => !answers[q.id]).length;
     const wrong = Math.max(0, typedQuestions.length - correct - unanswered);
     const totalMarks = typedQuestions.length;
     const startedAt = attempt.started_at ? new Date(attempt.started_at).getTime() : Date.now();
     const timeTakenSeconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+    const subjectNameFor = (question: MockTestQuestion) => {
+      const subject = Array.isArray(question.subject) ? question.subject[0] : question.subject;
+      return subject?.name || 'General';
+    };
+    const weakAreas = [...new Set(
+      typedQuestions
+        .filter((question) => answers[question.id] && !isCorrectAnswer(question))
+        .map(subjectNameFor),
+    )];
 
     // Update attempt with final data
     const { data: updatedAttempt, error: updateError } = await supabase
@@ -64,7 +81,7 @@ export async function POST(
         wrong_answers: wrong,
         unanswered,
         time_taken_seconds: timeTakenSeconds,
-        weak_areas: [],
+        weak_areas: weakAreas,
         status: 'completed',
       })
       .eq('id', attemptId)
@@ -73,19 +90,36 @@ export async function POST(
 
     if (updateError) throw updateError;
 
+    const missedOriginalQuestions = typedQuestions
+      .filter((question) => question.source_question_id && answers[question.id] && !isCorrectAnswer(question))
+      .map((question) => ({
+        user_id: user.id,
+        question_id: question.source_question_id as string,
+        selected_answer: answers[question.id],
+        is_correct: false,
+        marked_for_revision: true,
+        mistake_note: `Missed in ${attempt.mock_test?.title || 'PrepAI Original Mock'}. Revise the concept and retry this question.`,
+        attempted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+
+    if (missedOriginalQuestions.length > 0) {
+      const { error: revisionError } = await supabase
+        .from('original_practice_attempts')
+        .upsert(missedOriginalQuestions, { onConflict: 'user_id,question_id' });
+
+      if (revisionError) throw revisionError;
+    }
+
     // Create performance summary
     const subjectPerformance: Record<string, any> = {};
-    const subjectNameFor = (question: MockTestQuestion) => {
-      const subject = Array.isArray(question.subject) ? question.subject[0] : question.subject;
-      return subject?.name || 'General';
-    };
 
     for (const subject of [...new Set(typedQuestions.map(subjectNameFor))]) {
       const subjectQuestions = typedQuestions.filter(q => subjectNameFor(q) === subject);
       let subjectCorrect = 0;
 
       for (const q of subjectQuestions) {
-        if (answers[q.id] === q.correct_answer) {
+        if (isCorrectAnswer(q)) {
           subjectCorrect++;
         }
       }

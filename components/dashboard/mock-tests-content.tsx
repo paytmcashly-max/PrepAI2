@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { format } from 'date-fns'
+import { useRouter } from 'next/navigation'
 import {
   Bar,
   BarChart,
@@ -73,10 +74,12 @@ function scoreFor(result: MockTest) {
 }
 
 export function MockTestsContent({ mockTests, mockResults: initialResults, exams }: MockTestsContentProps) {
+  const router = useRouter()
   const [mockResults, setMockResults] = useState(initialResults)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [startingTestId, setStartingTestId] = useState<string | null>(null)
   const [formData, setFormData] = useState<MockResultForm>({
     exam_id: exams[0]?.id || '',
     test_date: todayLocalDateString(),
@@ -149,6 +152,25 @@ export function MockTestsContent({ mockTests, mockResults: initialResults, exams
         setError(caught instanceof Error ? caught.message : 'Could not save mock result.')
       }
     })
+  }
+
+  const handleStartQuestionSet = async (test: MockTest) => {
+    if (!test.total_questions || test.total_questions <= 0) return
+
+    setError(null)
+    setStartingTestId(test.id)
+    try {
+      const response = await fetch(`/api/mock-tests/${test.id}/attempt`, { method: 'POST' })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Could not start mock attempt.')
+      }
+      router.push(`/mock-tests/${test.id}/attempt/${payload.id}`)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not start mock attempt.')
+    } finally {
+      setStartingTestId(null)
+    }
   }
 
   return (
@@ -413,22 +435,43 @@ export function MockTestsContent({ mockTests, mockResults: initialResults, exams
       <Card>
         <CardHeader>
           <CardTitle>Practice Test Sets</CardTitle>
-          <CardDescription>Question-set attempts stay disabled until verified test content is added.</CardDescription>
+          <CardDescription>PrepAI Original mocks for timed practice. These are not official PYQs.</CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
           {mockTests.length > 0 ? (
             <div className="space-y-3">
               {mockTests.map((test) => (
                 <div key={test.id} className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h3 className="font-semibold">{test.title}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold">{test.title}</h3>
+                      {test.total_questions > 0 && (
+                        <Badge variant="outline">PrepAI Original Mock - Not Official PYQ</Badge>
+                      )}
+                    </div>
                     {test.description && <p className="text-sm text-muted-foreground">{test.description}</p>}
                     <p className="mt-1 text-sm text-muted-foreground">{test.total_questions} questions - {test.duration_minutes || 0} min</p>
                   </div>
-                  <Button variant="outline" disabled>
-                    <Ban className="mr-2 h-4 w-4" />
-                    Question set pending
-                  </Button>
+                  {test.total_questions > 0 ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleStartQuestionSet(test)}
+                      disabled={startingTestId === test.id}
+                    >
+                      <ClipboardList className="mr-2 h-4 w-4" />
+                      {startingTestId === test.id ? 'Starting...' : 'Start Mock'}
+                    </Button>
+                  ) : (
+                    <Button variant="outline" disabled>
+                      <Ban className="mr-2 h-4 w-4" />
+                      Question set pending
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

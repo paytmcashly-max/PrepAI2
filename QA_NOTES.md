@@ -46,6 +46,26 @@
 - Admin `/dashboard/admin/debug` loaded for `PYQ_ADMIN_EMAILS` admin and showed supported-exam cleanup counts.
 - Temporary smoke auth users and their generated user data were cleaned up after the run.
 
+## Bihar SI Content Pack v1
+
+- Timestamp: 2026-05-11.
+- Migration applied to production Supabase: `20260511120000_bihar_si_content_pack_v1.sql`.
+- Scope was limited to `exam_id = bihar_si`; UP Police and SSC GD were not modified by this pack.
+- Seed counts verified after migration:
+  - Bihar SI PrepAI Original questions added: `660`.
+  - Bihar SI PrepAI Original mocks added: `18`.
+  - Bihar SI mock questions added: `650`.
+  - UP Police rows from this pack: `0`.
+  - SSC GD rows from this pack: `0`.
+- Bihar SI chapter coverage includes Maths, Reasoning, Hindi, and GK/GS priority chapters from the v1 request.
+- Mock sets include `10` section-wise mini mocks, `5` mixed practice mocks, and `3` full-length foundation mocks.
+- Mock attempts now start from `/dashboard/mock-tests`, run with the existing timer/submit/results flow, and missed PrepAI Original mock questions are marked for original-practice revision automatically.
+- Generic weak PrepAI Original question count remains `0`.
+- Official verified PYQ count remains `0`.
+- PYQ trust rules are unchanged.
+- No third-party MCQ/PDF content, scraping, fake current-affairs facts, YouTube downloads, or rehosting were added.
+- Production audit blocker fixed by upgrading `next` and `eslint-config-next` from `16.2.4` to `16.2.5` for GHSA-8h8q-6873-q5fj.
+
 ## Commands
 
 - `npm run typecheck` passed on 2026-05-11.

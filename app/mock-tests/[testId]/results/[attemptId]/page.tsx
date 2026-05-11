@@ -6,8 +6,10 @@ import { useRouter, useParams } from 'next/navigation';
 import DashboardHeader from '@/components/dashboard/dashboard-header';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { pyqAnswersMatch } from '@/lib/pyq-answer';
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -79,7 +81,7 @@ export default function ResultsPage() {
     }
     subjectStats[subject].total++;
 
-    if (attempt.answers[question.id] === question.correct_answer) {
+    if (pyqAnswersMatch(attempt.answers[question.id], question.correct_answer, question.options || [])) {
       subjectStats[subject].correct++;
     }
   }
@@ -107,6 +109,7 @@ export default function ResultsPage() {
           <div className="text-6xl mb-4">
             {isPass ? '🎉' : '📚'}
           </div>
+          <Badge variant="outline" className="mb-4">PrepAI Original Mock - Not Official PYQ</Badge>
           <h1 className={`text-4xl font-bold mb-2 ${
             isPass ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
           }`}>
@@ -116,6 +119,9 @@ export default function ResultsPage() {
             {isPass
               ? `You passed with ${scorePercentage}% score! Great effort!`
               : `You scored ${scorePercentage}%. Keep practicing to improve!`}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Wrong answered mock questions are added to PrepAI Practice revision automatically.
           </p>
         </motion.div>
 
@@ -208,7 +214,7 @@ export default function ResultsPage() {
           <div className="space-y-4 max-h-96 overflow-y-auto">
             {questions.map((question, idx) => {
               const userAnswer = attempt.answers[question.id];
-              const isCorrect = userAnswer === question.correct_answer;
+              const isCorrect = pyqAnswersMatch(userAnswer, question.correct_answer, question.options || []);
 
               return (
                 <motion.div

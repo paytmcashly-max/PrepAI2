@@ -248,6 +248,7 @@ export interface MockTest {
 export interface MockTestQuestion {
   id: string
   mock_test_id: string
+  source_question_id?: string | null
   subject_id: string | null
   question: string
   options: string[]
