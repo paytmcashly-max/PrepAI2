@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,6 +36,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { clearPYQAttempt, submitPYQAttempt, togglePYQRevisionMark } from '@/lib/actions'
+import { normalizePYQAnswer, pyqAnswersMatch } from '@/lib/pyq-answer'
 import type { Chapter, Exam, PYQQuestion, PYQSource, Subject, UserPYQAttempt } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -49,6 +51,12 @@ interface PYQContentProps {
 
 export function PYQContent({ questions, exams, subjects, chapters, years, isAdmin = false }: PYQContentProps) {
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const initialMode = searchParams.get('mode') === 'test' ? 'test' : 'learning'
+  const mistakeNoteRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
+  const [practiceMode, setPracticeMode] = useState<'learning' | 'test'>(initialMode)
   const [filterExam, setFilterExam] = useState<string>('all')
   const [filterYear, setFilterYear] = useState<string>('all')
   const [filterSubject, setFilterSubject] = useState<string>('all')
@@ -128,7 +136,19 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
     }
   }
 
-  const normalizeAnswer = (value: string | null | undefined) => (value || '').trim().replace(/\s+/g, ' ').toLowerCase()
+  const normalizeAnswer = (value: string | null | undefined) => normalizePYQAnswer(value).text
+
+  const handleModeChange = (mode: 'learning' | 'test') => {
+    setPracticeMode(mode)
+    const params = new URLSearchParams(searchParams.toString())
+    if (mode === 'test') {
+      params.set('mode', 'test')
+    } else {
+      params.delete('mode')
+    }
+    const nextQuery = params.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
+  }
 
   const getAttemptStatus = (attempt: UserPYQAttempt | null) => {
     if (attempt?.marked_for_revision) {
@@ -177,6 +197,12 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
             [question.id]: attempt as UserPYQAttempt,
           }))
           setExpandedQuestion(question.id)
+          if (!attempt.is_correct) {
+            window.setTimeout(() => {
+              mistakeNoteRefs.current[question.id]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+              mistakeNoteRefs.current[question.id]?.focus()
+            }, 0)
+          }
           toast.success(attempt.is_correct ? 'Correct answer saved.' : 'Mistake saved for review.')
         } catch (error) {
           handleActionError(error)
@@ -208,6 +234,12 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
   }
 
   const handleClearAttempt = (question: PYQQuestion) => {
+    const attempt = getAttempt(question)
+    const hasMistakeNote = Boolean((mistakeNotes[question.id] ?? attempt?.mistake_note ?? '').trim())
+    if (hasMistakeNote && !window.confirm('Clear this attempt and its mistake note?')) {
+      return
+    }
+
     setPendingQuestionId(question.id)
     startTransition(() => {
       void (async () => {
@@ -396,6 +428,35 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
         </CardContent>
       </Card>
 
+      <Card>
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="font-medium">Practice Mode</p>
+            <p className="break-words text-sm text-muted-foreground">
+              Learning mode allows answer reveal anytime. Test mode hides answers until you submit.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:w-fit">
+            <Button
+              type="button"
+              variant={practiceMode === 'learning' ? 'default' : 'outline'}
+              onClick={() => handleModeChange('learning')}
+              className="w-full sm:w-fit"
+            >
+              Learning
+            </Button>
+            <Button
+              type="button"
+              variant={practiceMode === 'test' ? 'default' : 'outline'}
+              onClick={() => handleModeChange('test')}
+              className="w-full sm:w-fit"
+            >
+              Test
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -556,11 +617,32 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
               const attemptStatus = getAttemptStatus(attempt)
               const activeAnswer = selectedAnswers[question.id] || attempt?.selected_answer || ''
               const isQuestionPending = isPending && pendingQuestionId === question.id
-              const showAnswerDetails = isExpanded || Boolean(attempt?.selected_answer)
+              const isAttemptBlocked = question.verification_status === 'needs_manual_review'
+                || question.verification_status === 'auto_rejected'
+              const canRevealAnswer = practiceMode === 'learning' || Boolean(attempt?.selected_answer)
+              const showAnswerDetails = Boolean(attempt?.selected_answer) || (practiceMode === 'learning' && isExpanded)
 
               return (
-                <Card key={question.id} className="overflow-hidden">
+                <Card
+                  key={question.id}
+                  className={cn(
+                    'overflow-hidden',
+                    attempt?.marked_for_revision && 'border-amber-500/50 shadow-sm shadow-amber-500/10'
+                  )}
+                >
                   <CardContent className="p-4 sm:p-6">
+                    {attempt?.marked_for_revision && (
+                      <div className="mb-4 flex min-w-0 items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
+                        <Flag className="mt-0.5 h-4 w-4 shrink-0" />
+                        <p className="min-w-0 break-words leading-relaxed">Marked for revision. This question is included in your Revision Queue.</p>
+                      </div>
+                    )}
+                    {isAttemptBlocked && (
+                      <div className="mb-4 flex min-w-0 items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">
+                        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                        <p className="min-w-0 break-words leading-relaxed">Practice is disabled until this PYQ is reviewed.</p>
+                      </div>
+                    )}
                     <div className="mb-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <Badge variant="outline">{question.year}</Badge>
@@ -595,8 +677,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                       <div className="space-y-2 mb-4">
                         {question.options.map((option, idx) => {
                           const optionLetter = String.fromCharCode(65 + idx)
-                          const isCorrectOption = normalizeAnswer(question.answer) === normalizeAnswer(option)
-                            || normalizeAnswer(question.answer) === normalizeAnswer(optionLetter)
+                          const isCorrectOption = pyqAnswersMatch(option, question.answer, question.options)
                           const isSelectedAttempt = attempt?.selected_answer
                             && normalizeAnswer(attempt.selected_answer) === normalizeAnswer(option)
 
@@ -604,7 +685,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                             <button
                               key={idx}
                               type="button"
-                              disabled={isQuestionPending}
+                              disabled={isQuestionPending || isAttemptBlocked}
                               onClick={() => setSelectedAnswers((current) => ({ ...current, [question.id]: option }))}
                               className={cn(
                                 'flex w-full min-w-0 items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70',
@@ -629,6 +710,9 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                     <div className="mb-4 space-y-2">
                       <label className="text-sm font-medium">Mistake note</label>
                       <Textarea
+                        ref={(element) => {
+                          mistakeNoteRefs.current[question.id] = element
+                        }}
                         value={mistakeNotes[question.id] ?? attempt?.mistake_note ?? ''}
                         onChange={(event) => setMistakeNotes((current) => ({ ...current, [question.id]: event.target.value }))}
                         placeholder="Optional: write what confused you or what to revise."
@@ -671,7 +755,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                         <Button
                           size="sm"
                           onClick={() => handleSubmitAttempt(question)}
-                          disabled={isQuestionPending || !activeAnswer.trim()}
+                          disabled={isQuestionPending || isAttemptBlocked || !activeAnswer.trim()}
                           className="w-full sm:w-fit"
                         >
                           Submit Answer
@@ -680,7 +764,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                           variant={attempt?.marked_for_revision ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => handleToggleRevision(question)}
-                          disabled={isQuestionPending}
+                          disabled={isQuestionPending || isAttemptBlocked}
                           className="w-full sm:w-fit"
                         >
                           <Flag className="h-4 w-4" />
@@ -702,6 +786,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                           variant="ghost"
                           size="sm"
                           onClick={() => setExpandedQuestion(isExpanded ? null : question.id)}
+                          disabled={!canRevealAnswer}
                           className="w-full sm:w-fit"
                         >
                           {isExpanded ? (
@@ -711,7 +796,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                             </>
                           ) : (
                             <>
-                              Show Answer
+                              {practiceMode === 'test' && !attempt?.selected_answer ? 'Answer locked' : 'Show Answer'}
                               <ChevronDown className="h-4 w-4" />
                             </>
                           )}

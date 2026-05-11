@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { generateStudyPlan } from '@/lib/services/generate-study-plan'
 import { getAdminEmails } from '@/lib/admin-auth'
 import { autoValidatePYQInput } from '@/lib/pyq-trust'
+import { pyqAnswersMatch } from '@/lib/pyq-answer'
 import type { PYQSource, PYQVerificationStatus } from '@/lib/types'
 
 type Level = 'weak' | 'average' | 'good'
@@ -29,13 +30,6 @@ const allowedPYQVerificationStatuses = new Set<PYQVerificationStatus>([
   'ai_practice',
   'auto_rejected',
 ])
-
-function normalizeAnswerValue(value: string | null | undefined) {
-  return (value || '')
-    .trim()
-    .replace(/\s+/g, ' ')
-    .toLowerCase()
-}
 
 function assertLevel(value: string, label: string): Level {
   if (allowedLevels.has(value as Level)) return value as Level
@@ -987,12 +981,15 @@ async function assertPYQQuestionForAttempt(questionId: string) {
 
   const { data: question, error } = await supabase
     .from('pyq_questions')
-    .select('id, answer, options')
+    .select('id, answer, options, verification_status')
     .eq('id', id)
     .single()
 
   if (error || !question) {
     throw new Error('PYQ question was not found.')
+  }
+  if (question.verification_status === 'needs_manual_review' || question.verification_status === 'auto_rejected') {
+    throw new Error('This PYQ is not available for practice yet.')
   }
 
   return { supabase, question }
@@ -1024,12 +1021,7 @@ export async function submitPYQAttempt(questionId: string, selectedAnswer: strin
   if (existingError) throw existingError
 
   const now = new Date().toISOString()
-  const selectedIndex = Array.isArray(question.options)
-    ? question.options.findIndex((option: string) => normalizeAnswerValue(option) === normalizeAnswerValue(answer))
-    : -1
-  const selectedLetter = selectedIndex >= 0 ? String.fromCharCode(65 + selectedIndex) : ''
-  const isCorrect = normalizeAnswerValue(answer) === normalizeAnswerValue(question.answer)
-    || normalizeAnswerValue(selectedLetter) === normalizeAnswerValue(question.answer)
+  const isCorrect = pyqAnswersMatch(answer, question.answer, Array.isArray(question.options) ? question.options : [])
   const payload = {
     user_id: user.id,
     pyq_question_id: question.id,

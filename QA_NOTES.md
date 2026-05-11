@@ -185,6 +185,21 @@ PYQ attempt tracking and mistake loop on 2026-05-11:
 - Admin Debug now reports total PYQ attempts, incorrect PYQ attempts, and marked PYQ revisions.
 - Existing PYQ source trust rules were not changed; no Groq work and no bulk PYQ imports were added.
 
+PYQ practice hardening on 2026-05-11:
+
+- Added deterministic `normalizePYQAnswer()` / `pyqAnswersMatch()` helpers.
+- Answer matching now supports option letters including `A`, `a`, `(A)`, and `Option A`.
+- Answer matching still supports exact option text matching.
+- Simple numeric matching now treats values like `12` and `12.0` as equal, and treats `50%` and `50 percent` as equal.
+- Added Learning Mode and Test Mode on `/dashboard/pyq`; default is Learning Mode.
+- Learning Mode allows answer/explanation reveal before an attempt.
+- Test Mode locks answer/explanation reveal until an answer is submitted.
+- Incorrect submissions focus the mistake note field so students can immediately write the mistake.
+- Marked-for-revision cards now show a clear revision banner and visual card highlight.
+- Clearing an attempt asks for confirmation when a mistake note exists.
+- Server-side attempt actions now reject `needs_manual_review` and `auto_rejected` PYQs.
+- Attempts continue to update Revision Queue, Weak Areas, Dashboard, PYQ, and Admin Debug surfaces through revalidation.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -207,6 +222,7 @@ PYQ attempt tracking and mistake loop on 2026-05-11:
 - Verified temporary auto-validation rows were accepted with the expected statuses and then deleted.
 - Added and applied `supabase/migrations/20260511050000_user_pyq_attempts.sql`.
 - Verified live `user_pyq_attempts` table has 4 owner-only RLS policies.
+- Hardened PYQ answer matching and practice mode behavior without changing source trust rules.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
