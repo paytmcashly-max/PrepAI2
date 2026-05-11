@@ -14,7 +14,7 @@ export default async function PYQPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const isAdmin = isAdminEmail(user?.email)
   const [questions, filterData] = await Promise.all([
-    getPYQQuestions({ includeAdminOnly: isAdmin }),
+    getPYQQuestions({ includeAdminOnly: isAdmin, userId: user?.id }),
     getPYQFilterData(),
   ])
 

@@ -16,6 +16,7 @@ import type {
   SubjectProgress,
   DayTaskGroup,
   UserDailyTask,
+  UserPYQAttempt,
   UserStudyPlan,
   PlanSettingsData,
   RoadmapSubject,
@@ -505,6 +506,7 @@ export async function getPYQQuestions(filters?: {
   difficulty?: string
   verifiedOnly?: boolean
   includeAdminOnly?: boolean
+  userId?: string
 }): Promise<PYQQuestion[]> {
   const supabase = await createClient()
   let query = supabase
@@ -523,7 +525,28 @@ export async function getPYQQuestions(filters?: {
   const { data, error } = await query
 
   if (error) throw error
-  return data || []
+  const questions = (data || []) as PYQQuestion[]
+
+  if (!filters?.userId || questions.length === 0) {
+    return questions
+  }
+
+  const { data: attempts, error: attemptsError } = await supabase
+    .from('user_pyq_attempts')
+    .select('*')
+    .eq('user_id', filters.userId)
+    .in('pyq_question_id', questions.map((question) => question.id))
+
+  if (attemptsError) throw attemptsError
+
+  const attemptsByQuestionId = new Map(
+    ((attempts || []) as UserPYQAttempt[]).map((attempt) => [attempt.pyq_question_id, attempt])
+  )
+
+  return questions.map((question) => ({
+    ...question,
+    attempt: attemptsByQuestionId.get(question.id) || null,
+  }))
 }
 
 export async function getPYQQuestionById(questionId: string): Promise<PYQQuestion | null> {
@@ -941,6 +964,88 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
     }, 55 + count * 5)
   }
 
+  const { data: pyqAttemptRows, error: pyqAttemptError } = await supabase
+    .from('user_pyq_attempts')
+    .select(`
+      id,
+      is_correct,
+      pyq_question_id,
+      question:pyq_questions(
+        id,
+        exam_id,
+        subject_id,
+        chapter_id,
+        question,
+        subject:subjects(id, name),
+        chapter_ref:chapters(id, name)
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('is_correct', false)
+    .order('updated_at', { ascending: false })
+    .limit(50)
+
+  if (pyqAttemptError) throw pyqAttemptError
+
+  type IncorrectPYQAttemptRow = {
+    question: {
+      id: string
+      exam_id: string | null
+      subject_id: string | null
+      chapter_id: string | null
+      question: string
+      subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+      chapter_ref: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    } | Array<{
+      id: string
+      exam_id: string | null
+      subject_id: string | null
+      chapter_id: string | null
+      question: string
+      subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+      chapter_ref: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    }> | null
+  }
+
+  const pyqMistakesByChapter = new Map<string, {
+    count: number
+    subject_id: string | null
+    subject_name: string | null
+    chapter_id: string | null
+    chapter_name: string | null
+  }>()
+
+  for (const row of (pyqAttemptRows || []) as unknown as IncorrectPYQAttemptRow[]) {
+    const question = Array.isArray(row.question) ? row.question[0] || null : row.question
+    if (!question || question.exam_id !== plan.exam_id) continue
+    const subject = Array.isArray(question.subject) ? question.subject[0] || null : question.subject
+    const chapter = Array.isArray(question.chapter_ref) ? question.chapter_ref[0] || null : question.chapter_ref
+    const key = question.chapter_id || question.subject_id || question.id
+    const existing = pyqMistakesByChapter.get(key) || {
+      count: 0,
+      subject_id: question.subject_id,
+      subject_name: subject?.name || question.subject_id,
+      chapter_id: question.chapter_id,
+      chapter_name: chapter?.name || null,
+    }
+    existing.count += 1
+    pyqMistakesByChapter.set(key, existing)
+  }
+
+  for (const mistake of pyqMistakesByChapter.values()) {
+    const label = mistake.chapter_name || mistake.subject_name || 'PYQ practice'
+    upsertWeakArea({
+      subject_id: mistake.subject_id,
+      subject_name: mistake.subject_name,
+      chapter_id: mistake.chapter_id,
+      chapter_name: mistake.chapter_name,
+      reason: `${mistake.count} incorrect PYQ attempt${mistake.count > 1 ? 's' : ''}`,
+      priority: mistake.count >= 2 ? 'high' : 'medium',
+      suggested_action: `Review ${label}, retry incorrect PYQs, and write one mistake note before the next practice set.`,
+      actionTarget: '/dashboard/pyq',
+    }, 70 + mistake.count * 8)
+  }
+
   return [...weakAreas.values()]
     .sort((a, b) => b.score - a.score)
     .map(({ score: _score, ...area }) => area)
@@ -958,6 +1063,7 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
       overdueTasks: [],
       weakChapters: [],
       mockWeakAreas: [],
+      pyqRevisionItems: [],
       currentWeekRevisionTasks: [],
       suggestedOrder: [],
     }
@@ -1055,6 +1161,86 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
     .sort((a, b) => b.count - a.count || a.area.localeCompare(b.area))
     .slice(0, 8)
 
+  const { data: pyqAttemptRows, error: pyqAttemptError } = await supabase
+    .from('user_pyq_attempts')
+    .select(`
+      id,
+      pyq_question_id,
+      is_correct,
+      marked_for_revision,
+      attempted_at,
+      question:pyq_questions(
+        id,
+        exam_id,
+        subject_id,
+        chapter_id,
+        question,
+        subject:subjects(id, name),
+        chapter_ref:chapters(id, name)
+      )
+    `)
+    .eq('user_id', userId)
+    .or('is_correct.eq.false,marked_for_revision.eq.true')
+    .order('updated_at', { ascending: false })
+    .limit(20)
+
+  if (pyqAttemptError) throw pyqAttemptError
+
+  type RevisionPYQAttemptRow = {
+    id: string
+    pyq_question_id: string
+    is_correct: boolean | null
+    marked_for_revision: boolean
+    attempted_at: string
+    question: {
+      id: string
+      exam_id: string | null
+      subject_id: string | null
+      chapter_id: string | null
+      question: string
+      subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+      chapter_ref: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    } | Array<{
+      id: string
+      exam_id: string | null
+      subject_id: string | null
+      chapter_id: string | null
+      question: string
+      subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+      chapter_ref: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    }> | null
+  }
+
+  const pyqRevisionItems = ((pyqAttemptRows || []) as unknown as RevisionPYQAttemptRow[])
+    .map((row) => {
+      const question = Array.isArray(row.question) ? row.question[0] || null : row.question
+      if (!question || question.exam_id !== plan.exam_id) return null
+      const subject = Array.isArray(question.subject) ? question.subject[0] || null : question.subject
+      const chapter = Array.isArray(question.chapter_ref) ? question.chapter_ref[0] || null : question.chapter_ref
+      const reason = row.is_correct === false && row.marked_for_revision
+        ? 'Incorrect PYQ and marked for revision'
+        : row.is_correct === false
+          ? 'Incorrect PYQ'
+          : 'Marked for revision'
+
+      return {
+        id: row.id,
+        questionId: question.id,
+        question: question.question,
+        subject_id: question.subject_id,
+        subject_name: subject?.name || question.subject_id,
+        chapter_id: question.chapter_id,
+        chapter_name: chapter?.name || null,
+        reason,
+        priority: row.is_correct === false ? 'high' as const : 'medium' as const,
+        marked_for_revision: row.marked_for_revision,
+        is_correct: row.is_correct,
+        attempted_at: row.attempted_at,
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .slice(0, 10)
+
   const suggestedOrder = [
     ...overdueTasks.slice(0, 3).map((task) => ({
       id: `overdue-${task.id}`,
@@ -1077,6 +1263,13 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
       priority: area.count > 1 ? 'high' as const : 'medium' as const,
       actionTarget: '/dashboard/mock-tests',
     })),
+    ...pyqRevisionItems.slice(0, 3).map((item) => ({
+      id: `pyq-${item.id}`,
+      title: item.question.length > 80 ? `${item.question.slice(0, 80)}...` : item.question,
+      reason: item.reason,
+      priority: item.priority,
+      actionTarget: '/dashboard/pyq',
+    })),
     ...currentWeekRevisionTasks.slice(0, 3).map((task) => ({
       id: `revision-${task.id}`,
       title: task.title,
@@ -1092,6 +1285,7 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
     overdueTasks,
     weakChapters,
     mockWeakAreas,
+    pyqRevisionItems,
     currentWeekRevisionTasks,
     suggestedOrder,
   }
@@ -1231,6 +1425,9 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     autoRejectedPyqCountResult,
     memoryBasedPyqCountResult,
     aiPracticePyqCountResult,
+    pyqAttemptCountResult,
+    incorrectPyqAttemptCountResult,
+    markedPyqRevisionCountResult,
     mockResultCountResult,
     weakAreas,
     revisionQueue,
@@ -1283,6 +1480,20 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       .select('*', { count: 'exact', head: true })
       .eq('source', 'ai_generated'),
     supabase
+      .from('user_pyq_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    supabase
+      .from('user_pyq_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_correct', false),
+    supabase
+      .from('user_pyq_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('marked_for_revision', true),
+    supabase
       .from('mock_tests')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id),
@@ -1301,6 +1512,9 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
   if (autoRejectedPyqCountResult.error) throw autoRejectedPyqCountResult.error
   if (memoryBasedPyqCountResult.error) throw memoryBasedPyqCountResult.error
   if (aiPracticePyqCountResult.error) throw aiPracticePyqCountResult.error
+  if (pyqAttemptCountResult.error) throw pyqAttemptCountResult.error
+  if (incorrectPyqAttemptCountResult.error) throw incorrectPyqAttemptCountResult.error
+  if (markedPyqRevisionCountResult.error) throw markedPyqRevisionCountResult.error
   if (mockResultCountResult.error) throw mockResultCountResult.error
 
   const emptyTaskCounts = {
@@ -1327,6 +1541,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
         overdueTasks: revisionQueue.overdueTasks.length,
         weakChapters: revisionQueue.weakChapters.length,
         mockWeakAreas: revisionQueue.mockWeakAreas.length,
+        pyqRevisionItems: revisionQueue.pyqRevisionItems.length,
         currentWeekRevisionTasks: revisionQueue.currentWeekRevisionTasks.length,
         suggestedOrder: revisionQueue.suggestedOrder.length,
       },
@@ -1341,6 +1556,11 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
         autoRejected: autoRejectedPyqCountResult.count || 0,
         memoryBased: memoryBasedPyqCountResult.count || 0,
         aiPractice: aiPracticePyqCountResult.count || 0,
+      },
+      pyqAttemptCounts: {
+        total: pyqAttemptCountResult.count || 0,
+        incorrect: incorrectPyqAttemptCountResult.count || 0,
+        markedForRevision: markedPyqRevisionCountResult.count || 0,
       },
       mockResultCount: mockResultCountResult.count || 0,
     }
@@ -1432,6 +1652,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       overdueTasks: revisionQueue.overdueTasks.length,
       weakChapters: revisionQueue.weakChapters.length,
       mockWeakAreas: revisionQueue.mockWeakAreas.length,
+      pyqRevisionItems: revisionQueue.pyqRevisionItems.length,
       currentWeekRevisionTasks: revisionQueue.currentWeekRevisionTasks.length,
       suggestedOrder: revisionQueue.suggestedOrder.length,
     },
@@ -1446,6 +1667,11 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       autoRejected: autoRejectedPyqCountResult.count || 0,
       memoryBased: memoryBasedPyqCountResult.count || 0,
       aiPractice: aiPracticePyqCountResult.count || 0,
+    },
+    pyqAttemptCounts: {
+      total: pyqAttemptCountResult.count || 0,
+      incorrect: incorrectPyqAttemptCountResult.count || 0,
+      markedForRevision: markedPyqRevisionCountResult.count || 0,
     },
     mockResultCount: mockResultCountResult.count || 0,
   }

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Textarea } from '@/components/ui/textarea'
 import { 
   Select, 
   SelectContent, 
@@ -28,8 +30,12 @@ import {
   ChevronDown,
   ChevronUp,
   Upload,
+  Flag,
+  RotateCcw,
+  XCircle,
 } from 'lucide-react'
-import type { Chapter, Exam, PYQQuestion, PYQSource, Subject } from '@/lib/types'
+import { clearPYQAttempt, submitPYQAttempt, togglePYQRevisionMark } from '@/lib/actions'
+import type { Chapter, Exam, PYQQuestion, PYQSource, Subject, UserPYQAttempt } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface PYQContentProps {
@@ -42,13 +48,26 @@ interface PYQContentProps {
 }
 
 export function PYQContent({ questions, exams, subjects, chapters, years, isAdmin = false }: PYQContentProps) {
+  const [isPending, startTransition] = useTransition()
   const [filterExam, setFilterExam] = useState<string>('all')
   const [filterYear, setFilterYear] = useState<string>('all')
   const [filterSubject, setFilterSubject] = useState<string>('all')
   const [filterChapter, setFilterChapter] = useState<string>('all')
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
+  const [filterAttempt, setFilterAttempt] = useState<string>('all')
   const [verifiedOnly, setVerifiedOnly] = useState(false)
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
+  const [pendingQuestionId, setPendingQuestionId] = useState<string | null>(null)
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
+  const [mistakeNotes, setMistakeNotes] = useState<Record<string, string>>({})
+  const [attemptsByQuestionId, setAttemptsByQuestionId] = useState<Record<string, UserPYQAttempt>>(() => (
+    questions.reduce((acc, question) => {
+      if (question.attempt) acc[question.id] = question.attempt
+      return acc
+    }, {} as Record<string, UserPYQAttempt>)
+  ))
+
+  const getAttempt = (question: PYQQuestion) => attemptsByQuestionId[question.id] || question.attempt || null
 
   const filteredChapters = chapters.filter((chapter) => {
     if (filterExam !== 'all' && chapter.exam_id !== filterExam) return false
@@ -64,6 +83,11 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
     if (filterDifficulty !== 'all' && q.difficulty !== filterDifficulty) return false
     if (verifiedOnly && !(q.source === 'verified_pyq' && q.is_verified)) return false
     if (!isAdmin && (q.verification_status === 'needs_manual_review' || q.verification_status === 'auto_rejected')) return false
+    const attempt = getAttempt(q)
+    if (filterAttempt === 'attempted' && !attempt?.selected_answer) return false
+    if (filterAttempt === 'not_attempted' && attempt?.selected_answer) return false
+    if (filterAttempt === 'incorrect' && attempt?.is_correct !== false) return false
+    if (filterAttempt === 'marked' && !attempt?.marked_for_revision) return false
     return true
   })
 
@@ -102,6 +126,116 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
       default:
         return 'bg-muted text-muted-foreground'
     }
+  }
+
+  const normalizeAnswer = (value: string | null | undefined) => (value || '').trim().replace(/\s+/g, ' ').toLowerCase()
+
+  const getAttemptStatus = (attempt: UserPYQAttempt | null) => {
+    if (attempt?.marked_for_revision) {
+      return {
+        label: 'Marked for revision',
+        className: 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+      }
+    }
+    if (attempt?.is_correct === true) {
+      return {
+        label: 'Correct',
+        className: 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-300',
+      }
+    }
+    if (attempt?.is_correct === false) {
+      return {
+        label: 'Incorrect',
+        className: 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300',
+      }
+    }
+    return {
+      label: 'Not attempted',
+      className: 'border-muted bg-muted text-muted-foreground',
+    }
+  }
+
+  const handleActionError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : 'Something went wrong.'
+    toast.error(message)
+  }
+
+  const handleSubmitAttempt = (question: PYQQuestion) => {
+    const selectedAnswer = selectedAnswers[question.id] || getAttempt(question)?.selected_answer || ''
+    if (!selectedAnswer.trim()) {
+      toast.error('Select an option before submitting.')
+      return
+    }
+
+    setPendingQuestionId(question.id)
+    startTransition(() => {
+      void (async () => {
+        try {
+          const attempt = await submitPYQAttempt(question.id, selectedAnswer, mistakeNotes[question.id])
+          setAttemptsByQuestionId((current) => ({
+            ...current,
+            [question.id]: attempt as UserPYQAttempt,
+          }))
+          setExpandedQuestion(question.id)
+          toast.success(attempt.is_correct ? 'Correct answer saved.' : 'Mistake saved for review.')
+        } catch (error) {
+          handleActionError(error)
+        } finally {
+          setPendingQuestionId(null)
+        }
+      })()
+    })
+  }
+
+  const handleToggleRevision = (question: PYQQuestion) => {
+    setPendingQuestionId(question.id)
+    startTransition(() => {
+      void (async () => {
+        try {
+          const attempt = await togglePYQRevisionMark(question.id)
+          setAttemptsByQuestionId((current) => ({
+            ...current,
+            [question.id]: attempt as UserPYQAttempt,
+          }))
+          toast.success(attempt.marked_for_revision ? 'Marked for revision.' : 'Removed from revision.')
+        } catch (error) {
+          handleActionError(error)
+        } finally {
+          setPendingQuestionId(null)
+        }
+      })()
+    })
+  }
+
+  const handleClearAttempt = (question: PYQQuestion) => {
+    setPendingQuestionId(question.id)
+    startTransition(() => {
+      void (async () => {
+        try {
+          await clearPYQAttempt(question.id)
+          setAttemptsByQuestionId((current) => {
+            const next = { ...current }
+            delete next[question.id]
+            return next
+          })
+          setSelectedAnswers((current) => {
+            const next = { ...current }
+            delete next[question.id]
+            return next
+          })
+          setMistakeNotes((current) => {
+            const next = { ...current }
+            delete next[question.id]
+            return next
+          })
+          toast.success('PYQ attempt cleared.')
+        } catch (error) {
+          handleActionError(error)
+        } finally {
+          setPendingQuestionId(null)
+        }
+      })()
+    })
   }
 
   const formatVerificationStatus = (status: string | null) => {
@@ -271,7 +405,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
             <div className="min-w-0">
               <label className="text-sm font-medium mb-2 block">Exam</label>
               <Select value={filterExam} onValueChange={(value) => {
@@ -361,6 +495,22 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
               </Select>
             </div>
 
+            <div className="min-w-0">
+              <label className="text-sm font-medium mb-2 block">Attempt</label>
+              <Select value={filterAttempt} onValueChange={setFilterAttempt}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Attempt status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="attempted">Attempted</SelectItem>
+                  <SelectItem value="not_attempted">Not Attempted</SelectItem>
+                  <SelectItem value="incorrect">Incorrect</SelectItem>
+                  <SelectItem value="marked">Marked Revision</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <label className="flex min-w-0 items-center gap-2 rounded-md border p-3 text-sm sm:items-end">
               <Checkbox checked={verifiedOnly} onCheckedChange={(checked) => setVerifiedOnly(Boolean(checked))} />
               <span className="leading-none">Official verified only</span>
@@ -402,6 +552,11 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
               const sourceConfig = getSourceConfig(question.source, question.is_verified, question.verification_status)
               const SourceIcon = sourceConfig.icon
               const verificationStatusLabel = formatVerificationStatus(question.verification_status)
+              const attempt = getAttempt(question)
+              const attemptStatus = getAttemptStatus(attempt)
+              const activeAnswer = selectedAnswers[question.id] || attempt?.selected_answer || ''
+              const isQuestionPending = isPending && pendingQuestionId === question.id
+              const showAnswerDetails = isExpanded || Boolean(attempt?.selected_answer)
 
               return (
                 <Card key={question.id} className="overflow-hidden">
@@ -423,6 +578,9 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                           <SourceIcon className="h-3 w-3" />
                           {sourceConfig.label}
                         </Badge>
+                        <Badge variant="outline" className={cn('whitespace-normal break-words leading-relaxed', attemptStatus.className)}>
+                          {attemptStatus.label}
+                        </Badge>
                       </div>
                       <Badge className={cn('w-fit', getDifficultyColor(question.difficulty))}>
                         {question.difficulty}
@@ -435,19 +593,48 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
 
                     {question.options && question.options.length > 0 && (
                       <div className="space-y-2 mb-4">
-                        {question.options.map((option, idx) => (
-                          <div
-                            key={idx}
-                            className="flex min-w-0 items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/50"
-                          >
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                              {String.fromCharCode(65 + idx)}
-                            </span>
-                            <span className="min-w-0 break-words text-foreground">{option}</span>
-                          </div>
-                        ))}
+                        {question.options.map((option, idx) => {
+                          const optionLetter = String.fromCharCode(65 + idx)
+                          const isCorrectOption = normalizeAnswer(question.answer) === normalizeAnswer(option)
+                            || normalizeAnswer(question.answer) === normalizeAnswer(optionLetter)
+                          const isSelectedAttempt = attempt?.selected_answer
+                            && normalizeAnswer(attempt.selected_answer) === normalizeAnswer(option)
+
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              disabled={isQuestionPending}
+                              onClick={() => setSelectedAnswers((current) => ({ ...current, [question.id]: option }))}
+                              className={cn(
+                                'flex w-full min-w-0 items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70',
+                                normalizeAnswer(activeAnswer) === normalizeAnswer(option) && 'border-primary bg-primary/10',
+                                attempt?.selected_answer && isCorrectOption && 'border-green-500/50 bg-green-500/10',
+                                attempt?.is_correct === false
+                                  && isSelectedAttempt
+                                  && !isCorrectOption
+                                  && 'border-red-500/50 bg-red-500/10'
+                              )}
+                            >
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                                {optionLetter}
+                              </span>
+                              <span className="min-w-0 break-words leading-relaxed text-foreground">{option}</span>
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
+
+                    <div className="mb-4 space-y-2">
+                      <label className="text-sm font-medium">Mistake note</label>
+                      <Textarea
+                        value={mistakeNotes[question.id] ?? attempt?.mistake_note ?? ''}
+                        onChange={(event) => setMistakeNotes((current) => ({ ...current, [question.id]: event.target.value }))}
+                        placeholder="Optional: write what confused you or what to revise."
+                        className="min-h-20 resize-y break-words leading-relaxed"
+                      />
+                    </div>
 
                     <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm text-muted-foreground">
@@ -480,27 +667,85 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                         )}
                       </div>
 
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setExpandedQuestion(isExpanded ? null : question.id)}
-                        className="w-fit"
-                      >
-                        {isExpanded ? (
-                          <>
-                            Hide Answer
-                            <ChevronUp className="h-4 w-4" />
-                          </>
-                        ) : (
-                          <>
-                            Show Answer
-                            <ChevronDown className="h-4 w-4" />
-                          </>
+                      <div className="flex w-full flex-col gap-2 sm:w-fit sm:flex-row sm:flex-wrap sm:justify-end">
+                        <Button
+                          size="sm"
+                          onClick={() => handleSubmitAttempt(question)}
+                          disabled={isQuestionPending || !activeAnswer.trim()}
+                          className="w-full sm:w-fit"
+                        >
+                          Submit Answer
+                        </Button>
+                        <Button
+                          variant={attempt?.marked_for_revision ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleToggleRevision(question)}
+                          disabled={isQuestionPending}
+                          className="w-full sm:w-fit"
+                        >
+                          <Flag className="h-4 w-4" />
+                          {attempt?.marked_for_revision ? 'Marked' : 'Mark Revision'}
+                        </Button>
+                        {attempt && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleClearAttempt(question)}
+                            disabled={isQuestionPending}
+                            className="w-full sm:w-fit"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            Clear
+                          </Button>
                         )}
-                      </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExpandedQuestion(isExpanded ? null : question.id)}
+                          className="w-full sm:w-fit"
+                        >
+                          {isExpanded ? (
+                            <>
+                              Hide Answer
+                              <ChevronUp className="h-4 w-4" />
+                            </>
+                          ) : (
+                            <>
+                              Show Answer
+                              <ChevronDown className="h-4 w-4" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
 
-                    {isExpanded && (
+                    {attempt?.selected_answer && (
+                      <div className={cn(
+                        'mt-4 flex items-start gap-2 rounded-lg p-3',
+                        attempt.is_correct
+                          ? 'bg-green-500/10 text-green-700 dark:text-green-300'
+                          : 'bg-red-500/10 text-red-700 dark:text-red-300'
+                      )}>
+                        {attempt.is_correct ? (
+                          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                        ) : (
+                          <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium">{attempt.is_correct ? 'Correct attempt' : 'Incorrect attempt'}</p>
+                          <p className="break-words text-sm leading-relaxed">
+                            Selected: {attempt.selected_answer}
+                          </p>
+                          {attempt.mistake_note && (
+                            <p className="mt-1 break-words text-sm leading-relaxed">
+                              Note: {attempt.mistake_note}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {showAnswerDetails && (
                       <div className="mt-4 pt-4 border-t border-border space-y-3">
                         {question.answer && (
                           <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10">
@@ -509,7 +754,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                               <p className="font-medium text-green-700 dark:text-green-400">
                                 Correct Answer
                               </p>
-                              <p className="break-words text-foreground">{question.answer}</p>
+                              <p className="break-words leading-relaxed text-foreground">{question.answer}</p>
                             </div>
                           </div>
                         )}
@@ -520,7 +765,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                               <p className="font-medium text-blue-700 dark:text-blue-400">
                                 Explanation
                               </p>
-                              <p className="break-words text-foreground">{question.explanation}</p>
+                              <p className="break-words leading-relaxed text-foreground">{question.explanation}</p>
                             </div>
                           </div>
                         )}

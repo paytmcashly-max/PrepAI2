@@ -170,6 +170,21 @@ PYQ auto-validation pipeline on 2026-05-11:
 - Temporary QA rows verified the new statuses: `system_validated`, `needs_manual_review`, duplicate flagged, and `auto_rejected`; all temporary rows were deleted.
 - Non-admin review/edit access remains protected through server-side `notFound()` checks on `/dashboard/pyq/review` and `/dashboard/pyq/admin/[questionId]/edit`.
 
+PYQ attempt tracking and mistake loop on 2026-05-11:
+
+- Added migration `20260511050000_user_pyq_attempts.sql` for `user_pyq_attempts`.
+- RLS policies were added so users can select, insert, update, and delete only their own PYQ attempts.
+- Live Supabase migration was applied and verified with 4 `user_pyq_attempts` RLS policies present.
+- Added attempt actions for submit, revision mark toggle, and clearing an attempt.
+- Correct and incorrect attempts are stored by comparing selected answer with the stored PYQ answer.
+- Marked-for-revision rows can exist even before an answer is submitted, so students can save questions for later.
+- PYQ practice cards now support option selection, submit answer, correct/incorrect status, mistake notes, answer/explanation reveal, revision marks, and clear attempt.
+- Added PYQ filters for attempted, not attempted, incorrect, and marked for revision.
+- Revision Queue now includes incorrect PYQs and PYQs marked for revision.
+- Weak-area detection now raises chapter priority from incorrect PYQ attempts for the active plan exam.
+- Admin Debug now reports total PYQ attempts, incorrect PYQ attempts, and marked PYQ revisions.
+- Existing PYQ source trust rules were not changed; no Groq work and no bulk PYQ imports were added.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -190,6 +205,12 @@ PYQ auto-validation pipeline on 2026-05-11:
 - Verified invalid source/verification combinations are rejected by `pyq_source_verification_check`.
 - Added and applied `supabase/migrations/20260511030000_pyq_auto_validation.sql`.
 - Verified temporary auto-validation rows were accepted with the expected statuses and then deleted.
+- Added and applied `supabase/migrations/20260511050000_user_pyq_attempts.sql`.
+- Verified live `user_pyq_attempts` table has 4 owner-only RLS policies.
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
+- `npm run audit`
 - Verified live official verified count remains `0`; temporary QA row count returned `0`.
 - `npm run typecheck`
 - `npm run lint`

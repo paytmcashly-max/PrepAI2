@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AlertTriangle, BookOpen, ClipboardList, ListChecks, RotateCcw, TimerReset } from 'lucide-react'
+import { AlertTriangle, BookOpen, ClipboardList, Flag, ListChecks, RotateCcw, TimerReset } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -40,6 +40,7 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
   const hasQueueData = queue.overdueTasks.length > 0
     || queue.weakChapters.length > 0
     || queue.mockWeakAreas.length > 0
+    || queue.pyqRevisionItems.length > 0
     || queue.currentWeekRevisionTasks.length > 0
     || queue.suggestedOrder.length > 0
 
@@ -68,7 +69,7 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
         <Card className="overflow-hidden">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">Overdue Tasks</p>
@@ -85,6 +86,12 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">Mock Weak Areas</p>
             <p className="mt-1 text-3xl font-bold">{queue.mockWeakAreas.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-muted-foreground">PYQ Review</p>
+            <p className="mt-1 text-3xl font-bold">{queue.pyqRevisionItems.length}</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden">
@@ -163,6 +170,41 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No overdue tasks in the active plan.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Flag className="h-5 w-5" />
+              PYQ Mistake Loop
+            </CardTitle>
+            <CardDescription>Incorrect PYQs and questions marked for revision.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {queue.pyqRevisionItems.length > 0 ? (
+              <div className="space-y-3">
+                {queue.pyqRevisionItems.map((item) => (
+                  <div key={item.id} className="rounded-lg border p-4">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <p className="min-w-0 break-words font-medium leading-relaxed">
+                        {item.question.length > 140 ? `${item.question.slice(0, 140)}...` : item.question}
+                      </p>
+                      <Badge className={cn('w-fit', priorityClass(item.priority))}>{item.priority}</Badge>
+                    </div>
+                    <p className="mt-2 min-w-0 break-words text-sm leading-relaxed text-muted-foreground">
+                      {item.subject_name || item.subject_id || 'Subject'}{item.chapter_name ? ` - ${item.chapter_name}` : ''}
+                    </p>
+                    <p className="mt-1 min-w-0 break-words text-sm leading-relaxed text-muted-foreground">{item.reason}</p>
+                    <Button asChild size="sm" variant="outline" className="mt-3 w-full sm:w-fit">
+                      <Link href="/dashboard/pyq">Open PYQ practice</Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No PYQ mistakes or revision marks yet.</p>
             )}
           </CardContent>
         </Card>

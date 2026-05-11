@@ -214,6 +214,20 @@ export interface PYQQuestion {
   subject?: Subject
   exam?: Exam | null
   chapter_ref?: Chapter | null
+  attempt?: UserPYQAttempt | null
+}
+
+export interface UserPYQAttempt {
+  id: string
+  user_id: string
+  pyq_question_id: string
+  selected_answer: string | null
+  is_correct: boolean | null
+  marked_for_revision: boolean
+  mistake_note: string | null
+  attempted_at: string
+  updated_at: string
+  question?: PYQQuestion | null
 }
 
 export interface MotivationalQuote {
@@ -313,6 +327,20 @@ export interface RevisionQueueData {
     area: string
     count: number
   }>
+  pyqRevisionItems: Array<{
+    id: string
+    questionId: string
+    question: string
+    subject_id: string | null
+    subject_name: string | null
+    chapter_id: string | null
+    chapter_name: string | null
+    reason: string
+    priority: 'low' | 'medium' | 'high'
+    marked_for_revision: boolean
+    is_correct: boolean | null
+    attempted_at: string
+  }>
   currentWeekRevisionTasks: UserDailyTask[]
   suggestedOrder: RevisionQueueItem[]
 }
@@ -370,6 +398,7 @@ export interface AdminDebugSnapshot {
     overdueTasks: number
     weakChapters: number
     mockWeakAreas: number
+    pyqRevisionItems: number
     currentWeekRevisionTasks: number
     suggestedOrder: number
   }
@@ -384,6 +413,11 @@ export interface AdminDebugSnapshot {
     autoRejected: number
     memoryBased: number
     aiPractice: number
+  }
+  pyqAttemptCounts: {
+    total: number
+    incorrect: number
+    markedForRevision: number
   }
   mockResultCount: number
 }

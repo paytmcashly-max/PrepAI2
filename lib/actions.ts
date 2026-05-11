@@ -30,6 +30,13 @@ const allowedPYQVerificationStatuses = new Set<PYQVerificationStatus>([
   'auto_rejected',
 ])
 
+function normalizeAnswerValue(value: string | null | undefined) {
+  return (value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+}
+
 function assertLevel(value: string, label: string): Level {
   if (allowedLevels.has(value as Level)) return value as Level
   throw new Error(`${label} must be weak, average, or good.`)
@@ -969,6 +976,145 @@ export async function deletePYQQuestion(questionId: string) {
   revalidatePath('/dashboard/pyq/review', 'page')
   revalidatePath('/dashboard/pyq/admin', 'page')
   revalidatePath('/dashboard/admin/debug', 'page')
+  return { success: true }
+}
+
+// ============ PYQ ATTEMPTS ============
+async function assertPYQQuestionForAttempt(questionId: string) {
+  const supabase = await createClient()
+  const id = questionId?.trim()
+  if (!id) throw new Error('Question ID is required.')
+
+  const { data: question, error } = await supabase
+    .from('pyq_questions')
+    .select('id, answer, options')
+    .eq('id', id)
+    .single()
+
+  if (error || !question) {
+    throw new Error('PYQ question was not found.')
+  }
+
+  return { supabase, question }
+}
+
+function revalidatePYQAttemptSurfaces() {
+  revalidatePath('/dashboard/pyq', 'page')
+  revalidatePath('/dashboard/revision', 'page')
+  revalidatePath('/dashboard', 'page')
+  revalidatePath('/dashboard/admin/debug', 'page')
+}
+
+export async function submitPYQAttempt(questionId: string, selectedAnswer: string, mistakeNote?: string | null) {
+  const { supabase, question } = await assertPYQQuestionForAttempt(questionId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const answer = selectedAnswer?.trim()
+  if (!answer) throw new Error('Please select an answer.')
+  if (!question.answer?.trim()) throw new Error('This question does not have an answer yet.')
+
+  const { data: existing, error: existingError } = await supabase
+    .from('user_pyq_attempts')
+    .select('id, marked_for_revision')
+    .eq('user_id', user.id)
+    .eq('pyq_question_id', question.id)
+    .maybeSingle()
+
+  if (existingError) throw existingError
+
+  const now = new Date().toISOString()
+  const selectedIndex = Array.isArray(question.options)
+    ? question.options.findIndex((option: string) => normalizeAnswerValue(option) === normalizeAnswerValue(answer))
+    : -1
+  const selectedLetter = selectedIndex >= 0 ? String.fromCharCode(65 + selectedIndex) : ''
+  const isCorrect = normalizeAnswerValue(answer) === normalizeAnswerValue(question.answer)
+    || normalizeAnswerValue(selectedLetter) === normalizeAnswerValue(question.answer)
+  const payload = {
+    user_id: user.id,
+    pyq_question_id: question.id,
+    selected_answer: answer,
+    is_correct: isCorrect,
+    marked_for_revision: existing?.marked_for_revision ?? false,
+    mistake_note: mistakeNote?.trim() || null,
+    attempted_at: existing ? undefined : now,
+    updated_at: now,
+  }
+
+  const { data: attempt, error } = await supabase
+    .from('user_pyq_attempts')
+    .upsert(payload, { onConflict: 'user_id,pyq_question_id' })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  revalidatePYQAttemptSurfaces()
+  return attempt
+}
+
+export async function togglePYQRevisionMark(questionId: string) {
+  const { supabase, question } = await assertPYQQuestionForAttempt(questionId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: existing, error: existingError } = await supabase
+    .from('user_pyq_attempts')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('pyq_question_id', question.id)
+    .maybeSingle()
+
+  if (existingError) throw existingError
+
+  const now = new Date().toISOString()
+  const nextMarked = !(existing?.marked_for_revision ?? false)
+
+  const { data: attempt, error } = existing
+    ? await supabase
+        .from('user_pyq_attempts')
+        .update({
+          marked_for_revision: nextMarked,
+          updated_at: now,
+        })
+        .eq('id', existing.id)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+    : await supabase
+        .from('user_pyq_attempts')
+        .insert({
+          user_id: user.id,
+          pyq_question_id: question.id,
+          selected_answer: null,
+          is_correct: null,
+          marked_for_revision: true,
+          attempted_at: now,
+          updated_at: now,
+        })
+        .select()
+        .single()
+
+  if (error) throw error
+
+  revalidatePYQAttemptSurfaces()
+  return attempt
+}
+
+export async function clearPYQAttempt(questionId: string) {
+  const { supabase, question } = await assertPYQQuestionForAttempt(questionId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { error } = await supabase
+    .from('user_pyq_attempts')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('pyq_question_id', question.id)
+
+  if (error) throw error
+
+  revalidatePYQAttemptSurfaces()
   return { success: true }
 }
 

@@ -143,9 +143,13 @@ export default async function AdminDebugPage() {
             <MetricTile label="Revision Overdue" value={snapshot.revisionQueueCounts.overdueTasks} />
             <MetricTile label="Weak Chapters" value={snapshot.revisionQueueCounts.weakChapters} />
             <MetricTile label="Mock Weak Areas" value={snapshot.revisionQueueCounts.mockWeakAreas} />
+            <MetricTile label="PYQ Revision Items" value={snapshot.revisionQueueCounts.pyqRevisionItems} />
             <MetricTile label="Weekly Revision Tasks" value={snapshot.revisionQueueCounts.currentWeekRevisionTasks} />
             <MetricTile label="Suggested Revision Items" value={snapshot.revisionQueueCounts.suggestedOrder} />
             <MetricTile label="PYQ Questions" value={snapshot.pyqCounts.total} />
+            <MetricTile label="PYQ Attempts" value={snapshot.pyqAttemptCounts.total} />
+            <MetricTile label="Incorrect PYQ Attempts" value={snapshot.pyqAttemptCounts.incorrect} />
+            <MetricTile label="Marked PYQ Revisions" value={snapshot.pyqAttemptCounts.markedForRevision} />
             <MetricTile label="Official Verified PYQs" value={snapshot.pyqCounts.verified} />
             <MetricTile label="Trusted Third-party PYQs" value={snapshot.pyqCounts.trustedThirdParty} />
             <MetricTile label="System Validated PYQs" value={snapshot.pyqCounts.systemValidated} />
