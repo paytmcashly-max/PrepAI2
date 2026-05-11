@@ -2,6 +2,8 @@
 
 Use this tracker before importing any verified previous-year question.
 
+Last updated: 2026-05-11
+
 ## Verification Rules
 
 - Only official/question-paper sources can become `verified_pyq`.
@@ -16,10 +18,20 @@ Use this tracker before importing any verified previous-year question.
 
 - `not_started`: source has not been collected.
 - `source_found`: source exists but questions are not extracted.
-- `in_review`: questions are collected and being checked.
+- `in_review`: questions are collected or linked, but official confirmation is incomplete.
 - `ready_to_import`: verified against source and ready for admin import.
 - `imported`: imported with `source_reference`.
 - `rejected`: source is memory-based, unofficial, or mismatched.
+
+## Bihar SI Source Search Log
+
+| exam | year | paper/shift/set | source URL or file location | question range collected | verification status | imported count | notes |
+|---|---:|---|---|---|---|---:|---|
+| Bihar SI | 2025-2026 | BPSSC Police Sub-Inspector notices, Advt. No. 05/2025 | https://bpssc.bihar.gov.in/ | N/A | source_found | 0 | Official BPSSC site found for exam/admit-card/result metadata. No official question-paper PDF was found during this pass, so this is not importable as PYQ content. |
+| Bihar SI | 2023 | Prelims, 17 Dec 2023, Shift 1 | https://testbook.com/pdf-viewer?id=65afa031c668b36a25021a33&language=english | Full paper candidate PDF, not topic-extracted | in_review | 0 | Third-party Testbook PDF viewer. Do not import as `verified_pyq` unless matched with an official/question-paper source reference. |
+| Bihar SI | 2023 | Prelims, 17 Dec 2023, Shift 2 | https://testbook.com/pdf-viewer?id=65afa05ca3039b040bf7f577&language=english | Full paper candidate PDF, not topic-extracted | in_review | 0 | Third-party Testbook PDF viewer. Do not import as `verified_pyq` unless matched with an official/question-paper source reference. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Full paper candidate PDF, not topic-extracted | in_review | 0 | Third-party Testbook PDF viewer. Do not import as `verified_pyq` unless matched with an official/question-paper source reference. |
+| Bihar SI | 2023 | Prelims, 17 Dec 2023, memory-based questions | https://www.collegedekho.com/news/bpssc-bihar-si-question-paper-2023-available-check-question-paper-analysis-48196/ | Memory-based Shift 1/Shift 2 lists | rejected | 0 | Page labels the content as memory-based/unofficial. Do not import as verified. |
 
 ## Bihar SI
 
@@ -27,32 +39,32 @@ Use this tracker before importing any verified previous-year question.
 
 | exam | year | paper/shift/set | source URL or file location | question range collected | verification status | imported count | notes |
 |---|---:|---|---|---|---|---:|---|
-| Bihar SI | TBD | TBD | TBD | Percentage | not_started | 0 | Need official paper/source before verified import. |
-| Bihar SI | TBD | TBD | TBD | Ratio & Proportion | not_started | 0 | Need official paper/source before verified import. |
-| Bihar SI | TBD | TBD | TBD | Profit & Loss | not_started | 0 | Need official paper/source before verified import. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Percentage | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Ratio & Proportion | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Profit & Loss | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
 
 ### Reasoning
 
 | exam | year | paper/shift/set | source URL or file location | question range collected | verification status | imported count | notes |
 |---|---:|---|---|---|---|---:|---|
-| Bihar SI | TBD | TBD | TBD | Analogy | not_started | 0 | Need official paper/source before verified import. |
-| Bihar SI | TBD | TBD | TBD | Series | not_started | 0 | Need official paper/source before verified import. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Analogy | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Series | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
 
 ### GK/GS
 
 | exam | year | paper/shift/set | source URL or file location | question range collected | verification status | imported count | notes |
 |---|---:|---|---|---|---|---:|---|
-| Bihar SI | TBD | TBD | TBD | Modern History | not_started | 0 | Need official paper/source before verified import. |
-| Bihar SI | TBD | TBD | TBD | Polity | not_started | 0 | Need official paper/source before verified import. |
-| Bihar SI | TBD | TBD | TBD | Bihar GK | not_started | 0 | Need official paper/source before verified import. |
+| Bihar SI | 2023 | Prelims, 17 Dec 2023, Shift 1/2 | https://testbook.com/pdf-viewer?id=65afa031c668b36a25021a33&language=english ; https://testbook.com/pdf-viewer?id=65afa05ca3039b040bf7f577&language=english | Modern History | in_review | 0 | Candidate PDFs found, but not official-confirmed and not topic-extracted yet. |
+| Bihar SI | 2023 | Prelims, 17 Dec 2023, Shift 1/2 | https://testbook.com/pdf-viewer?id=65afa031c668b36a25021a33&language=english ; https://testbook.com/pdf-viewer?id=65afa05ca3039b040bf7f577&language=english | Polity | in_review | 0 | Candidate PDFs found, but not official-confirmed and not topic-extracted yet. |
+| Bihar SI | 2023 | Prelims, 17 Dec 2023, Shift 1/2 | https://testbook.com/pdf-viewer?id=65afa031c668b36a25021a33&language=english ; https://testbook.com/pdf-viewer?id=65afa05ca3039b040bf7f577&language=english | Bihar GK | in_review | 0 | Candidate PDFs found, but not official-confirmed and not topic-extracted yet. |
 
 ### Hindi
 
 | exam | year | paper/shift/set | source URL or file location | question range collected | verification status | imported count | notes |
 |---|---:|---|---|---|---|---:|---|
-| Bihar SI | TBD | TBD | TBD | विलोम | not_started | 0 | Need official paper/source before verified import. |
-| Bihar SI | TBD | TBD | TBD | पर्यायवाची | not_started | 0 | Need official paper/source before verified import. |
-| Bihar SI | TBD | TBD | TBD | मुहावरे | not_started | 0 | Need official paper/source before verified import. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | विलोम | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | पर्यायवाची | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | मुहावरे | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
 
 ## Import Checklist
 
