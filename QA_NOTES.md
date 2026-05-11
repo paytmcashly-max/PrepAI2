@@ -41,8 +41,43 @@ Date: 2026-05-11
 - Browser automation CLI was unavailable in this shell, so QA used authenticated HTTP checks, Supabase admin/user clients, direct database state transitions, and code/UI inspection instead of click-by-click visual browser automation.
 - Temporary QA users/data were used for validation and cleaned up after the QA pass.
 
+## PYQ Data Entry Workflow
+
+Admin-only checklist for verified/manual PYQ entry:
+
+- Verify every `verified_pyq` against an official or clearly attributable previous-year question-paper source before entry.
+- Use `source_reference` for the exact reference needed to re-check the question later: official paper name, exam date/year, set/code if available, question number, page number, and source URL or file location.
+- `verified_pyq` means a real previous-year question that has been checked against the source reference. It must use `source = verified_pyq`, `is_verified = true`, a valid exam, subject, chapter, question, answer, and source reference.
+- `ai_generated` means a practice/demo question. It must use `source = ai_generated` and `is_verified = false`. It must never be described as a real previous-year question.
+- Memory-based questions, coaching-site reconstructions, and AI-written practice questions are not verified PYQs.
+
+PYQ data added on 2026-05-11:
+
+- Added 11 Bihar SI practice samples as `source = ai_generated` and `is_verified = false`.
+- No verified PYQ rows were inserted because no official/question-paper `source_reference` was available during this pass.
+- Topics covered by unverified practice samples:
+  - Maths: Percentage, Ratio & Proportion, Profit & Loss
+  - Reasoning: Analogy, Series
+  - GK/GS: Modern Indian History, Indian Polity, Bihar GK
+  - Hindi: विलोम शब्द, पर्यायवाची शब्द, मुहावरे और लोकोक्तियाँ
+
+Source references used:
+
+- None for verified PYQ insertion. Verified insertion was intentionally skipped.
+- The inserted rows are AI-generated practice samples only and are clearly marked unverified.
+
+PYQ checks from this pass:
+
+- PYQ filter counts returned expected results for exam, year, subject, chapter, difficulty, and verified-only filters.
+- Verified-only filter returned `0`, as expected.
+- Admin/debug PYQ count should now report total PYQ count as `11` and verified PYQ count as `0`.
+- Hindi/Devanagari sample rows were checked after insertion and corrected to preserve Unicode text.
+- `source_reference` display could not be fully tested against live data because the live Supabase table is missing the `pyq_questions.source_reference` column. The repo migration exists at `supabase/migrations/20260511000000_pyq_source_reference.sql`, but it still needs to be applied to the live database before verified import can work end to end.
+
 ## Commands Run
 
+- Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
+- Supabase filter/count checks for PYQ exam/year/subject/chapter/difficulty/verified-only behavior.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
