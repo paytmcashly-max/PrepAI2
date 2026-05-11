@@ -16,6 +16,9 @@ export default async function ResourceViewerPage({ params }: { params: Promise<{
   const isExternal = resource.resource_type === 'external_link'
   const isPractice = resource.resource_type === 'mcq_practice'
   const practiceHref = `/dashboard/practice/original?exam=${encodeURIComponent(resource.exam_id || '')}${resource.subject_id ? `&subject=${encodeURIComponent(resource.subject_id)}` : ''}${resource.chapter_id ? `&chapter=${encodeURIComponent(resource.chapter_id)}` : ''}`
+  const youtubeSearchUrl = resource.video_search_query
+    ? `https://www.youtube.com/results?search_query=${encodeURIComponent(resource.video_search_query)}`
+    : null
 
   return (
     <div className="space-y-6 overflow-hidden p-4 sm:p-6">
@@ -65,7 +68,19 @@ export default async function ResourceViewerPage({ params }: { params: Promise<{
                     allowFullScreen
                   />
                 </div>
-                <p className="text-sm text-muted-foreground">Video provided by original source: {resource.source_name}. PrepAI does not download or rehost this video.</p>
+                <p className="text-sm text-muted-foreground">
+                  Video is provided by the original YouTube source{resource.channel_name ? ` (${resource.channel_name})` : ''}. PrepAI does not download or rehost it.
+                </p>
+              </div>
+            ) : youtubeSearchUrl ? (
+              <div className="rounded-lg border p-4">
+                <p className="mb-3 break-words text-sm text-muted-foreground">Video not curated yet. Open YouTube search.</p>
+                <Button asChild>
+                  <a href={youtubeSearchUrl} target="_blank" rel="noopener noreferrer">
+                    Open YouTube search
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
               </div>
             ) : (
               <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">Video not available yet.</div>
@@ -99,6 +114,18 @@ export default async function ResourceViewerPage({ params }: { params: Promise<{
                 <p className="text-sm text-muted-foreground">PrepAI notes are not ready for this resource yet.</p>
               )}
             </article>
+          )}
+
+          {!isVideo && youtubeSearchUrl && (
+            <div className="rounded-lg border p-4 print:hidden">
+              <p className="mb-3 break-words text-sm text-muted-foreground">Video not curated yet. Open YouTube search.</p>
+              <Button asChild variant="outline">
+                <a href={youtubeSearchUrl} target="_blank" rel="noopener noreferrer">
+                  Open YouTube search
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
+            </div>
           )}
 
           {(resource.resource_type === 'concept_note' || resource.resource_type === 'pdf_note' || resource.resource_type === 'current_affairs' || resource.resource_type === 'physical_training') && (

@@ -3,13 +3,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { randomUUID } from 'node:crypto'
 import { generateStudyPlan } from '@/lib/services/generate-study-plan'
+import { generatePrepAIOriginalResourceDraft } from '@/lib/services/original-resource-draft'
 import { getAdminEmails } from '@/lib/admin-auth'
 import { autoValidatePYQInput } from '@/lib/pyq-trust'
 import { pyqAnswersMatch } from '@/lib/pyq-answer'
 import { toLocalDateString } from '@/lib/date-utils'
-import { getAdaptiveRevisionRecommendations } from '@/lib/queries'
+import { getActiveStudyPlan, getAdaptiveRevisionRecommendations, getResourceCoverageForActivePlan } from '@/lib/queries'
 import { buildDailyCoachContext, buildPYQCoachContext } from '@/lib/ai/coach-context'
 import { callGroqCoach, claimGroqRateLimitSlot } from '@/lib/ai/groq'
 import type { CoachActionResult, PYQSource, PYQVerificationStatus } from '@/lib/types'
@@ -79,6 +81,19 @@ async function assertPYQAdmin() {
   const adminEmails = getAdminEmails()
   if (!adminEmails.includes(user.email.toLowerCase())) {
     throw new Error('PYQ import is restricted to configured admins.')
+  }
+
+  return user
+}
+
+async function assertConfiguredAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) throw new Error('Not authenticated')
+
+  const adminEmails = getAdminEmails()
+  if (!adminEmails.includes(user.email.toLowerCase())) {
+    throw new Error('Admin access is restricted to configured admins.')
   }
 
   return user
@@ -1513,6 +1528,185 @@ export async function clearOriginalPracticeAttempt(questionId: string) {
 
   revalidateOriginalPracticeSurfaces()
   return { success: true }
+}
+
+export async function generateMissingResourcesForActivePlan(input?: FormData | string) {
+  await assertConfiguredAdmin()
+
+  const targetUserId = typeof input === 'string'
+    ? input
+    : input?.get('targetUserId')?.toString()
+
+  if (!targetUserId) throw new Error('Target user ID is required.')
+
+  const plan = await getActiveStudyPlan(targetUserId)
+  if (!plan) {
+    redirect('/dashboard/admin/debug?resourceStatus=no-active-plan')
+  }
+
+  const coverage = await getResourceCoverageForActivePlan(targetUserId)
+  const missingTargets = coverage.missingChapters
+    .filter((chapter) => chapter.chapterId && (chapter.missingNotesCount > 0 || chapter.missingPracticeCount > 0))
+    .slice(0, 10)
+
+  if (missingTargets.length === 0) {
+    redirect('/dashboard/admin/debug?resourceStatus=no-missing-resources')
+  }
+
+  const admin = createAdminClient()
+  const { data: chapters, error: chapterError } = await admin
+    .from('chapters')
+    .select('id, name, exam:exams(id, name), subject:subjects(id, name)')
+    .in('id', missingTargets.map((chapter) => chapter.chapterId as string))
+
+  if (chapterError) throw chapterError
+
+  const resources = []
+  const questions = []
+
+  for (const row of chapters || []) {
+    const exam = Array.isArray(row.exam) ? row.exam[0] : row.exam
+    const subject = Array.isArray(row.subject) ? row.subject[0] : row.subject
+    if (!exam?.id || !subject?.id) continue
+
+    const draft = generatePrepAIOriginalResourceDraft({
+      exam: { id: exam.id, name: exam.name },
+      subject: { id: subject.id, name: subject.name },
+      chapter: { id: row.id, name: row.name },
+    })
+
+    resources.push({
+      ...draft.resource,
+      updated_at: new Date().toISOString(),
+    })
+    questions.push(...draft.questions.slice(0, 15))
+  }
+
+  if (resources.length > 0) {
+    const { error } = await admin
+      .from('study_resources')
+      .upsert(resources, { onConflict: 'id' })
+    if (error) throw error
+  }
+
+  const limitedQuestions = questions.slice(0, 150)
+  if (limitedQuestions.length > 0) {
+    const { error } = await admin
+      .from('original_practice_questions')
+      .upsert(limitedQuestions, { onConflict: 'id' })
+    if (error) throw error
+  }
+
+  revalidatePath('/dashboard/admin/debug')
+  revalidatePath('/dashboard/tasks')
+  revalidatePath('/dashboard/practice/original')
+  revalidatePath('/dashboard/resources/[resourceId]', 'page')
+
+  redirect(`/dashboard/admin/debug?resourceStatus=generated&resources=${resources.length}&questions=${limitedQuestions.length}`)
+}
+
+export async function curateVideoForResource(resourceId: string) {
+  await assertConfiguredAdmin()
+
+  const id = resourceId?.trim()
+  if (!id) throw new Error('Resource ID is required.')
+
+  const apiKey = process.env.YOUTUBE_DATA_API_KEY
+  if (!apiKey) {
+    return {
+      success: false,
+      message: 'YOUTUBE_DATA_API_KEY is not configured. YouTube search fallback remains available.',
+    }
+  }
+
+  const admin = createAdminClient()
+  const { data: resource, error: resourceError } = await admin
+    .from('study_resources')
+    .select('id, exam_id, subject_id, chapter_id, title, description, language, priority, video_search_query, is_active')
+    .eq('id', id)
+    .single()
+
+  if (resourceError || !resource) throw new Error('Study resource was not found.')
+  if (!resource.is_active) throw new Error('Cannot curate a video for an inactive resource.')
+
+  const query = (resource.video_search_query || `${resource.title} preparation Hindi`).trim()
+  const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search')
+  searchUrl.searchParams.set('part', 'snippet')
+  searchUrl.searchParams.set('type', 'video')
+  searchUrl.searchParams.set('maxResults', '1')
+  searchUrl.searchParams.set('safeSearch', 'strict')
+  searchUrl.searchParams.set('q', query)
+  searchUrl.searchParams.set('key', apiKey)
+
+  const response = await fetch(searchUrl, { cache: 'no-store' })
+  if (!response.ok) {
+    throw new Error('YouTube video search failed.')
+  }
+
+  const payload = await response.json()
+  const item = Array.isArray(payload?.items) ? payload.items[0] : null
+  const videoId = item?.id?.videoId
+  if (!videoId) {
+    await admin
+      .from('study_resources')
+      .update({ video_status: 'unavailable', updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    revalidatePath('/dashboard/tasks')
+    revalidatePath('/dashboard/admin/debug')
+    return {
+      success: false,
+      message: 'No safe YouTube video result was found for this resource.',
+    }
+  }
+
+  const now = new Date().toISOString()
+  const videoResourceId = `res-video-${resource.id}`
+  const channelName = item?.snippet?.channelTitle || null
+  const videoTitle = item?.snippet?.title || resource.title
+
+  const { error: upsertError } = await admin
+    .from('study_resources')
+    .upsert({
+      id: videoResourceId,
+      exam_id: resource.exam_id,
+      subject_id: resource.subject_id,
+      chapter_id: resource.chapter_id,
+      title: `Video: ${videoTitle}`,
+      description: `Curated YouTube video support for ${resource.title}.`,
+      resource_type: 'video_embed',
+      source_name: channelName || 'YouTube',
+      source_url: `https://www.youtube.com/watch?v=${videoId}`,
+      embed_url: `https://www.youtube.com/embed/${videoId}`,
+      video_provider: 'youtube',
+      video_id: videoId,
+      video_search_query: query,
+      video_status: 'curated',
+      channel_name: channelName,
+      language: resource.language || 'hindi',
+      trust_level: 'general_reference',
+      content_md: null,
+      how_to_study: [
+        'Video ko concept support ke liye dekho.',
+        'Apne notes me 3 key points likho.',
+        'Video ke baad PrepAI Original Practice attempt karo.',
+      ],
+      priority: (resource.priority || 100) + 1,
+      is_active: true,
+      updated_at: now,
+    }, { onConflict: 'id' })
+
+  if (upsertError) throw upsertError
+
+  revalidatePath('/dashboard/tasks')
+  revalidatePath('/dashboard/resources/[resourceId]', 'page')
+  revalidatePath('/dashboard/admin/debug')
+
+  return {
+    success: true,
+    message: 'Curated YouTube video resource was saved as an embed-only companion resource.',
+    resourceId: videoResourceId,
+  }
 }
 
 export async function explainOriginalPracticeMistake(questionId: string): Promise<CoachActionResult> {

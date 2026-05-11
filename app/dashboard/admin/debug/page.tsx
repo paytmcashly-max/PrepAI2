@@ -14,6 +14,8 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { isAdminEmail } from '@/lib/admin-auth'
 import { getAdminDebugSnapshot } from '@/lib/queries'
+import { generateMissingResourcesForActivePlan } from '@/lib/actions'
+import { Button } from '@/components/ui/button'
 
 function MetricCard({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
   return (
@@ -36,7 +38,7 @@ function MetricTile({ label, value }: { label: string; value: string | number })
   )
 }
 
-export default async function AdminDebugPage() {
+export default async function AdminDebugPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -48,6 +50,10 @@ export default async function AdminDebugPage() {
     id: user.id,
     email: user.email,
   })
+  const params = searchParams ? await searchParams : {}
+  const resourceStatus = typeof params.resourceStatus === 'string' ? params.resourceStatus : null
+  const generatedResources = typeof params.resources === 'string' ? params.resources : null
+  const generatedQuestions = typeof params.questions === 'string' ? params.questions : null
 
   const planLabel = snapshot.activePlan
     ? `${snapshot.activePlan.examName} (${snapshot.activePlan.examId})`
@@ -135,6 +141,79 @@ export default async function AdminDebugPage() {
         <MetricCard label="Overdue Pending" value={snapshot.taskCounts.overduePending} />
         <MetricCard label="Mock Results" value={snapshot.mockResultCount} detail="Current user only" />
       </div>
+
+      <Card className="overflow-hidden">
+        <CardHeader>
+          <CardTitle>Auto Resource Coverage</CardTitle>
+          <CardDescription>Active-plan coverage for PrepAI notes, original practice, and curated video embeds.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {resourceStatus && (
+            <Alert>
+              <ClipboardList className="h-4 w-4" />
+              <AlertTitle>Resource generation result</AlertTitle>
+              <AlertDescription>
+                {resourceStatus === 'generated'
+                  ? `Generated/upserted ${generatedResources || 0} resources and ${generatedQuestions || 0} original practice questions.`
+                  : resourceStatus === 'no-active-plan'
+                    ? 'No active plan found for this user.'
+                    : 'No missing notes/practice chapters found in the current active plan.'}
+              </AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricTile label="Overall Coverage" value={`${snapshot.resourceCoverage.overallCoveragePercent}%`} />
+            <MetricTile label="Notes Coverage" value={`${snapshot.resourceCoverage.notesCoveragePercent}%`} />
+            <MetricTile label="Practice Coverage" value={`${snapshot.resourceCoverage.practiceCoveragePercent}%`} />
+            <MetricTile label="Video Embed Coverage" value={`${snapshot.resourceCoverage.videoCoveragePercent}%`} />
+            <MetricTile label="Missing Notes Tasks" value={snapshot.resourceCoverage.tasksMissingNotes} />
+            <MetricTile label="Missing Practice Tasks" value={snapshot.resourceCoverage.tasksMissingPractice} />
+            <MetricTile label="Missing Video Tasks" value={snapshot.resourceCoverage.tasksMissingVideo} />
+            <MetricTile label="Plan Tasks Audited" value={snapshot.resourceCoverage.totalTasks} />
+          </div>
+          <form action={generateMissingResourcesForActivePlan} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input type="hidden" name="targetUserId" value={snapshot.user.id} />
+            <Button type="submit" disabled={!snapshot.activePlan}>
+              Generate up to 10 missing resource packs
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Idempotent admin action. It creates PrepAI Original notes and up to 150 original MCQs per run; it does not curate videos.
+            </p>
+          </form>
+          {snapshot.resourceCoverage.missingChapters.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              No missing chapters found for active-plan notes/practice/video coverage.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Chapter</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead className="text-right">Tasks</TableHead>
+                    <TableHead className="text-right">No Notes</TableHead>
+                    <TableHead className="text-right">No Practice</TableHead>
+                    <TableHead className="text-right">No Video</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {snapshot.resourceCoverage.missingChapters.slice(0, 10).map((chapter) => (
+                    <TableRow key={`${chapter.examId}-${chapter.subjectId}-${chapter.chapterId || chapter.chapterName}`}>
+                      <TableCell className="min-w-0 max-w-64 break-words font-medium">{chapter.chapterName}</TableCell>
+                      <TableCell className="min-w-0 max-w-40 break-words">{chapter.subjectName}</TableCell>
+                      <TableCell className="text-right">{chapter.taskCount}</TableCell>
+                      <TableCell className="text-right">{chapter.missingNotesCount}</TableCell>
+                      <TableCell className="text-right">{chapter.missingPracticeCount}</TableCell>
+                      <TableCell className="text-right">{chapter.missingVideoCount}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="overflow-hidden">

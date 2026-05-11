@@ -36,6 +36,7 @@ import type {
   OriginalPracticeQuestion,
   OriginalPracticeAttempt,
   OriginalPracticeProgressSummary,
+  ResourceCoverageForActivePlan,
 } from '@/lib/types'
 
 function getCalendarDay(startDate: string) {
@@ -79,7 +80,9 @@ function dedupeTasks(tasks: UserDailyTask[]) {
   return [...tasksById.values()]
 }
 
-function resourceMatchesTask(resource: StudyResource, task: UserDailyTask) {
+type ResourceMatchTask = Pick<UserDailyTask, 'exam_id' | 'subject_id' | 'chapter_id' | 'task_type' | 'title'>
+
+function resourceMatchesTask(resource: StudyResource, task: ResourceMatchTask) {
   if (resource.exam_id && resource.exam_id !== task.exam_id) return false
   if (resource.subject_id && resource.subject_id !== task.subject_id) return false
   if (resource.chapter_id && resource.chapter_id !== task.chapter_id) return false
@@ -100,7 +103,15 @@ function resourceMatchScore(resource: StudyResource, task: UserDailyTask) {
   return 5
 }
 
-function questionMatchesTask(question: Pick<OriginalPracticeQuestion, 'exam_id' | 'subject_id' | 'chapter_id'>, task: UserDailyTask) {
+function resourceIsNote(resource: StudyResource) {
+  return ['concept_note', 'pdf_note', 'current_affairs', 'physical_training'].includes(resource.resource_type)
+}
+
+function resourceHasCuratedVideo(resource: StudyResource) {
+  return resource.resource_type === 'video_embed' && Boolean(resource.embed_url)
+}
+
+function questionMatchesTask(question: Pick<OriginalPracticeQuestion, 'exam_id' | 'subject_id' | 'chapter_id'>, task: Pick<UserDailyTask, 'exam_id' | 'subject_id' | 'chapter_id'>) {
   if (question.exam_id !== task.exam_id) return false
   if (question.subject_id !== task.subject_id) return false
   if (task.chapter_id && question.chapter_id !== task.chapter_id) return false
@@ -2123,6 +2134,131 @@ export async function getSidebarPlanSummary(userId: string): Promise<{
   }
 }
 
+export async function getResourceCoverageForActivePlan(userId: string): Promise<ResourceCoverageForActivePlan> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(userId)
+
+  const emptyCoverage: ResourceCoverageForActivePlan = {
+    activePlanId: plan?.id || null,
+    totalTasks: 0,
+    tasksWithNotes: 0,
+    tasksWithOriginalPractice: 0,
+    tasksWithVideoEmbed: 0,
+    tasksMissingNotes: 0,
+    tasksMissingPractice: 0,
+    tasksMissingVideo: 0,
+    notesCoveragePercent: 0,
+    practiceCoveragePercent: 0,
+    videoCoveragePercent: 0,
+    overallCoveragePercent: 0,
+    missingChapters: [],
+  }
+
+  if (!plan) return emptyCoverage
+
+  const [taskResult, resourceResult, questionResult] = await Promise.all([
+    supabase
+      .from('user_daily_tasks')
+      .select('id, exam_id, subject_id, chapter_id, task_type, title, subject:subjects(id, name), chapter:chapters(id, name)')
+      .eq('user_id', userId)
+      .eq('plan_id', plan.id),
+    supabase
+      .from('study_resources')
+      .select('*, subject:subjects(*), chapter:chapters(*)')
+      .eq('is_active', true),
+    supabase
+      .from('original_practice_questions')
+      .select('id, exam_id, subject_id, chapter_id')
+      .eq('exam_id', plan.exam_id)
+      .eq('is_active', true),
+  ])
+
+  if (taskResult.error) throw taskResult.error
+  if (resourceResult.error && resourceResult.error.code !== 'PGRST205') throw resourceResult.error
+  if (questionResult.error && questionResult.error.code !== 'PGRST205') throw questionResult.error
+
+  type CoverageTask = Pick<UserDailyTask, 'id' | 'exam_id' | 'subject_id' | 'chapter_id' | 'task_type' | 'title'> & {
+    subject: Pick<Subject, 'id' | 'name'> | Array<Pick<Subject, 'id' | 'name'>> | null
+    chapter: Pick<Chapter, 'id' | 'name'> | Array<Pick<Chapter, 'id' | 'name'>> | null
+  }
+
+  const tasks = ((taskResult.data || []) as unknown as CoverageTask[]).map((task) => ({
+    ...task,
+    subject: Array.isArray(task.subject) ? task.subject[0] || null : task.subject,
+    chapter: Array.isArray(task.chapter) ? task.chapter[0] || null : task.chapter,
+  }))
+  if (tasks.length === 0) return emptyCoverage
+
+  const resources = ((resourceResult.data || []) as StudyResource[]).map((resource) => ({
+    ...resource,
+    subject: Array.isArray(resource.subject) ? resource.subject[0] || null : resource.subject,
+    chapter: Array.isArray(resource.chapter) ? resource.chapter[0] || null : resource.chapter,
+  }))
+  const questions = (questionResult.data || []) as Pick<OriginalPracticeQuestion, 'id' | 'exam_id' | 'subject_id' | 'chapter_id'>[]
+  const missingByChapter = new Map<string, ResourceCoverageForActivePlan['missingChapters'][number]>()
+
+  let tasksWithNotes = 0
+  let tasksWithOriginalPractice = 0
+  let tasksWithVideoEmbed = 0
+
+  for (const task of tasks) {
+    const taskResources = resources.filter((resource) => resourceMatchesTask(resource, task))
+    const hasNotes = taskResources.some(resourceIsNote)
+    const hasPractice = questions.some((question) => questionMatchesTask(question, task))
+    const hasVideo = taskResources.some(resourceHasCuratedVideo)
+
+    if (hasNotes) tasksWithNotes += 1
+    if (hasPractice) tasksWithOriginalPractice += 1
+    if (hasVideo) tasksWithVideoEmbed += 1
+
+    if (!hasNotes || !hasPractice || !hasVideo) {
+      const key = `${task.exam_id}:${task.subject_id || 'general'}:${task.chapter_id || task.title}`
+      const existing = missingByChapter.get(key) || {
+        examId: task.exam_id,
+        subjectId: task.subject_id,
+        subjectName: task.subject?.name || task.subject_id || 'General',
+        chapterId: task.chapter_id,
+        chapterName: task.chapter?.name || task.title,
+        taskCount: 0,
+        missingNotesCount: 0,
+        missingPracticeCount: 0,
+        missingVideoCount: 0,
+      }
+
+      existing.taskCount += 1
+      if (!hasNotes) existing.missingNotesCount += 1
+      if (!hasPractice) existing.missingPracticeCount += 1
+      if (!hasVideo) existing.missingVideoCount += 1
+      missingByChapter.set(key, existing)
+    }
+  }
+
+  const totalTasks = tasks.length
+  const pct = (value: number) => Math.round((value / totalTasks) * 100)
+
+  return {
+    activePlanId: plan.id,
+    totalTasks,
+    tasksWithNotes,
+    tasksWithOriginalPractice,
+    tasksWithVideoEmbed,
+    tasksMissingNotes: totalTasks - tasksWithNotes,
+    tasksMissingPractice: totalTasks - tasksWithOriginalPractice,
+    tasksMissingVideo: totalTasks - tasksWithVideoEmbed,
+    notesCoveragePercent: pct(tasksWithNotes),
+    practiceCoveragePercent: pct(tasksWithOriginalPractice),
+    videoCoveragePercent: pct(tasksWithVideoEmbed),
+    overallCoveragePercent: Math.round(((tasksWithNotes + tasksWithOriginalPractice + tasksWithVideoEmbed) / (totalTasks * 3)) * 100),
+    missingChapters: [...missingByChapter.values()]
+      .sort((a, b) => (
+        (b.missingNotesCount + b.missingPracticeCount + b.missingVideoCount)
+        - (a.missingNotesCount + a.missingPracticeCount + a.missingVideoCount)
+        || b.taskCount - a.taskCount
+        || a.chapterName.localeCompare(b.chapterName)
+      )),
+  }
+}
+
 export async function getAdminDebugSnapshot(user: { id: string; email?: string | null }): Promise<AdminDebugSnapshot> {
   const supabase = await createClient()
   const plan = await getActiveStudyPlan(user.id)
@@ -2153,6 +2289,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     mockResultCountResult,
     weakAreas,
     revisionQueue,
+    resourceCoverage,
   ] = await Promise.all([
     supabase
       .from('user_study_plans')
@@ -2249,6 +2386,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       .eq('user_id', user.id),
     getWeakAreas(user.id),
     getRevisionQueue(user.id),
+    getResourceCoverageForActivePlan(user.id),
   ])
 
   if (archivedPlanResult.error) throw archivedPlanResult.error
@@ -2331,6 +2469,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
         incorrectAttempts: incorrectOriginalAttemptCountResult.count || 0,
         markedForRevision: markedOriginalRevisionCountResult.count || 0,
       },
+      resourceCoverage,
       mockResultCount: mockResultCountResult.count || 0,
     }
   }
@@ -2454,6 +2593,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       incorrectAttempts: incorrectOriginalAttemptCountResult.count || 0,
       markedForRevision: markedOriginalRevisionCountResult.count || 0,
     },
+    resourceCoverage,
     mockResultCount: mockResultCountResult.count || 0,
   }
 }

@@ -126,6 +126,9 @@ export interface StudyResource {
   embed_url: string | null
   video_provider: string | null
   video_id: string | null
+  video_search_query?: string | null
+  video_status?: 'not_curated' | 'curated' | 'unavailable'
+  channel_name?: string | null
   language: string
   trust_level: StudyResourceTrustLevel
   content_md: string | null
@@ -185,6 +188,34 @@ export interface TaskStudyResourceSummary {
     fact_practice: number
     concept_practice: number
   }
+}
+
+export interface ResourceCoverageMissingChapter {
+  examId: string
+  subjectId: string | null
+  subjectName: string
+  chapterId: string | null
+  chapterName: string
+  taskCount: number
+  missingNotesCount: number
+  missingPracticeCount: number
+  missingVideoCount: number
+}
+
+export interface ResourceCoverageForActivePlan {
+  activePlanId: string | null
+  totalTasks: number
+  tasksWithNotes: number
+  tasksWithOriginalPractice: number
+  tasksWithVideoEmbed: number
+  tasksMissingNotes: number
+  tasksMissingPractice: number
+  tasksMissingVideo: number
+  notesCoveragePercent: number
+  practiceCoveragePercent: number
+  videoCoveragePercent: number
+  overallCoveragePercent: number
+  missingChapters: ResourceCoverageMissingChapter[]
 }
 
 export interface OriginalPracticeProgressSummary {
@@ -609,6 +640,7 @@ export interface AdminDebugSnapshot {
     incorrectAttempts: number
     markedForRevision: number
   }
+  resourceCoverage: ResourceCoverageForActivePlan
   mockResultCount: number
 }
 

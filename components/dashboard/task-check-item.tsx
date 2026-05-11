@@ -41,7 +41,12 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
   const resources = task.studyResources || []
   const practiceSummary = task.originalPracticeSummary
   const noteResources = resources.filter((resource) => resource.resource_type === 'concept_note' || resource.resource_type === 'pdf_note' || resource.resource_type === 'current_affairs' || resource.resource_type === 'physical_training')
-  const videoResource = resources.find((resource) => resource.resource_type === 'video_embed')
+  const videoResource = resources.find((resource) => resource.embed_url && resource.video_status === 'curated')
+    || resources.find((resource) => resource.resource_type === 'video_embed')
+  const videoSearchResource = resources.find((resource) => resource.video_search_query)
+  const youtubeSearchUrl = videoSearchResource?.video_search_query
+    ? `https://www.youtube.com/results?search_query=${encodeURIComponent(videoSearchResource.video_search_query)}`
+    : null
   const practiceHref = `/dashboard/practice/original?exam=${encodeURIComponent(task.exam_id)}${task.subject_id ? `&subject=${encodeURIComponent(task.subject_id)}` : ''}${task.chapter_id ? `&chapter=${encodeURIComponent(task.chapter_id)}` : ''}`
   const practiceCategories = practiceSummary?.practiceCategoryCounts
   const hasPractice = (practiceSummary?.availableQuestionCount || 0) > 0
@@ -105,7 +110,7 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
                 <Badge variant="outline" className="whitespace-normal break-words text-xs">Auto Resource Pack</Badge>
               </div>
 
-              {noteResources.length > 0 || (practiceSummary?.availableQuestionCount || 0) > 0 || videoResource ? (
+              {noteResources.length > 0 || (practiceSummary?.availableQuestionCount || 0) > 0 || videoResource || youtubeSearchUrl ? (
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="min-w-0 rounded-md border bg-background p-3">
                     <p className="mb-1 break-words text-sm font-medium">PrepAI Short Notes</p>
@@ -128,11 +133,18 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
                       <PlayCircle className="h-4 w-4 text-muted-foreground" />
                       <p className="break-words text-sm font-medium">Video</p>
                     </div>
-                    {videoResource ? (
+                    {videoResource?.embed_url ? (
                       <>
                         <p className="line-clamp-2 break-words text-xs leading-relaxed text-muted-foreground">{videoResource.title}</p>
                         <Button asChild size="sm" variant="outline" className="mt-3 w-full">
                           <Link href={`/dashboard/resources/${videoResource.id}`}>Watch in app</Link>
+                        </Button>
+                      </>
+                    ) : youtubeSearchUrl ? (
+                      <>
+                        <p className="break-words text-xs leading-relaxed text-muted-foreground">Video not curated yet. Open a YouTube search for this topic.</p>
+                        <Button asChild size="sm" variant="outline" className="mt-3 w-full">
+                          <a href={youtubeSearchUrl} target="_blank" rel="noopener noreferrer">Find video</a>
                         </Button>
                       </>
                     ) : (

@@ -399,6 +399,24 @@ Current Affairs practice labeling smoke QA on 2026-05-11:
 - Verified PYQ source trust rules were unchanged and official verified PYQ count stayed `0`.
 - No fake latest facts were added, no video seed was added, no third-party content was scraped/imported, and no third-party MCQs were added.
 
+Auto Resource Coverage Expansion QA on 2026-05-11:
+
+- Added and applied `supabase/migrations/20260511090000_resource_coverage_expansion.sql`.
+- Migration smoke result after correction: `study_resources = 79`, `original_practice_questions = 770`, `resources_with_video_search = 79`, `curated_videos = 0`, `auto_resources = 67`, `auto_questions = 650`.
+- Before this expansion the starter pack had `study_resources = 12` and `original_practice_questions = 120`; expansion added deterministic PrepAI Original coverage for common next-7-day topics without third-party MCQ/PDF content.
+- Added deterministic resource draft helper for missing active-plan chapters. It creates PrepAI Original notes, how-to-study steps, 10 original questions, safe practice categories, and YouTube search text without marking anything as PYQ.
+- Added admin-only missing-resource action with per-run limits: max `10` chapter/resource packs and max `150` questions. It upserts deterministic IDs, so repeated runs should not duplicate rows.
+- Added admin debug coverage section for active-plan resource coverage: overall coverage, notes coverage, practice coverage, curated-video coverage, and top missing chapters.
+- Added video search fallback fields: `video_search_query`, `video_status`, and `channel_name`. No videos were downloaded, rehosted, or seeded. Curated video count remains `0`.
+- Added an admin-only `curateVideoForResource()` action guarded by `YOUTUBE_DATA_API_KEY`; if the key is absent it returns a graceful unavailable result and keeps YouTube search fallback available.
+- Daily task Study Material now shows Notes, Practice, and Video states: curated embed when available, otherwise `Find video` from safe YouTube search text, otherwise `Video not available yet`.
+- Resource viewer now shows an Open YouTube search card when a resource has `video_search_query` but no curated embed.
+- Direct live Supabase verification passed for expansion counts and starter content growth.
+- Authenticated route smoke was attempted against local `next start`, but Supabase Auth admin/user endpoints intermittently returned `Connect Timeout Error` from this shell during disposable-user creation/sign-in. Because of that network/auth instability, click-level authenticated coverage for this specific expansion is recorded as partially blocked rather than passed.
+- Previous authenticated Auto Resource Pack smoke remains valid for Day 1 notes/practice, original attempts, revision queue, dashboard widget, and PYQ separation.
+- PYQ trust rules were unchanged; PrepAI Original Practice remains labeled `Not Official PYQ`.
+- No fake latest Current Affairs facts were added. Current Affairs generated/starter questions remain study-method practice unless future verified/source-based monthly content is provided.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
