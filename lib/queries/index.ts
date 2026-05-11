@@ -31,6 +31,11 @@ import type {
   BacklogData,
   BacklogTaskGroup,
   AdminDebugSnapshot,
+  StudyResource,
+  TaskStudyResourceSummary,
+  OriginalPracticeQuestion,
+  OriginalPracticeAttempt,
+  OriginalPracticeProgressSummary,
 } from '@/lib/types'
 
 function getCalendarDay(startDate: string) {
@@ -74,6 +79,110 @@ function dedupeTasks(tasks: UserDailyTask[]) {
   return [...tasksById.values()]
 }
 
+function resourceMatchesTask(resource: StudyResource, task: UserDailyTask) {
+  if (resource.exam_id && resource.exam_id !== task.exam_id) return false
+  if (resource.subject_id && resource.subject_id !== task.subject_id) return false
+  if (resource.chapter_id && resource.chapter_id !== task.chapter_id) return false
+
+  const isFallbackType =
+    (task.task_type === 'physical' && resource.resource_type === 'physical_training')
+    || (task.task_type === 'revision' && resource.resource_type === 'concept_note')
+    || (task.title.toLowerCase().includes('current') && resource.resource_type === 'current_affairs')
+
+  return Boolean(resource.subject_id || resource.chapter_id || isFallbackType)
+}
+
+function resourceMatchScore(resource: StudyResource, task: UserDailyTask) {
+  if (resource.exam_id === task.exam_id && resource.subject_id === task.subject_id && resource.chapter_id === task.chapter_id) return 1
+  if (!resource.exam_id && resource.subject_id === task.subject_id && resource.chapter_id === task.chapter_id) return 2
+  if (resource.exam_id === task.exam_id && resource.subject_id === task.subject_id && !resource.chapter_id) return 3
+  if (!resource.exam_id && resource.subject_id === task.subject_id && !resource.chapter_id) return 4
+  return 5
+}
+
+function questionMatchesTask(question: Pick<OriginalPracticeQuestion, 'exam_id' | 'subject_id' | 'chapter_id'>, task: UserDailyTask) {
+  if (question.exam_id !== task.exam_id) return false
+  if (question.subject_id !== task.subject_id) return false
+  if (task.chapter_id && question.chapter_id !== task.chapter_id) return false
+  return true
+}
+
+async function enrichTasksWithStudyData(userId: string, tasks: UserDailyTask[]): Promise<UserDailyTask[]> {
+  if (tasks.length === 0) return tasks
+
+  const supabase = await createClient()
+  const examIds = [...new Set(tasks.map((task) => task.exam_id).filter(Boolean))]
+  const subjectIds = [...new Set(tasks.map((task) => task.subject_id).filter(Boolean) as string[])]
+
+  const [resourcesResult, questionsResult] = await Promise.all([
+    supabase
+      .from('study_resources')
+      .select('*, subject:subjects(*), chapter:chapters(*)')
+      .eq('is_active', true)
+      .order('priority', { ascending: true }),
+    supabase
+      .from('original_practice_questions')
+      .select('id, exam_id, subject_id, chapter_id')
+      .eq('is_active', true)
+      .in('exam_id', examIds.length > 0 ? examIds : ['__none__'])
+      .in('subject_id', subjectIds.length > 0 ? subjectIds : ['__none__']),
+  ])
+
+  if (resourcesResult.error && resourcesResult.error.code !== 'PGRST205') throw resourcesResult.error
+  if (questionsResult.error && questionsResult.error.code !== 'PGRST205') throw questionsResult.error
+
+  const resources = ((resourcesResult.data || []) as StudyResource[]).map((resource) => ({
+    ...resource,
+    subject: Array.isArray(resource.subject) ? resource.subject[0] || null : resource.subject,
+    chapter: Array.isArray(resource.chapter) ? resource.chapter[0] || null : resource.chapter,
+  }))
+  const questions = (questionsResult.data || []) as Pick<OriginalPracticeQuestion, 'id' | 'exam_id' | 'subject_id' | 'chapter_id'>[]
+  const questionIds = questions.map((question) => question.id)
+  const { data: attempts, error: attemptsError } = questionIds.length > 0
+    ? await supabase
+        .from('original_practice_attempts')
+        .select('question_id, selected_answer, is_correct, marked_for_revision')
+        .eq('user_id', userId)
+        .in('question_id', questionIds)
+    : { data: [], error: null }
+
+  if (attemptsError) throw attemptsError
+
+  const attemptsByQuestionId = new Map(
+    ((attempts || []) as Array<Pick<OriginalPracticeAttempt, 'question_id' | 'selected_answer' | 'is_correct' | 'marked_for_revision'>>)
+      .map((attempt) => [attempt.question_id, attempt])
+  )
+
+  return tasks.map((task) => {
+    const taskQuestions = questions.filter((question) => questionMatchesTask(question, task))
+    const summary: TaskStudyResourceSummary = {
+      availableQuestionCount: taskQuestions.length,
+      attemptedCount: 0,
+      incorrectCount: 0,
+      markedForRevisionCount: 0,
+    }
+
+    for (const question of taskQuestions) {
+      const attempt = attemptsByQuestionId.get(question.id)
+      if (!attempt) continue
+      if (attempt.selected_answer) summary.attemptedCount += 1
+      if (attempt.is_correct === false) summary.incorrectCount += 1
+      if (attempt.marked_for_revision) summary.markedForRevisionCount += 1
+    }
+
+    const matchedResources = resources
+      .filter((resource) => resourceMatchesTask(resource, task))
+      .sort((a, b) => resourceMatchScore(a, task) - resourceMatchScore(b, task) || a.priority - b.priority || a.title.localeCompare(b.title))
+      .slice(0, 5)
+
+    return {
+      ...task,
+      studyResources: matchedResources,
+      originalPracticeSummary: summary,
+    }
+  })
+}
+
 function adaptiveRecommendationId(chapterId: string | null, subjectId: string | null, questionId: string) {
   if (chapterId) return `chapter:${chapterId}`
   if (subjectId) return `subject:${subjectId}`
@@ -92,6 +201,7 @@ export async function getActiveStudyPlan(userId: string): Promise<UserStudyPlan 
     .single()
 
   if (isMissingSingleRow(error) || !plan) return null
+  if (error?.code === 'PGRST205') return null
   if (error) throw error
   return plan
 }
@@ -274,7 +384,8 @@ export async function getAllTasksWithPlans(): Promise<DayTaskGroup[]> {
   if (tasksError?.code === 'PGRST205') return []
   if (tasksError) throw tasksError
 
-  const grouped = ((tasks || []) as UserDailyTask[]).reduce((acc, task) => {
+  const enrichedTasks = await enrichTasksWithStudyData(user.id, (tasks || []) as UserDailyTask[])
+  const grouped = enrichedTasks.reduce((acc, task) => {
     acc[task.day_number] = acc[task.day_number] || []
     acc[task.day_number].push(task)
     return acc
@@ -301,7 +412,7 @@ export async function getTodayTaskGroup(userId: string): Promise<DayTaskGroup | 
 
   if (error) throw error
 
-  const todayTasks = dedupeTasks((tasks || []) as UserDailyTask[])
+  const todayTasks = await enrichTasksWithStudyData(userId, dedupeTasks((tasks || []) as UserDailyTask[]))
   return {
     ...buildDayTaskGroup(plan, currentDay, todayTasks),
     id: `${plan.id}-today`,
@@ -772,6 +883,184 @@ export async function getPYQFilterData(): Promise<{
     subjects,
     chapters: (chaptersResult.data || []) as Chapter[],
     years: yearsResult,
+  }
+}
+
+// ============ AUTO RESOURCE PACK + ORIGINAL PRACTICE ============
+export async function getTaskStudyResources(task: UserDailyTask, userId?: string): Promise<{
+  resources: StudyResource[]
+  summary: TaskStudyResourceSummary
+}> {
+  const [enriched] = await enrichTasksWithStudyData(userId || task.user_id, [task])
+  return {
+    resources: enriched?.studyResources || [],
+    summary: enriched?.originalPracticeSummary || {
+      availableQuestionCount: 0,
+      attemptedCount: 0,
+      incorrectCount: 0,
+      markedForRevisionCount: 0,
+    },
+  }
+}
+
+export async function getStudyResourceById(resourceId: string): Promise<StudyResource | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('study_resources')
+    .select('*, subject:subjects(*), chapter:chapters(*), exam:exams(*)')
+    .eq('id', resourceId)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+  return {
+    ...(data as StudyResource),
+    subject: Array.isArray(data.subject) ? data.subject[0] || null : data.subject,
+    chapter: Array.isArray(data.chapter) ? data.chapter[0] || null : data.chapter,
+    exam: Array.isArray(data.exam) ? data.exam[0] || null : data.exam,
+  }
+}
+
+export async function getOriginalPracticeQuestions(filters?: {
+  examId?: string
+  subjectId?: string
+  chapterId?: string
+  difficulty?: string
+  userId?: string
+}): Promise<OriginalPracticeQuestion[]> {
+  const supabase = await createClient()
+  let query = supabase
+    .from('original_practice_questions')
+    .select('*, subject:subjects(*), chapter:chapters(*), exam:exams(*)')
+    .eq('is_active', true)
+    .order('exam_id')
+    .order('subject_id')
+    .order('created_at')
+
+  if (filters?.examId) query = query.eq('exam_id', filters.examId)
+  if (filters?.subjectId) query = query.eq('subject_id', filters.subjectId)
+  if (filters?.chapterId) query = query.eq('chapter_id', filters.chapterId)
+  if (filters?.difficulty) query = query.eq('difficulty', filters.difficulty)
+
+  const { data, error } = await query
+  if (error?.code === 'PGRST205') return []
+  if (error) throw error
+
+  const questions = ((data || []) as OriginalPracticeQuestion[]).map((question) => ({
+    ...question,
+    subject: Array.isArray(question.subject) ? question.subject[0] || null : question.subject,
+    chapter: Array.isArray(question.chapter) ? question.chapter[0] || null : question.chapter,
+    exam: Array.isArray(question.exam) ? question.exam[0] || null : question.exam,
+  }))
+
+  if (!filters?.userId || questions.length === 0) return questions
+
+  const { data: attempts, error: attemptsError } = await supabase
+    .from('original_practice_attempts')
+    .select('*')
+    .eq('user_id', filters.userId)
+    .in('question_id', questions.map((question) => question.id))
+
+  if (attemptsError) throw attemptsError
+
+  const attemptsByQuestionId = new Map(
+    ((attempts || []) as OriginalPracticeAttempt[]).map((attempt) => [attempt.question_id, attempt])
+  )
+
+  return questions.map((question) => ({
+    ...question,
+    attempt: attemptsByQuestionId.get(question.id) || null,
+  }))
+}
+
+export async function getOriginalPracticeFilterData(): Promise<{
+  exams: Exam[]
+  subjects: Subject[]
+  chapters: Chapter[]
+}> {
+  const supabase = await createClient()
+  const [exams, subjects, chaptersResult] = await Promise.all([
+    getMasterExams(),
+    getSubjects(),
+    supabase
+      .from('chapters')
+      .select('*')
+      .order('exam_id')
+      .order('subject_id')
+      .order('order_index'),
+  ])
+
+  if (chaptersResult.error) throw chaptersResult.error
+
+  return {
+    exams,
+    subjects,
+    chapters: (chaptersResult.data || []) as Chapter[],
+  }
+}
+
+export async function getOriginalPracticeProgressSummary(userId: string): Promise<OriginalPracticeProgressSummary> {
+  const supabase = await createClient()
+  const { data: questionRows, error: questionError } = await supabase
+    .from('original_practice_questions')
+    .select('id')
+    .eq('is_active', true)
+
+  if (questionError?.code === 'PGRST205') {
+    return {
+      totalQuestions: 0,
+      attemptedCount: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      accuracyPercentage: 0,
+      markedForRevisionCount: 0,
+    }
+  }
+  if (questionError) throw questionError
+  const questionIds = (questionRows || []).map((question) => question.id as string)
+  if (questionIds.length === 0) {
+    return {
+      totalQuestions: 0,
+      attemptedCount: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      accuracyPercentage: 0,
+      markedForRevisionCount: 0,
+    }
+  }
+
+  const { data: attempts, error: attemptsError } = await supabase
+    .from('original_practice_attempts')
+    .select('*')
+    .eq('user_id', userId)
+    .in('question_id', questionIds)
+
+  if (attemptsError?.code === 'PGRST205') {
+    return {
+      totalQuestions: questionIds.length,
+      attemptedCount: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      accuracyPercentage: 0,
+      markedForRevisionCount: 0,
+    }
+  }
+  if (attemptsError) throw attemptsError
+
+  const rows = (attempts || []) as OriginalPracticeAttempt[]
+  const attempted = rows.filter((attempt) => Boolean(attempt.selected_answer))
+  const correctCount = attempted.filter((attempt) => attempt.is_correct === true).length
+  const incorrectCount = attempted.filter((attempt) => attempt.is_correct === false).length
+  const markedForRevisionCount = rows.filter((attempt) => attempt.marked_for_revision).length
+
+  return {
+    totalQuestions: questionIds.length,
+    attemptedCount: attempted.length,
+    correctCount,
+    incorrectCount,
+    accuracyPercentage: attempted.length > 0 ? Math.round((correctCount / attempted.length) * 100) : 0,
+    markedForRevisionCount,
   }
 }
 
@@ -1376,6 +1665,7 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
       mockWeakAreas: [],
       adaptiveRecommendations: [],
       pyqRevisionItems: [],
+      originalPracticeRevisionItems: [],
       currentWeekRevisionTasks: [],
       suggestedOrder: [],
     }
@@ -1558,6 +1848,92 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
     .slice(0, 10)
 
+  const { data: originalAttemptRows, error: originalAttemptError } = await supabase
+    .from('original_practice_attempts')
+    .select(`
+      id,
+      question_id,
+      is_correct,
+      marked_for_revision,
+      mistake_note,
+      attempted_at,
+      question:original_practice_questions(
+        id,
+        exam_id,
+        subject_id,
+        chapter_id,
+        question,
+        subject:subjects(id, name),
+        chapter:chapters(id, name)
+      )
+    `)
+    .eq('user_id', userId)
+    .or('is_correct.eq.false,marked_for_revision.eq.true')
+    .order('updated_at', { ascending: false })
+    .limit(20)
+
+  if (originalAttemptError && originalAttemptError.code !== 'PGRST205') throw originalAttemptError
+
+  type RevisionOriginalAttemptRow = {
+    id: string
+    question_id: string
+    is_correct: boolean | null
+    marked_for_revision: boolean
+    mistake_note: string | null
+    attempted_at: string
+    question: {
+      id: string
+      exam_id: string
+      subject_id: string
+      chapter_id: string | null
+      question: string
+      subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+      chapter: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    } | Array<{
+      id: string
+      exam_id: string
+      subject_id: string
+      chapter_id: string | null
+      question: string
+      subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+      chapter: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    }> | null
+  }
+
+  const originalPracticeRevisionItems = ((originalAttemptRows || []) as unknown as RevisionOriginalAttemptRow[])
+    .map((row) => {
+      const question = Array.isArray(row.question) ? row.question[0] || null : row.question
+      if (!question || question.exam_id !== plan.exam_id) return null
+      const subject = Array.isArray(question.subject) ? question.subject[0] || null : question.subject
+      const chapter = Array.isArray(question.chapter) ? question.chapter[0] || null : question.chapter
+      const reason = row.is_correct === false && row.marked_for_revision
+        ? 'Incorrect original practice and marked for revision'
+        : row.is_correct === false
+          ? 'Incorrect original practice'
+          : 'Marked for revision'
+
+      return {
+        id: row.id,
+        questionId: question.id,
+        question: question.question,
+        subject_id: question.subject_id,
+        subject_name: subject?.name || question.subject_id,
+        chapter_id: question.chapter_id,
+        chapter_name: chapter?.name || null,
+        mistake_note: row.mistake_note,
+        reason,
+        priority: row.is_correct === false ? 'high' as const : 'medium' as const,
+        marked_for_revision: row.marked_for_revision,
+        is_correct: row.is_correct,
+        attempted_at: row.attempted_at,
+        actionTarget: row.is_correct === false
+          ? `/dashboard/practice/original?attempt=incorrect#opq-${question.id}`
+          : `/dashboard/practice/original?attempt=marked#opq-${question.id}`,
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .slice(0, 10)
+
   const suggestedOrder = [
     ...overdueTasks.slice(0, 3).map((task) => ({
       id: `overdue-${task.id}`,
@@ -1587,6 +1963,13 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
       priority: item.priority,
       actionTarget: item.actionTarget,
     })),
+    ...originalPracticeRevisionItems.slice(0, 3).map((item) => ({
+      id: `original-${item.id}`,
+      title: item.question.length > 80 ? `${item.question.slice(0, 80)}...` : item.question,
+      reason: item.reason,
+      priority: item.priority,
+      actionTarget: item.actionTarget,
+    })),
     ...currentWeekRevisionTasks.slice(0, 3).map((task) => ({
       id: `revision-${task.id}`,
       title: task.title,
@@ -1604,6 +1987,7 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
     mockWeakAreas,
     adaptiveRecommendations,
     pyqRevisionItems,
+    originalPracticeRevisionItems,
     currentWeekRevisionTasks,
     suggestedOrder,
   }
@@ -1748,6 +2132,12 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     pyqAttemptCountResult,
     incorrectPyqAttemptCountResult,
     markedPyqRevisionCountResult,
+    studyResourceCountResult,
+    activeStudyResourceCountResult,
+    originalQuestionCountResult,
+    originalAttemptCountResult,
+    incorrectOriginalAttemptCountResult,
+    markedOriginalRevisionCountResult,
     mockResultCountResult,
     weakAreas,
     revisionQueue,
@@ -1818,6 +2208,30 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       .eq('user_id', user.id)
       .eq('marked_for_revision', true),
     supabase
+      .from('study_resources')
+      .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('study_resources')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true),
+    supabase
+      .from('original_practice_questions')
+      .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('original_practice_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    supabase
+      .from('original_practice_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_correct', false),
+    supabase
+      .from('original_practice_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('marked_for_revision', true),
+    supabase
       .from('mock_tests')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id),
@@ -1840,6 +2254,12 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
   if (pyqAttemptCountResult.error) throw pyqAttemptCountResult.error
   if (incorrectPyqAttemptCountResult.error) throw incorrectPyqAttemptCountResult.error
   if (markedPyqRevisionCountResult.error) throw markedPyqRevisionCountResult.error
+  if (studyResourceCountResult.error && studyResourceCountResult.error.code !== 'PGRST205') throw studyResourceCountResult.error
+  if (activeStudyResourceCountResult.error && activeStudyResourceCountResult.error.code !== 'PGRST205') throw activeStudyResourceCountResult.error
+  if (originalQuestionCountResult.error && originalQuestionCountResult.error.code !== 'PGRST205') throw originalQuestionCountResult.error
+  if (originalAttemptCountResult.error && originalAttemptCountResult.error.code !== 'PGRST205') throw originalAttemptCountResult.error
+  if (incorrectOriginalAttemptCountResult.error && incorrectOriginalAttemptCountResult.error.code !== 'PGRST205') throw incorrectOriginalAttemptCountResult.error
+  if (markedOriginalRevisionCountResult.error && markedOriginalRevisionCountResult.error.code !== 'PGRST205') throw markedOriginalRevisionCountResult.error
   if (mockResultCountResult.error) throw mockResultCountResult.error
 
   const emptyTaskCounts = {
@@ -1869,6 +2289,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
         mockWeakAreas: revisionQueue.mockWeakAreas.length,
         adaptiveRecommendations: revisionQueue.adaptiveRecommendations.length,
         pyqRevisionItems: revisionQueue.pyqRevisionItems.length,
+        originalPracticeRevisionItems: revisionQueue.originalPracticeRevisionItems.length,
         currentWeekRevisionTasks: revisionQueue.currentWeekRevisionTasks.length,
         suggestedOrder: revisionQueue.suggestedOrder.length,
       },
@@ -1889,6 +2310,14 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
         total: pyqAttemptCountResult.count || 0,
         incorrect: incorrectPyqAttemptCountResult.count || 0,
         markedForRevision: markedPyqRevisionCountResult.count || 0,
+      },
+      originalPracticeCounts: {
+        resourcesTotal: studyResourceCountResult.count || 0,
+        resourcesActive: activeStudyResourceCountResult.count || 0,
+        questionsTotal: originalQuestionCountResult.count || 0,
+        attemptsTotal: originalAttemptCountResult.count || 0,
+        incorrectAttempts: incorrectOriginalAttemptCountResult.count || 0,
+        markedForRevision: markedOriginalRevisionCountResult.count || 0,
       },
       mockResultCount: mockResultCountResult.count || 0,
     }
@@ -1983,6 +2412,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       mockWeakAreas: revisionQueue.mockWeakAreas.length,
       adaptiveRecommendations: revisionQueue.adaptiveRecommendations.length,
       pyqRevisionItems: revisionQueue.pyqRevisionItems.length,
+      originalPracticeRevisionItems: revisionQueue.originalPracticeRevisionItems.length,
       currentWeekRevisionTasks: revisionQueue.currentWeekRevisionTasks.length,
       suggestedOrder: revisionQueue.suggestedOrder.length,
     },
@@ -2003,6 +2433,14 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       total: pyqAttemptCountResult.count || 0,
       incorrect: incorrectPyqAttemptCountResult.count || 0,
       markedForRevision: markedPyqRevisionCountResult.count || 0,
+    },
+    originalPracticeCounts: {
+      resourcesTotal: studyResourceCountResult.count || 0,
+      resourcesActive: activeStudyResourceCountResult.count || 0,
+      questionsTotal: originalQuestionCountResult.count || 0,
+      attemptsTotal: originalAttemptCountResult.count || 0,
+      incorrectAttempts: incorrectOriginalAttemptCountResult.count || 0,
+      markedForRevision: markedOriginalRevisionCountResult.count || 0,
     },
     mockResultCount: mockResultCountResult.count || 0,
   }

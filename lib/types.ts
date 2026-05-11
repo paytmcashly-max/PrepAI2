@@ -94,6 +94,100 @@ export interface UserDailyTask {
   created_at: string
   subject?: Subject | null
   chapter?: Chapter | null
+  studyResources?: StudyResource[]
+  originalPracticeSummary?: TaskStudyResourceSummary
+}
+
+export type StudyResourceType =
+  | 'concept_note'
+  | 'pdf_note'
+  | 'video_embed'
+  | 'external_link'
+  | 'mcq_practice'
+  | 'current_affairs'
+  | 'physical_training'
+
+export type StudyResourceTrustLevel =
+  | 'prepai_original'
+  | 'official'
+  | 'trusted_third_party'
+  | 'general_reference'
+
+export interface StudyResource {
+  id: string
+  exam_id: string | null
+  subject_id: string | null
+  chapter_id: string | null
+  title: string
+  description: string | null
+  resource_type: StudyResourceType
+  source_name: string
+  source_url: string | null
+  embed_url: string | null
+  video_provider: string | null
+  video_id: string | null
+  language: string
+  trust_level: StudyResourceTrustLevel
+  content_md: string | null
+  how_to_study: string[]
+  priority: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  subject?: Subject | null
+  chapter?: Chapter | null
+  exam?: Exam | null
+}
+
+export interface OriginalPracticeQuestion {
+  id: string
+  exam_id: string
+  subject_id: string
+  chapter_id: string | null
+  question: string
+  options: string[]
+  answer: string
+  explanation: string | null
+  difficulty: 'easy' | 'medium' | 'hard'
+  language: string
+  source_type: 'prepai_original'
+  exam_pattern_note: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  subject?: Subject | null
+  chapter?: Chapter | null
+  exam?: Exam | null
+  attempt?: OriginalPracticeAttempt | null
+}
+
+export interface OriginalPracticeAttempt {
+  id: string
+  user_id: string
+  question_id: string
+  selected_answer: string | null
+  is_correct: boolean | null
+  marked_for_revision: boolean
+  mistake_note: string | null
+  attempted_at: string
+  updated_at: string
+  question?: OriginalPracticeQuestion | null
+}
+
+export interface TaskStudyResourceSummary {
+  availableQuestionCount: number
+  attemptedCount: number
+  incorrectCount: number
+  markedForRevisionCount: number
+}
+
+export interface OriginalPracticeProgressSummary {
+  totalQuestions: number
+  attemptedCount: number
+  correctCount: number
+  incorrectCount: number
+  accuracyPercentage: number
+  markedForRevisionCount: number
 }
 
 export interface MockTest {
@@ -399,6 +493,22 @@ export interface RevisionQueueData {
     attempted_at: string
     actionTarget: string
   }>
+  originalPracticeRevisionItems: Array<{
+    id: string
+    questionId: string
+    question: string
+    subject_id: string | null
+    subject_name: string | null
+    chapter_id: string | null
+    chapter_name: string | null
+    mistake_note: string | null
+    reason: string
+    priority: 'low' | 'medium' | 'high'
+    marked_for_revision: boolean
+    is_correct: boolean | null
+    attempted_at: string
+    actionTarget: string
+  }>
   currentWeekRevisionTasks: UserDailyTask[]
   suggestedOrder: RevisionQueueItem[]
 }
@@ -463,6 +573,7 @@ export interface AdminDebugSnapshot {
     mockWeakAreas: number
     adaptiveRecommendations: number
     pyqRevisionItems: number
+    originalPracticeRevisionItems: number
     currentWeekRevisionTasks: number
     suggestedOrder: number
   }
@@ -482,6 +593,14 @@ export interface AdminDebugSnapshot {
   pyqAttemptCounts: {
     total: number
     incorrect: number
+    markedForRevision: number
+  }
+  originalPracticeCounts: {
+    resourcesTotal: number
+    resourcesActive: number
+    questionsTotal: number
+    attemptsTotal: number
+    incorrectAttempts: number
     markedForRevision: number
   }
   mockResultCount: number

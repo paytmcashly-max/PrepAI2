@@ -1105,6 +1105,14 @@ function revalidatePYQAttemptSurfaces() {
   revalidatePath('/dashboard/admin/debug', 'page')
 }
 
+function revalidateOriginalPracticeSurfaces() {
+  revalidatePath('/dashboard/practice/original', 'page')
+  revalidatePath('/dashboard/revision', 'page')
+  revalidatePath('/dashboard/tasks', 'page')
+  revalidatePath('/dashboard', 'page')
+  revalidatePath('/dashboard/admin/debug', 'page')
+}
+
 const coachWarning = 'AI explanation may be imperfect; source label remains authoritative.'
 
 function trimCoachText(text: string, max = 1800) {
@@ -1378,6 +1386,196 @@ export async function clearPYQAttempt(questionId: string) {
 
   revalidatePYQAttemptSurfaces()
   return { success: true }
+}
+
+// ============ PREPAI ORIGINAL PRACTICE ATTEMPTS ============
+async function assertOriginalPracticeQuestionForAttempt(questionId: string) {
+  const supabase = await createClient()
+  const id = questionId?.trim()
+  if (!id) throw new Error('Question ID is required.')
+
+  const { data: question, error } = await supabase
+    .from('original_practice_questions')
+    .select('id, question, answer, options, explanation, exam_id, subject_id, chapter_id, is_active')
+    .eq('id', id)
+    .eq('is_active', true)
+    .single()
+
+  if (error || !question) {
+    throw new Error('Original practice question was not found.')
+  }
+
+  return { supabase, question }
+}
+
+export async function submitOriginalPracticeAttempt(questionId: string, selectedAnswer: string, mistakeNote?: string | null) {
+  const { supabase, question } = await assertOriginalPracticeQuestionForAttempt(questionId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const answer = selectedAnswer?.trim()
+  if (!answer) throw new Error('Please select an answer.')
+  if (!question.answer?.trim()) throw new Error('This practice question does not have an answer yet.')
+
+  const { data: existing, error: existingError } = await supabase
+    .from('original_practice_attempts')
+    .select('id, marked_for_revision')
+    .eq('user_id', user.id)
+    .eq('question_id', question.id)
+    .maybeSingle()
+
+  if (existingError) throw existingError
+
+  const now = new Date().toISOString()
+  const isCorrect = pyqAnswersMatch(answer, question.answer, Array.isArray(question.options) ? question.options : [])
+  const payload = {
+    user_id: user.id,
+    question_id: question.id,
+    selected_answer: answer,
+    is_correct: isCorrect,
+    marked_for_revision: existing?.marked_for_revision ?? false,
+    mistake_note: mistakeNote?.trim() || null,
+    attempted_at: existing ? undefined : now,
+    updated_at: now,
+  }
+
+  const { data: attempt, error } = await supabase
+    .from('original_practice_attempts')
+    .upsert(payload, { onConflict: 'user_id,question_id' })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  revalidateOriginalPracticeSurfaces()
+  return attempt
+}
+
+export async function toggleOriginalPracticeRevisionMark(questionId: string) {
+  const { supabase, question } = await assertOriginalPracticeQuestionForAttempt(questionId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: existing, error: existingError } = await supabase
+    .from('original_practice_attempts')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('question_id', question.id)
+    .maybeSingle()
+
+  if (existingError) throw existingError
+
+  const now = new Date().toISOString()
+  const nextMarked = !(existing?.marked_for_revision ?? false)
+  const { data: attempt, error } = existing
+    ? await supabase
+        .from('original_practice_attempts')
+        .update({
+          marked_for_revision: nextMarked,
+          updated_at: now,
+        })
+        .eq('id', existing.id)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+    : await supabase
+        .from('original_practice_attempts')
+        .insert({
+          user_id: user.id,
+          question_id: question.id,
+          selected_answer: null,
+          is_correct: null,
+          marked_for_revision: true,
+          attempted_at: now,
+          updated_at: now,
+        })
+        .select()
+        .single()
+
+  if (error) throw error
+
+  revalidateOriginalPracticeSurfaces()
+  return attempt
+}
+
+export async function clearOriginalPracticeAttempt(questionId: string) {
+  const { supabase, question } = await assertOriginalPracticeQuestionForAttempt(questionId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { error } = await supabase
+    .from('original_practice_attempts')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('question_id', question.id)
+
+  if (error) throw error
+
+  revalidateOriginalPracticeSurfaces()
+  return { success: true }
+}
+
+export async function explainOriginalPracticeMistake(questionId: string): Promise<CoachActionResult> {
+  const { supabase, question } = await assertOriginalPracticeQuestionForAttempt(questionId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: attempt, error: attemptError } = await supabase
+    .from('original_practice_attempts')
+    .select('selected_answer, is_correct, mistake_note')
+    .eq('user_id', user.id)
+    .eq('question_id', question.id)
+    .maybeSingle()
+
+  if (attemptError) throw attemptError
+
+  const fallback = [
+    attempt?.is_correct === false
+      ? `Your selected answer (${attempt.selected_answer || 'not recorded'}) does not match the stored PrepAI Original answer (${question.answer}).`
+      : attempt?.is_correct === true
+        ? 'Your answer is correct. Revise the method so you can repeat it under time pressure.'
+        : 'No attempt is recorded yet, so this is a general learning-mode explanation.',
+    question.explanation ? `Concept: ${question.explanation}` : 'Concept: compare the options with the stored answer and revise the related chapter note.',
+    'Revision: retry the question once, then write one short mistake note. This is PrepAI Original Practice, not an official PYQ.',
+  ].join('\n')
+
+  const rateLimit = claimGroqRateLimitSlot(`original-practice-coach:${user.id}`, 10_000)
+  if (!rateLimit.allowed) {
+    return {
+      source: 'fallback',
+      explanation: fallback,
+      warning: coachWarning,
+      fallbackReason: `AI coach cooldown is active. Try again in ${Math.ceil(rateLimit.retryAfterMs / 1000)} seconds.`,
+    }
+  }
+
+  const result = await callGroqCoach(
+    'Explain this PrepAI Original Practice question for the student. Do not call it an official PYQ. If there is an incorrect selected answer, explain why it is wrong and how to revise. Keep it concise.',
+    {
+      contentType: 'prepai_original_practice',
+      question: question.question,
+      options: question.options,
+      storedAnswer: question.answer,
+      storedExplanation: question.explanation,
+      attempt,
+      trustLabel: 'PrepAI Original Practice - Not Official PYQ',
+    }
+  )
+
+  if (!result.available) {
+    return {
+      source: 'fallback',
+      explanation: fallback,
+      warning: coachWarning,
+      fallbackReason: result.fallbackReason,
+    }
+  }
+
+  return {
+    source: 'groq',
+    explanation: trimCoachText(result.text),
+    warning: coachWarning,
+  }
 }
 
 // ============ MOCK TEST ATTEMPTS ============

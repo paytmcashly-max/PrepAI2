@@ -50,6 +50,7 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
     || queue.mockWeakAreas.length > 0
     || queue.adaptiveRecommendations.length > 0
     || queue.pyqRevisionItems.length > 0
+    || queue.originalPracticeRevisionItems.length > 0
     || queue.currentWeekRevisionTasks.length > 0
     || queue.suggestedOrder.length > 0
 
@@ -78,7 +79,7 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-7">
         <Card className="overflow-hidden">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">Overdue Tasks</p>
@@ -101,6 +102,12 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">PYQ Review</p>
             <p className="mt-1 text-3xl font-bold">{queue.pyqRevisionItems.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-muted-foreground">PrepAI Practice</p>
+            <p className="mt-1 text-3xl font-bold">{queue.originalPracticeRevisionItems.length}</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden">
@@ -222,6 +229,43 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No adaptive PYQ recommendations yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              PrepAI Practice Mistakes
+            </CardTitle>
+            <CardDescription>Incorrect PrepAI Original Practice and questions marked for revision.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {queue.originalPracticeRevisionItems.length > 0 ? (
+              <div className="space-y-3">
+                {queue.originalPracticeRevisionItems.map((item) => (
+                  <div key={item.id} className="rounded-lg border p-4">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <p className="min-w-0 break-words font-medium leading-relaxed">
+                        {item.question.length > 140 ? `${item.question.slice(0, 140)}...` : item.question}
+                      </p>
+                      <Badge className={cn('w-fit', priorityClass(item.priority))}>{item.priority}</Badge>
+                    </div>
+                    <p className="mt-1 break-words text-sm text-muted-foreground">
+                      {item.reason}{item.chapter_name ? ` - ${item.chapter_name}` : ''}
+                    </p>
+                    {item.mistake_note && (
+                      <p className="mt-2 break-words text-sm leading-relaxed">Mistake note: {item.mistake_note}</p>
+                    )}
+                    <Button asChild size="sm" variant="outline" className="mt-3 w-full sm:w-fit">
+                      <Link href={item.actionTarget}>Retry original practice</Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No PrepAI Original Practice mistakes or revision marks yet.</p>
             )}
           </CardContent>
         </Card>

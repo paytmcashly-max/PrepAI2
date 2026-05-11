@@ -332,6 +332,25 @@ Admin production QA run on 2026-05-11T16:02:28+05:30:
 - Final checks passed: `npm run typecheck`, `npm run lint`, `npm run build`, and `npm run audit`.
 - Beta readiness status: ready for a small controlled beta.
 
+Auto Resource Pack + PrepAI Original Practice implementation on 2026-05-11:
+
+- Added `study_resources`, `original_practice_questions`, and `original_practice_attempts` migrations with authenticated active-resource reads and owner-only attempt RLS.
+- Seeded PrepAI-owned starter resources for Bihar SI, UP Police, and SSC GD Day 1 style topics: Number System basics, Hindi विलोम/पर्यायवाची, current-affairs study method, and beginner physical foundation.
+- Seeded PrepAI Original MCQs only; no third-party MCQs/PDFs were copied, no fake verified PYQs were added, and PYQ trust rules were unchanged.
+- Day 1 Number System tasks now match PrepAI notes and original MCQs when the task chapter matches the seeded master chapter.
+- Hindi विलोम tasks now match PrepAI notes and original MCQs when the task chapter matches the seeded master chapter.
+- Current Affairs tasks now show a non-time-sensitive study-method resource instead of fake latest facts.
+- Physical beginner tasks now show a routine resource with a safety warning.
+- Video support exists through stored embed metadata only; no videos were seeded in v1, so task cards show “Video not available yet” gracefully.
+- Daily task cards now show Study Material, PrepAI notes, original-practice counts, and a Practice in app link without manual uploads or attachments.
+- Added `/dashboard/resources/[resourceId]` for in-app note/resource viewing with Markdown-lite rendering and external-link safety attributes.
+- Added `/dashboard/practice/original` with filters, answer submit, explanation reveal, mistake notes, mark-for-revision, clear attempt, and on-demand Ask Coach support.
+- Original practice attempts save per user; incorrect and marked original-practice items appear in the Revision Queue under a separate “PrepAI Practice Mistakes” section.
+- Dashboard now includes a PrepAI Practice widget with attempted, correct, incorrect, and marked revision counts.
+- Admin debug now includes study-resource, original-question, original-attempt, incorrect-attempt, and marked-revision counts.
+- Original practice is consistently labeled “PrepAI Original Practice — Not Official PYQ.”
+- Groq remains optional and on-demand only; original-practice Coach output is not written to Supabase.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.

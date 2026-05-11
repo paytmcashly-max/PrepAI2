@@ -15,6 +15,7 @@ import {
   Settings,
   RotateCcw,
   Inbox,
+  Brain,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -67,6 +68,11 @@ const studyNavItems = [
     title: 'PYQ Practice',
     href: '/dashboard/pyq',
     icon: History,
+  },
+  {
+    title: 'Original Practice',
+    href: '/dashboard/practice/original',
+    icon: Brain,
   },
   {
     title: 'Revision Queue',

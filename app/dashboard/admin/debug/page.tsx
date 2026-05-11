@@ -152,8 +152,15 @@ export default async function AdminDebugPage() {
             <MetricTile label="Mock Weak Areas" value={snapshot.revisionQueueCounts.mockWeakAreas} />
             <MetricTile label="Adaptive Recommendations" value={snapshot.revisionQueueCounts.adaptiveRecommendations} />
             <MetricTile label="PYQ Revision Items" value={snapshot.revisionQueueCounts.pyqRevisionItems} />
+            <MetricTile label="Original Practice Revision" value={snapshot.revisionQueueCounts.originalPracticeRevisionItems} />
             <MetricTile label="Weekly Revision Tasks" value={snapshot.revisionQueueCounts.currentWeekRevisionTasks} />
             <MetricTile label="Suggested Revision Items" value={snapshot.revisionQueueCounts.suggestedOrder} />
+            <MetricTile label="Study Resources" value={snapshot.originalPracticeCounts.resourcesTotal} />
+            <MetricTile label="Active Study Resources" value={snapshot.originalPracticeCounts.resourcesActive} />
+            <MetricTile label="Original Practice Questions" value={snapshot.originalPracticeCounts.questionsTotal} />
+            <MetricTile label="Original Practice Attempts" value={snapshot.originalPracticeCounts.attemptsTotal} />
+            <MetricTile label="Incorrect Original Practice" value={snapshot.originalPracticeCounts.incorrectAttempts} />
+            <MetricTile label="Marked Original Practice" value={snapshot.originalPracticeCounts.markedForRevision} />
             <MetricTile label="PYQ Questions" value={snapshot.pyqCounts.total} />
             <MetricTile label="Visible PYQs" value={snapshot.pyqCounts.visible} />
             <MetricTile label="PYQ Attempts" value={snapshot.pyqAttemptCounts.total} />

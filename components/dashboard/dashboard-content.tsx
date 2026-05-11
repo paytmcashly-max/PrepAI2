@@ -31,7 +31,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { TaskCheckItem } from '@/components/dashboard/task-check-item'
 import { getDailyCoachSuggestions, toggleTaskCompletion } from '@/lib/actions'
-import type { AdaptiveRevisionRecommendation, CoachActionResult, DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea, PYQProgressSummary } from '@/lib/types'
+import type { AdaptiveRevisionRecommendation, CoachActionResult, DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea, PYQProgressSummary, OriginalPracticeProgressSummary } from '@/lib/types'
 
 interface DashboardContentProps {
   stats: DashboardStats
@@ -41,6 +41,7 @@ interface DashboardContentProps {
   weakAreas: WeakArea[]
   overdueTaskCount: number
   pyqProgress: PYQProgressSummary | null
+  originalPracticeProgress: OriginalPracticeProgressSummary | null
   adaptiveRecommendations: AdaptiveRevisionRecommendation[]
   dailyCoach: CoachActionResult | null
 }
@@ -50,7 +51,7 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value))
 }
 
-export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount, pyqProgress, adaptiveRecommendations, dailyCoach }: DashboardContentProps) {
+export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount, pyqProgress, originalPracticeProgress, adaptiveRecommendations, dailyCoach }: DashboardContentProps) {
   const [isPending, startTransition] = useTransition()
   const [isCoachPending, startCoachTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
@@ -431,6 +432,53 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">PYQ progress is unavailable right now.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              PrepAI Practice
+            </CardTitle>
+            <CardDescription>Original in-app MCQs from your resource packs. Not official PYQs.</CardDescription>
+          </div>
+          <Button asChild size="sm" variant="outline" className="w-full sm:w-fit">
+            <Link href="/dashboard/practice/original">Open practice</Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {originalPracticeProgress ? (
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Attempted</p>
+                <p className="mt-1 text-2xl font-bold">{originalPracticeProgress.attemptedCount}/{originalPracticeProgress.totalQuestions}</p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Correct</p>
+                <p className="mt-1 text-2xl font-bold">{originalPracticeProgress.correctCount}</p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Incorrect</p>
+                <p className="mt-1 text-2xl font-bold">{originalPracticeProgress.incorrectCount}</p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Marked</p>
+                <p className="mt-1 text-2xl font-bold">{originalPracticeProgress.markedForRevisionCount}</p>
+              </div>
+              <div className="flex min-w-0 flex-col gap-2 sm:col-span-4 sm:flex-row">
+                <Button asChild variant="outline" className="w-full sm:w-fit">
+                  <Link href="/dashboard/practice/original?attempt=incorrect">Review incorrect</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full sm:w-fit">
+                  <Link href="/dashboard/revision">Open revision queue</Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">PrepAI Original Practice progress is unavailable right now.</p>
           )}
         </CardContent>
       </Card>

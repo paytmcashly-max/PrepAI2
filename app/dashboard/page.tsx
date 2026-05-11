@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAdaptiveRevisionRecommendations, getDashboardStats, getSubjectProgress, getRandomQuote, getTodayTaskGroup, getWeakAreas, getOverdueTaskCount, getPYQProgressSummary } from '@/lib/queries'
+import { getAdaptiveRevisionRecommendations, getDashboardStats, getSubjectProgress, getRandomQuote, getTodayTaskGroup, getWeakAreas, getOverdueTaskCount, getPYQProgressSummary, getOriginalPracticeProgressSummary } from '@/lib/queries'
 import { DashboardContent } from '@/components/dashboard/dashboard-content'
 import { getDailyCoachFallbackSuggestions } from '@/lib/actions'
-import type { AdaptiveRevisionRecommendation, CoachActionResult, DashboardStats, DayTaskGroup, MotivationalQuote, PYQProgressSummary, SubjectProgress, WeakArea } from '@/lib/types'
+import type { AdaptiveRevisionRecommendation, CoachActionResult, DashboardStats, DayTaskGroup, MotivationalQuote, OriginalPracticeProgressSummary, PYQProgressSummary, SubjectProgress, WeakArea } from '@/lib/types'
 
 const fallbackStats: DashboardStats = {
   activePlanId: null,
@@ -37,7 +37,7 @@ export default async function DashboardPage() {
     return null // Layout handles redirect
   }
 
-  const [statsResult, subjectProgressResult, quoteResult, todayTasksResult, weakAreasResult, overdueCountResult, pyqProgressResult, adaptiveRecommendationsResult, dailyCoachResult] = await Promise.allSettled([
+  const [statsResult, subjectProgressResult, quoteResult, todayTasksResult, weakAreasResult, overdueCountResult, pyqProgressResult, originalPracticeProgressResult, adaptiveRecommendationsResult, dailyCoachResult] = await Promise.allSettled([
     getDashboardStats(user.id),
     getSubjectProgress(user.id),
     getRandomQuote(),
@@ -45,6 +45,7 @@ export default async function DashboardPage() {
     getWeakAreas(user.id),
     getOverdueTaskCount(user.id),
     getPYQProgressSummary(user.id),
+    getOriginalPracticeProgressSummary(user.id),
     getAdaptiveRevisionRecommendations(user.id),
     getDailyCoachFallbackSuggestions(),
   ])
@@ -55,6 +56,7 @@ export default async function DashboardPage() {
   const weakAreas = valueOrFallback<WeakArea[]>(weakAreasResult, [], 'weak areas')
   const overdueTaskCount = valueOrFallback<number>(overdueCountResult, 0, 'overdue task count')
   const pyqProgress = valueOrFallback<PYQProgressSummary | null>(pyqProgressResult, null, 'PYQ progress')
+  const originalPracticeProgress = valueOrFallback<OriginalPracticeProgressSummary | null>(originalPracticeProgressResult, null, 'original practice progress')
   const adaptiveRecommendations = valueOrFallback<AdaptiveRevisionRecommendation[]>(adaptiveRecommendationsResult, [], 'adaptive revision recommendations')
   const dailyCoach = valueOrFallback<CoachActionResult | null>(dailyCoachResult, null, 'daily coach')
 
@@ -67,6 +69,7 @@ export default async function DashboardPage() {
       weakAreas={weakAreas}
       overdueTaskCount={overdueTaskCount}
       pyqProgress={pyqProgress}
+      originalPracticeProgress={originalPracticeProgress}
       adaptiveRecommendations={adaptiveRecommendations}
       dailyCoach={dailyCoach}
     />
