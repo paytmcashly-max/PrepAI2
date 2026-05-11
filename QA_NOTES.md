@@ -212,6 +212,15 @@ PYQ progress analytics on 2026-05-11:
 - Revision Queue PYQ mistake items now link to the related PYQ card and the relevant attempt filter where possible.
 - No Groq, bulk PYQ imports, or source-trust rule changes were made.
 
+PYQ analytics UX hardening on 2026-05-11:
+
+- PYQ cards use stable `pyq-{question.id}` DOM ids for hash-link scrolling.
+- Recent attempt links and Revision Queue PYQ links point to the matching card hash with the relevant attempt filter.
+- Dashboard `Review incorrect` link opens `/dashboard/pyq?attempt=incorrect`.
+- `submitPYQAttempt`, `togglePYQRevisionMark`, and `clearPYQAttempt` now trigger `router.refresh()` from the PYQ page so summary cards refresh from server data.
+- Attempt URL filters were checked for `?attempt=incorrect` and `?attempt=marked`; changing the attempt filter preserves `mode=test`.
+- Empty states now clearly say `No wrong attempts yet.`, `No weak chapter pattern yet.`, and `Submit a PYQ answer to build history.`
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -236,6 +245,7 @@ PYQ progress analytics on 2026-05-11:
 - Verified live `user_pyq_attempts` table has 4 owner-only RLS policies.
 - Hardened PYQ answer matching and practice mode behavior without changing source trust rules.
 - Added PYQ progress summary cards, weakest subject/chapter analytics, recent attempts, dashboard PYQ progress card, and URL attempt filter initialization.
+- Hardened PYQ analytics hash links, summary refresh after actions, URL filter preservation, and empty-state copy.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

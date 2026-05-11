@@ -224,6 +224,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
             [question.id]: attempt as UserPYQAttempt,
           }))
           setExpandedQuestion(question.id)
+          router.refresh()
           if (!attempt.is_correct) {
             window.setTimeout(() => {
               mistakeNoteRefs.current[question.id]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
@@ -250,6 +251,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
             ...current,
             [question.id]: attempt as UserPYQAttempt,
           }))
+          router.refresh()
           toast.success(attempt.marked_for_revision ? 'Marked for revision.' : 'Removed from revision.')
         } catch (error) {
           handleActionError(error)
@@ -287,6 +289,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
             delete next[question.id]
             return next
           })
+          router.refresh()
           toast.success('PYQ attempt cleared.')
         } catch (error) {
           handleActionError(error)
@@ -662,7 +665,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No incorrect subject pattern yet.</p>
+              <p className="text-sm text-muted-foreground">No wrong attempts yet.</p>
             )}
           </CardContent>
         </Card>
@@ -686,7 +689,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No incorrect chapter pattern yet.</p>
+              <p className="text-sm text-muted-foreground">No weak chapter pattern yet.</p>
             )}
           </CardContent>
         </Card>
@@ -717,7 +720,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Submit a PYQ answer to build recent attempt history.</p>
+              <p className="text-sm text-muted-foreground">Submit a PYQ answer to build history.</p>
             )}
           </CardContent>
         </Card>
