@@ -24,12 +24,13 @@ import {
   CalendarCheck,
   AlertTriangle,
   Flag,
+  Sparkles,
 } from 'lucide-react'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { TaskCheckItem } from '@/components/dashboard/task-check-item'
 import { toggleTaskCompletion } from '@/lib/actions'
-import type { AdaptiveRevisionRecommendation, DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea, PYQProgressSummary } from '@/lib/types'
+import type { AdaptiveRevisionRecommendation, CoachActionResult, DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea, PYQProgressSummary } from '@/lib/types'
 
 interface DashboardContentProps {
   stats: DashboardStats
@@ -40,6 +41,7 @@ interface DashboardContentProps {
   overdueTaskCount: number
   pyqProgress: PYQProgressSummary | null
   adaptiveRecommendations: AdaptiveRevisionRecommendation[]
+  dailyCoach: CoachActionResult | null
 }
 
 function clampPercent(value: number) {
@@ -47,7 +49,7 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value))
 }
 
-export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount, pyqProgress, adaptiveRecommendations }: DashboardContentProps) {
+export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount, pyqProgress, adaptiveRecommendations, dailyCoach }: DashboardContentProps) {
   const [isPending, startTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
   const visibleSubjectProgress = subjectProgress.filter((subject) => subject.totalTasks > 0)
@@ -278,6 +280,43 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Daily Coach
+          </CardTitle>
+          <CardDescription>Three safe suggestions from your plan, PYQ progress, and weak areas.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {dailyCoach?.suggestions?.length ? (
+            <div className="space-y-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="rounded-full border px-2 py-0.5 text-xs capitalize text-muted-foreground">
+                  {dailyCoach.source}
+                </span>
+                {dailyCoach.fallbackReason && (
+                  <span className="min-w-0 break-words text-xs text-muted-foreground">{dailyCoach.fallbackReason}</span>
+                )}
+              </div>
+              <ol className="space-y-2">
+                {dailyCoach.suggestions.slice(0, 3).map((suggestion, index) => (
+                  <li key={`${index}-${suggestion}`} className="flex min-w-0 gap-3 rounded-lg border p-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 break-words text-sm leading-relaxed">{suggestion}</span>
+                  </li>
+                ))}
+              </ol>
+              <p className="text-xs text-amber-600 dark:text-amber-300">{dailyCoach.warning}</p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Daily coach is unavailable right now.</p>
           )}
         </CardContent>
       </Card>

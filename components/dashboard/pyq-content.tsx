@@ -35,9 +35,9 @@ import {
   RotateCcw,
   XCircle,
 } from 'lucide-react'
-import { clearPYQAttempt, submitPYQAttempt, togglePYQRevisionMark } from '@/lib/actions'
+import { clearPYQAttempt, explainPYQMistake, submitPYQAttempt, togglePYQRevisionMark } from '@/lib/actions'
 import { normalizePYQAnswer, pyqAnswersMatch } from '@/lib/pyq-answer'
-import type { Chapter, Exam, PYQProgressSummary, PYQQuestion, PYQSource, Subject, UserPYQAttempt } from '@/lib/types'
+import type { Chapter, CoachActionResult, Exam, PYQProgressSummary, PYQQuestion, PYQSource, Subject, UserPYQAttempt } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface PYQContentProps {
@@ -72,6 +72,8 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
   const [pendingQuestionId, setPendingQuestionId] = useState<string | null>(null)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
   const [mistakeNotes, setMistakeNotes] = useState<Record<string, string>>({})
+  const [coachResponses, setCoachResponses] = useState<Record<string, CoachActionResult>>({})
+  const [coachPendingQuestionId, setCoachPendingQuestionId] = useState<string | null>(null)
   const [attemptsByQuestionId, setAttemptsByQuestionId] = useState<Record<string, UserPYQAttempt>>(() => (
     questions.reduce((acc, question) => {
       if (question.attempt) acc[question.id] = question.attempt
@@ -295,6 +297,25 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
           handleActionError(error)
         } finally {
           setPendingQuestionId(null)
+        }
+      })()
+    })
+  }
+
+  const handleAskCoach = (question: PYQQuestion) => {
+    setCoachPendingQuestionId(question.id)
+    startTransition(() => {
+      void (async () => {
+        try {
+          const response = await explainPYQMistake(question.id)
+          setCoachResponses((current) => ({
+            ...current,
+            [question.id]: response,
+          }))
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Could not load coach explanation.')
+        } finally {
+          setCoachPendingQuestionId(null)
         }
       })()
     })
@@ -767,6 +788,9 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                 || question.verification_status === 'auto_rejected'
               const canRevealAnswer = practiceMode === 'learning' || Boolean(attempt?.selected_answer)
               const showAnswerDetails = Boolean(attempt?.selected_answer) || (practiceMode === 'learning' && isExpanded)
+              const canAskCoach = !isAttemptBlocked && (Boolean(attempt?.selected_answer) || showAnswerDetails)
+              const coachResponse = coachResponses[question.id]
+              const isCoachPending = coachPendingQuestionId === question.id
 
               return (
                 <Card
@@ -948,8 +972,45 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                             </>
                           )}
                         </Button>
+                        {canAskCoach && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAskCoach(question)}
+                            disabled={isCoachPending}
+                            className="w-full sm:w-fit"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            {isCoachPending ? 'Asking...' : 'Ask Coach'}
+                          </Button>
+                        )}
                       </div>
                     </div>
+
+                    {(isCoachPending || coachResponse) && (
+                      <div className="mt-4 rounded-lg border bg-muted/30 p-4">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                          <p className="font-medium">Groq Coach</p>
+                          {coachResponse && (
+                            <Badge variant="outline" className="capitalize">{coachResponse.source}</Badge>
+                          )}
+                        </div>
+                        {isCoachPending ? (
+                          <p className="mt-2 text-sm text-muted-foreground">Preparing a safe explanation from this question and your attempt...</p>
+                        ) : coachResponse?.explanation ? (
+                          <div className="mt-2 space-y-2">
+                            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{coachResponse.explanation}</p>
+                            {coachResponse.fallbackReason && (
+                              <p className="text-xs text-muted-foreground">{coachResponse.fallbackReason}</p>
+                            )}
+                            <p className="text-xs text-amber-600 dark:text-amber-300">{coachResponse.warning}</p>
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-sm text-muted-foreground">Coach explanation is unavailable right now.</p>
+                        )}
+                      </div>
+                    )}
 
                     {attempt?.selected_answer && (
                       <div className={cn(

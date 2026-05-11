@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAdaptiveRevisionRecommendations, getDashboardStats, getSubjectProgress, getRandomQuote, getTodayTaskGroup, getWeakAreas, getOverdueTaskCount, getPYQProgressSummary } from '@/lib/queries'
 import { DashboardContent } from '@/components/dashboard/dashboard-content'
-import type { AdaptiveRevisionRecommendation, DashboardStats, DayTaskGroup, MotivationalQuote, PYQProgressSummary, SubjectProgress, WeakArea } from '@/lib/types'
+import { getDailyCoachSuggestions } from '@/lib/actions'
+import type { AdaptiveRevisionRecommendation, CoachActionResult, DashboardStats, DayTaskGroup, MotivationalQuote, PYQProgressSummary, SubjectProgress, WeakArea } from '@/lib/types'
 
 const fallbackStats: DashboardStats = {
   activePlanId: null,
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
     return null // Layout handles redirect
   }
 
-  const [statsResult, subjectProgressResult, quoteResult, todayTasksResult, weakAreasResult, overdueCountResult, pyqProgressResult, adaptiveRecommendationsResult] = await Promise.allSettled([
+  const [statsResult, subjectProgressResult, quoteResult, todayTasksResult, weakAreasResult, overdueCountResult, pyqProgressResult, adaptiveRecommendationsResult, dailyCoachResult] = await Promise.allSettled([
     getDashboardStats(user.id),
     getSubjectProgress(user.id),
     getRandomQuote(),
@@ -45,6 +46,7 @@ export default async function DashboardPage() {
     getOverdueTaskCount(user.id),
     getPYQProgressSummary(user.id),
     getAdaptiveRevisionRecommendations(user.id),
+    getDailyCoachSuggestions(),
   ])
   const stats = valueOrFallback(statsResult, fallbackStats, 'stats')
   const subjectProgress = valueOrFallback<SubjectProgress[]>(subjectProgressResult, [], 'subject progress')
@@ -54,6 +56,7 @@ export default async function DashboardPage() {
   const overdueTaskCount = valueOrFallback<number>(overdueCountResult, 0, 'overdue task count')
   const pyqProgress = valueOrFallback<PYQProgressSummary | null>(pyqProgressResult, null, 'PYQ progress')
   const adaptiveRecommendations = valueOrFallback<AdaptiveRevisionRecommendation[]>(adaptiveRecommendationsResult, [], 'adaptive revision recommendations')
+  const dailyCoach = valueOrFallback<CoachActionResult | null>(dailyCoachResult, null, 'daily coach')
 
   return (
     <DashboardContent 
@@ -65,6 +68,7 @@ export default async function DashboardPage() {
       overdueTaskCount={overdueTaskCount}
       pyqProgress={pyqProgress}
       adaptiveRecommendations={adaptiveRecommendations}
+      dailyCoach={dailyCoach}
     />
   )
 }

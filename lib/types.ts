@@ -278,6 +278,14 @@ export interface AdaptiveRevisionRecommendation {
   pendingTaskCount: number
 }
 
+export type CoachActionResult = {
+  source: 'groq' | 'fallback'
+  suggestions?: string[]
+  explanation?: string
+  warning: string
+  fallbackReason?: string
+}
+
 export interface MotivationalQuote {
   id: string
   quote: string

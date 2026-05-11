@@ -245,6 +245,19 @@ Adaptive PYQ recommendation hardening on 2026-05-11:
 - Successful task creation calls `router.refresh()` so recommendation counts and action states do not stay stale.
 - No Groq, bulk PYQ imports, or source-trust rule changes were made.
 
+Groq Coach v1 safe explainer on 2026-05-11:
+
+- Added server-only Groq wrapper in `lib/ai/groq.ts` using native `fetch`, `GROQ_API_KEY`, optional `GROQ_MODEL`, timeout handling, and graceful fallback results.
+- Added sanitized coach context builders in `lib/ai/coach-context.ts`.
+- Coach context includes only active exam, current day, today task summaries, PYQ progress, weak areas, adaptive recommendations, and visible PYQ question/answer/explanation/attempt data.
+- Coach context excludes user email, auth id, env values, admin-only PYQ rows, `auto_rejected`, and `needs_manual_review` content.
+- Added `explainPYQMistake(questionId)` for authenticated, visible student PYQs only.
+- Added `getDailyCoachSuggestions()` with deterministic fallback suggestions when `GROQ_API_KEY` is missing or Groq fails.
+- PYQ cards now show “Ask Coach” only after an attempt or answer reveal, with loading/error states and an authoritative source-label warning.
+- Dashboard now includes a Daily Coach card with three suggestions.
+- Groq output is display-only; no AI output is written to Supabase.
+- No fake verified PYQs were generated, no bulk imports were added, and PYQ source trust rules were not changed.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -272,6 +285,7 @@ Adaptive PYQ recommendation hardening on 2026-05-11:
 - Hardened PYQ analytics hash links, summary refresh after actions, URL filter preservation, and empty-state copy.
 - Added adaptive PYQ revision recommendations and guarded revision task creation.
 - Hardened adaptive recommendation IDs, action-type UI behavior, duplicate messaging, and router refresh after task creation.
+- Added Groq Coach v1 safe explainer with missing-key fallback, PYQ mistake explanations, dashboard daily coach, sanitized context, and no DB writes.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

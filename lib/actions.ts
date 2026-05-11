@@ -10,7 +10,9 @@ import { autoValidatePYQInput } from '@/lib/pyq-trust'
 import { pyqAnswersMatch } from '@/lib/pyq-answer'
 import { toLocalDateString } from '@/lib/date-utils'
 import { getAdaptiveRevisionRecommendations } from '@/lib/queries'
-import type { PYQSource, PYQVerificationStatus } from '@/lib/types'
+import { buildDailyCoachContext, buildPYQCoachContext } from '@/lib/ai/coach-context'
+import { callGroqCoach } from '@/lib/ai/groq'
+import type { CoachActionResult, PYQSource, PYQVerificationStatus } from '@/lib/types'
 
 type Level = 'weak' | 'average' | 'good'
 type StudyLanguage = 'hindi' | 'english'
@@ -1101,6 +1103,118 @@ function revalidatePYQAttemptSurfaces() {
   revalidatePath('/dashboard/revision', 'page')
   revalidatePath('/dashboard', 'page')
   revalidatePath('/dashboard/admin/debug', 'page')
+}
+
+const coachWarning = 'AI explanation may be imperfect; source label remains authoritative.'
+
+function splitCoachSuggestions(text: string) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*\d.)\s]+/, '').trim())
+    .filter(Boolean)
+  return lines.slice(0, 3)
+}
+
+function fallbackDailySuggestions(context: Awaited<ReturnType<typeof buildDailyCoachContext>>) {
+  const todayTask = context.todayTasks[0]
+  const adaptive = context.adaptiveRecommendations[0]
+  const weak = context.weakAreas[0]
+  const pyqWeakChapter = context.pyqProgress.weakestChapters[0]
+
+  return [
+    todayTask
+      ? `Study today: start with ${todayTask.title}${todayTask.subject ? ` (${todayTask.subject})` : ''}.`
+      : adaptive
+        ? `Study today: spend ${adaptive.suggestedMinutes} minutes on ${adaptive.title}.`
+        : 'Study today: complete one pending plan task before adding extra practice.',
+    adaptive
+      ? `Revise: ${adaptive.title} because ${adaptive.reason}.`
+      : weak
+        ? `Revise: ${weak.chapter || weak.subject || 'your weakest area'} because ${weak.reason}.`
+        : 'Revise: retry one older mistake and write a short correction note.',
+    pyqWeakChapter
+      ? `Avoid this mistake: slow down on ${pyqWeakChapter.name}; it has ${pyqWeakChapter.incorrectCount} incorrect PYQ attempt${pyqWeakChapter.incorrectCount > 1 ? 's' : ''}.`
+      : context.pyqProgress.incorrectCount > 0
+        ? 'Avoid this mistake: review incorrect PYQs before attempting fresh questions.'
+        : 'Avoid this mistake: do not reveal answers before making a serious attempt in Test Mode.',
+  ]
+}
+
+function fallbackPYQExplanation(context: Awaited<ReturnType<typeof buildPYQCoachContext>>) {
+  const selected = context.attempt?.selectedAnswer
+  const correctness = context.attempt?.isCorrect === false
+    ? `Your selected answer (${selected || 'not recorded'}) does not match the stored answer (${context.answer || 'not available'}).`
+    : context.attempt?.isCorrect === true
+      ? `Your answer is correct. Use this to reinforce the method, not just the final option.`
+      : `No attempt is recorded yet, so this is a general explanation from the stored answer.`
+  const sourceLine = context.officialVerified
+    ? 'This question is marked as official verified in the app.'
+    : 'This question is not official verified; use the source label as authoritative.'
+  return [
+    correctness,
+    context.explanation ? `Concept: ${context.explanation}` : 'Concept: compare each option against the stored answer and revise the related chapter notes.',
+    `Revision: retry the question without viewing the answer, then write one mistake note. ${sourceLine}`,
+  ].join('\n')
+}
+
+export async function getDailyCoachSuggestions(): Promise<CoachActionResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const context = await buildDailyCoachContext(user.id)
+  const fallback = fallbackDailySuggestions(context)
+  const result = await callGroqCoach(
+    'Return exactly three concise suggestions: what to study today, what to revise, and what mistake to avoid.',
+    context
+  )
+
+  if (!result.available) {
+    return {
+      source: 'fallback',
+      suggestions: fallback,
+      warning: coachWarning,
+      fallbackReason: result.fallbackReason,
+    }
+  }
+
+  const suggestions = splitCoachSuggestions(result.text)
+  return {
+    source: 'groq',
+    suggestions: suggestions.length >= 3 ? suggestions : fallback,
+    warning: coachWarning,
+  }
+}
+
+export async function explainPYQMistake(questionId: string): Promise<CoachActionResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const id = questionId?.trim()
+  if (!id) throw new Error('Question ID is required.')
+
+  const context = await buildPYQCoachContext(user.id, id)
+  const fallback = fallbackPYQExplanation(context)
+  const result = await callGroqCoach(
+    'Explain this PYQ for the student. If there is an incorrect selected answer, explain why it is wrong and how to revise. If there is no attempt, give a general learning-mode explanation. Keep it concise.',
+    context
+  )
+
+  if (!result.available) {
+    return {
+      source: 'fallback',
+      explanation: fallback,
+      warning: coachWarning,
+      fallbackReason: result.fallbackReason,
+    }
+  }
+
+  return {
+    source: 'groq',
+    explanation: result.text,
+    warning: coachWarning,
+  }
 }
 
 export async function submitPYQAttempt(questionId: string, selectedAnswer: string, mistakeNote?: string | null) {
