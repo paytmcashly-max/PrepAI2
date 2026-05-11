@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAdaptiveRevisionRecommendations, getDashboardStats, getSubjectProgress, getRandomQuote, getTodayTaskGroup, getWeakAreas, getOverdueTaskCount, getPYQProgressSummary } from '@/lib/queries'
 import { DashboardContent } from '@/components/dashboard/dashboard-content'
-import { getDailyCoachSuggestions } from '@/lib/actions'
+import { getDailyCoachFallbackSuggestions } from '@/lib/actions'
 import type { AdaptiveRevisionRecommendation, CoachActionResult, DashboardStats, DayTaskGroup, MotivationalQuote, PYQProgressSummary, SubjectProgress, WeakArea } from '@/lib/types'
 
 const fallbackStats: DashboardStats = {
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
     getOverdueTaskCount(user.id),
     getPYQProgressSummary(user.id),
     getAdaptiveRevisionRecommendations(user.id),
-    getDailyCoachSuggestions(),
+    getDailyCoachFallbackSuggestions(),
   ])
   const stats = valueOrFallback(statsResult, fallbackStats, 'stats')
   const subjectProgress = valueOrFallback<SubjectProgress[]>(subjectProgressResult, [], 'subject progress')

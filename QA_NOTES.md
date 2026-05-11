@@ -258,6 +258,19 @@ Groq Coach v1 safe explainer on 2026-05-11:
 - Groq output is display-only; no AI output is written to Supabase.
 - No fake verified PYQs were generated, no bulk imports were added, and PYQ source trust rules were not changed.
 
+Groq Coach v1 hardening on 2026-05-11:
+
+- Dashboard initial render no longer waits for Groq; it loads deterministic fallback suggestions immediately.
+- Daily Coach now has an explicit `Refresh with AI Coach` button for on-demand Groq calls.
+- Missing `GROQ_API_KEY`, Groq failures, cooldowns, and invalid JSON responses fall back to deterministic suggestions with a visible reason.
+- Daily Coach asks Groq for JSON `{ "suggestions": [...] }` and uses fallback if parsing fails or fewer than 3 suggestions are returned.
+- PYQ Ask Coach remains on-demand only after an attempt or answer reveal; there is no explanation prefetch.
+- PYQ Coach includes the source warning and the extra line: `AI explains the stored question; it does not verify the source.`
+- Added lightweight server-side cooldowns: 30 seconds for Daily Coach refresh and 10 seconds for PYQ Coach.
+- Added client-side cooldown states so repeated clicks do not spam Groq while a request/cooldown is active.
+- Coach context still excludes user email, auth id, env values, admin-only PYQ rows, `auto_rejected`, and `needs_manual_review` content.
+- Groq remains display-only; no AI output is written to Supabase.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -286,6 +299,7 @@ Groq Coach v1 safe explainer on 2026-05-11:
 - Added adaptive PYQ revision recommendations and guarded revision task creation.
 - Hardened adaptive recommendation IDs, action-type UI behavior, duplicate messaging, and router refresh after task creation.
 - Added Groq Coach v1 safe explainer with missing-key fallback, PYQ mistake explanations, dashboard daily coach, sanitized context, and no DB writes.
+- Hardened Groq Coach v1 with non-blocking Dashboard fallback, on-demand AI refresh, JSON parsing fallback, timeout/cooldown handling, and source-authority messaging.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

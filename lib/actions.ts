@@ -11,7 +11,7 @@ import { pyqAnswersMatch } from '@/lib/pyq-answer'
 import { toLocalDateString } from '@/lib/date-utils'
 import { getAdaptiveRevisionRecommendations } from '@/lib/queries'
 import { buildDailyCoachContext, buildPYQCoachContext } from '@/lib/ai/coach-context'
-import { callGroqCoach } from '@/lib/ai/groq'
+import { callGroqCoach, claimGroqRateLimitSlot } from '@/lib/ai/groq'
 import type { CoachActionResult, PYQSource, PYQVerificationStatus } from '@/lib/types'
 
 type Level = 'weak' | 'average' | 'good'
@@ -1107,12 +1107,24 @@ function revalidatePYQAttemptSurfaces() {
 
 const coachWarning = 'AI explanation may be imperfect; source label remains authoritative.'
 
-function splitCoachSuggestions(text: string) {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.replace(/^[-*\d.)\s]+/, '').trim())
-    .filter(Boolean)
-  return lines.slice(0, 3)
+function trimCoachText(text: string, max = 1800) {
+  const trimmed = text.trim()
+  return trimmed.length > max ? `${trimmed.slice(0, max)}...` : trimmed
+}
+
+function parseDailyCoachSuggestions(text: string) {
+  try {
+    const parsed = JSON.parse(text)
+    const suggestions = Array.isArray(parsed?.suggestions)
+      ? parsed.suggestions
+        .filter((suggestion: unknown): suggestion is string => typeof suggestion === 'string')
+        .map((suggestion: string) => suggestion.trim())
+        .filter(Boolean)
+      : []
+    return suggestions.slice(0, 3)
+  } catch {
+    return []
+  }
 }
 
 function fallbackDailySuggestions(context: Awaited<ReturnType<typeof buildDailyCoachContext>>) {
@@ -1157,6 +1169,20 @@ function fallbackPYQExplanation(context: Awaited<ReturnType<typeof buildPYQCoach
   ].join('\n')
 }
 
+export async function getDailyCoachFallbackSuggestions(): Promise<CoachActionResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const context = await buildDailyCoachContext(user.id)
+  return {
+    source: 'fallback',
+    suggestions: fallbackDailySuggestions(context),
+    warning: coachWarning,
+    fallbackReason: 'Deterministic coach loaded instantly. Use Refresh with AI Coach when needed.',
+  }
+}
+
 export async function getDailyCoachSuggestions(): Promise<CoachActionResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -1164,8 +1190,18 @@ export async function getDailyCoachSuggestions(): Promise<CoachActionResult> {
 
   const context = await buildDailyCoachContext(user.id)
   const fallback = fallbackDailySuggestions(context)
+  const rateLimit = claimGroqRateLimitSlot(`daily-coach:${user.id}`, 30_000)
+  if (!rateLimit.allowed) {
+    return {
+      source: 'fallback',
+      suggestions: fallback,
+      warning: coachWarning,
+      fallbackReason: `AI coach cooldown is active. Try again in ${Math.ceil(rateLimit.retryAfterMs / 1000)} seconds.`,
+    }
+  }
+
   const result = await callGroqCoach(
-    'Return exactly three concise suggestions: what to study today, what to revise, and what mistake to avoid.',
+    'Return only valid JSON in this exact shape: {"suggestions":["what to study today","what to revise","what mistake to avoid"]}. Use exactly three concise suggestions.',
     context
   )
 
@@ -1178,10 +1214,19 @@ export async function getDailyCoachSuggestions(): Promise<CoachActionResult> {
     }
   }
 
-  const suggestions = splitCoachSuggestions(result.text)
+  const suggestions = parseDailyCoachSuggestions(result.text)
+  if (suggestions.length < 3) {
+    return {
+      source: 'fallback',
+      suggestions: fallback,
+      warning: coachWarning,
+      fallbackReason: 'AI coach response was not valid JSON, so deterministic suggestions were used.',
+    }
+  }
+
   return {
     source: 'groq',
-    suggestions: suggestions.length >= 3 ? suggestions : fallback,
+    suggestions,
     warning: coachWarning,
   }
 }
@@ -1196,6 +1241,16 @@ export async function explainPYQMistake(questionId: string): Promise<CoachAction
 
   const context = await buildPYQCoachContext(user.id, id)
   const fallback = fallbackPYQExplanation(context)
+  const rateLimit = claimGroqRateLimitSlot(`pyq-coach:${user.id}`, 10_000)
+  if (!rateLimit.allowed) {
+    return {
+      source: 'fallback',
+      explanation: fallback,
+      warning: coachWarning,
+      fallbackReason: `AI coach cooldown is active. Try again in ${Math.ceil(rateLimit.retryAfterMs / 1000)} seconds.`,
+    }
+  }
+
   const result = await callGroqCoach(
     'Explain this PYQ for the student. If there is an incorrect selected answer, explain why it is wrong and how to revise. If there is no attempt, give a general learning-mode explanation. Keep it concise.',
     context
@@ -1212,7 +1267,7 @@ export async function explainPYQMistake(questionId: string): Promise<CoachAction
 
   return {
     source: 'groq',
-    explanation: result.text,
+    explanation: trimCoachText(result.text),
     warning: coachWarning,
   }
 }

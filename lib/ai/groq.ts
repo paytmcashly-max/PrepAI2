@@ -4,6 +4,10 @@ export type GroqCoachResult =
   | { available: true; text: string }
   | { available: false; fallbackReason: string }
 
+export type GroqRateLimitResult =
+  | { allowed: true }
+  | { allowed: false; retryAfterMs: number }
+
 type GroqMessage = {
   role: 'system' | 'user'
   content: string
@@ -11,6 +15,24 @@ type GroqMessage = {
 
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
 const DEFAULT_MODEL = 'llama-3.1-8b-instant'
+const groqRateWindows = new Map<string, number>()
+
+export function claimGroqRateLimitSlot(key: string, windowMs: number): GroqRateLimitResult {
+  const now = Date.now()
+  const existingUntil = groqRateWindows.get(key) || 0
+
+  if (existingUntil > now) {
+    return { allowed: false, retryAfterMs: existingUntil - now }
+  }
+
+  groqRateWindows.set(key, now + windowMs)
+
+  for (const [bucketKey, expiresAt] of groqRateWindows.entries()) {
+    if (expiresAt <= now) groqRateWindows.delete(bucketKey)
+  }
+
+  return { allowed: true }
+}
 
 export async function callGroqCoach(prompt: string, context: unknown, timeoutMs = 12000): Promise<GroqCoachResult> {
   const apiKey = process.env.GROQ_API_KEY

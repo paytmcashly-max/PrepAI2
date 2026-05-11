@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import { 
   Tooltip, 
   ResponsiveContainer, 
@@ -29,7 +30,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { TaskCheckItem } from '@/components/dashboard/task-check-item'
-import { toggleTaskCompletion } from '@/lib/actions'
+import { getDailyCoachSuggestions, toggleTaskCompletion } from '@/lib/actions'
 import type { AdaptiveRevisionRecommendation, CoachActionResult, DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea, PYQProgressSummary } from '@/lib/types'
 
 interface DashboardContentProps {
@@ -51,8 +52,13 @@ function clampPercent(value: number) {
 
 export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount, pyqProgress, adaptiveRecommendations, dailyCoach }: DashboardContentProps) {
   const [isPending, startTransition] = useTransition()
+  const [isCoachPending, startCoachTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
+  const [coachState, setCoachState] = useState<CoachActionResult | null>(dailyCoach)
+  const [coachError, setCoachError] = useState<string | null>(null)
+  const [coachCooldownUntil, setCoachCooldownUntil] = useState(0)
   const visibleSubjectProgress = subjectProgress.filter((subject) => subject.totalTasks > 0)
+  const isCoachCoolingDown = coachCooldownUntil > 0
   const pieData = visibleSubjectProgress.map(s => ({
     id: s.id,
     name: s.name,
@@ -101,6 +107,39 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
           [taskId]: currentCompleted,
         }))
       }
+    })
+  }
+
+  useEffect(() => {
+    if (!coachCooldownUntil) return
+
+    const delay = Math.max(0, coachCooldownUntil - Date.now())
+    const timeout = window.setTimeout(() => setCoachCooldownUntil(0), delay)
+    return () => window.clearTimeout(timeout)
+  }, [coachCooldownUntil])
+
+  const handleRefreshCoach = () => {
+    if (isCoachCoolingDown) {
+      setCoachError('Please wait a few seconds before refreshing AI Coach again.')
+      return
+    }
+
+    setCoachError(null)
+    setCoachCooldownUntil(Date.now() + 30_000)
+    startCoachTransition(() => {
+      void (async () => {
+        try {
+          const response = await getDailyCoachSuggestions()
+          setCoachState(response)
+          if (response.source === 'fallback' && response.fallbackReason) {
+            toast.info(response.fallbackReason)
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'AI Coach refresh failed.'
+          setCoachError(message)
+          toast.error(message)
+        }
+      })()
     })
   }
 
@@ -293,18 +332,18 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
           <CardDescription>Three safe suggestions from your plan, PYQ progress, and weak areas.</CardDescription>
         </CardHeader>
         <CardContent>
-          {dailyCoach?.suggestions?.length ? (
+          {coachState?.suggestions?.length ? (
             <div className="space-y-3">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="rounded-full border px-2 py-0.5 text-xs capitalize text-muted-foreground">
-                  {dailyCoach.source}
+                  {coachState.source}
                 </span>
-                {dailyCoach.fallbackReason && (
-                  <span className="min-w-0 break-words text-xs text-muted-foreground">{dailyCoach.fallbackReason}</span>
+                {coachState.fallbackReason && (
+                  <span className="min-w-0 break-words text-xs text-muted-foreground">{coachState.fallbackReason}</span>
                 )}
               </div>
               <ol className="space-y-2">
-                {dailyCoach.suggestions.slice(0, 3).map((suggestion, index) => (
+                {coachState.suggestions.slice(0, 3).map((suggestion, index) => (
                   <li key={`${index}-${suggestion}`} className="flex min-w-0 gap-3 rounded-lg border p-3">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                       {index + 1}
@@ -313,10 +352,42 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
                   </li>
                 ))}
               </ol>
-              <p className="text-xs text-amber-600 dark:text-amber-300">{dailyCoach.warning}</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="min-w-0 break-words text-xs text-amber-600 dark:text-amber-300">{coachState.warning}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRefreshCoach}
+                  disabled={isCoachPending || isCoachCoolingDown}
+                  className="w-full sm:w-fit"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {isCoachPending ? 'Refreshing...' : isCoachCoolingDown ? 'Cooling down...' : 'Refresh with AI Coach'}
+                </Button>
+              </div>
+              {coachError && (
+                <p className="break-words text-xs text-destructive">{coachError}</p>
+              )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Daily coach is unavailable right now.</p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Daily coach is unavailable right now.</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleRefreshCoach}
+                disabled={isCoachPending || isCoachCoolingDown}
+                className="w-full sm:w-fit"
+              >
+                <Sparkles className="h-4 w-4" />
+                {isCoachPending ? 'Refreshing...' : 'Refresh with AI Coach'}
+              </Button>
+              {coachError && (
+                <p className="break-words text-xs text-destructive">{coachError}</p>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

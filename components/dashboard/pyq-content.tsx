@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
@@ -74,6 +74,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
   const [mistakeNotes, setMistakeNotes] = useState<Record<string, string>>({})
   const [coachResponses, setCoachResponses] = useState<Record<string, CoachActionResult>>({})
   const [coachPendingQuestionId, setCoachPendingQuestionId] = useState<string | null>(null)
+  const [coachCooldownUntil, setCoachCooldownUntil] = useState(0)
   const [attemptsByQuestionId, setAttemptsByQuestionId] = useState<Record<string, UserPYQAttempt>>(() => (
     questions.reduce((acc, question) => {
       if (question.attempt) acc[question.id] = question.attempt
@@ -82,6 +83,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
   ))
 
   const getAttempt = (question: PYQQuestion) => attemptsByQuestionId[question.id] || question.attempt || null
+  const isCoachCoolingDown = coachCooldownUntil > 0
 
   const filteredChapters = chapters.filter((chapter) => {
     if (filterExam !== 'all' && chapter.exam_id !== filterExam) return false
@@ -303,7 +305,13 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
   }
 
   const handleAskCoach = (question: PYQQuestion) => {
+    if (isCoachCoolingDown) {
+      toast.info('Please wait a few seconds before asking AI Coach again.')
+      return
+    }
+
     setCoachPendingQuestionId(question.id)
+    setCoachCooldownUntil(Date.now() + 10_000)
     startTransition(() => {
       void (async () => {
         try {
@@ -320,6 +328,14 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
       })()
     })
   }
+
+  useEffect(() => {
+    if (!coachCooldownUntil) return
+
+    const delay = Math.max(0, coachCooldownUntil - Date.now())
+    const timeout = window.setTimeout(() => setCoachCooldownUntil(0), delay)
+    return () => window.clearTimeout(timeout)
+  }, [coachCooldownUntil])
 
   const formatVerificationStatus = (status: string | null) => {
     if (!status) return null
@@ -791,6 +807,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
               const canAskCoach = !isAttemptBlocked && (Boolean(attempt?.selected_answer) || showAnswerDetails)
               const coachResponse = coachResponses[question.id]
               const isCoachPending = coachPendingQuestionId === question.id
+              const isCoachDisabled = Boolean(coachPendingQuestionId) || isCoachCoolingDown
 
               return (
                 <Card
@@ -977,11 +994,11 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                             variant="outline"
                             size="sm"
                             onClick={() => handleAskCoach(question)}
-                            disabled={isCoachPending}
+                            disabled={isCoachDisabled}
                             className="w-full sm:w-fit"
                           >
                             <Sparkles className="h-4 w-4" />
-                            {isCoachPending ? 'Asking...' : 'Ask Coach'}
+                            {isCoachPending ? 'Asking...' : isCoachCoolingDown ? 'Cooling down...' : 'Ask Coach'}
                           </Button>
                         )}
                       </div>
@@ -1005,6 +1022,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
                               <p className="text-xs text-muted-foreground">{coachResponse.fallbackReason}</p>
                             )}
                             <p className="text-xs text-amber-600 dark:text-amber-300">{coachResponse.warning}</p>
+                            <p className="text-xs text-muted-foreground">AI explains the stored question; it does not verify the source.</p>
                           </div>
                         ) : (
                           <p className="mt-2 text-sm text-muted-foreground">Coach explanation is unavailable right now.</p>
