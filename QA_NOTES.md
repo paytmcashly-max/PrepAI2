@@ -72,12 +72,15 @@ PYQ checks from this pass:
 - Verified-only filter returned `0`, as expected.
 - Admin/debug PYQ count should now report total PYQ count as `11` and verified PYQ count as `0`.
 - Hindi/Devanagari sample rows were checked after insertion and corrected to preserve Unicode text.
-- `source_reference` display could not be fully tested against live data because the live Supabase table is missing the `pyq_questions.source_reference` column. The repo migration exists at `supabase/migrations/20260511000000_pyq_source_reference.sql`, but it still needs to be applied to the live database before verified import can work end to end.
+- `source_reference` migration was applied to live Supabase after this pass. The column is now readable through Supabase, and the verification constraints are present on `pyq_questions`.
+- Verified import is still intentionally empty until an official/question-paper source reference is available.
 
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
 - Supabase filter/count checks for PYQ exam/year/subject/chapter/difficulty/verified-only behavior.
+- Applied `supabase/migrations/20260511000000_pyq_source_reference.sql` to live Supabase using the project Postgres connection.
+- Verified live `pyq_questions.source_reference` is readable through Supabase.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
