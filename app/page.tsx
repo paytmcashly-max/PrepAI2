@@ -59,7 +59,7 @@ export default function Page() {
             Master Your <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Competitive Exams</span>
           </h1>
           <p className="text-xl text-slate-400 mb-8 max-w-2xl mx-auto text-balance">
-            AI-powered 120-day structured learning roadmap with daily tasks, mock tests, and real-time progress tracking for Bihar Police SI, UP Police, SSC GD, and SSC CGL exams.
+            AI-powered structured learning roadmap with daily tasks, mock tests, and real-time progress tracking for Bihar Police SI, UP Police, and SSC GD exams.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
@@ -93,7 +93,7 @@ export default function Page() {
               <CheckCircle className="w-6 h-6 text-purple-400" />
               <h3 className="text-white font-semibold text-lg">Daily Tasks</h3>
             </div>
-            <p className="text-slate-400">5 personalized daily tasks across Mathematics, General Knowledge, Hindi, Reasoning, and Physics with difficulty tracking.</p>
+            <p className="text-slate-400">Personalized daily tasks across Mathematics, General Knowledge, Hindi, Reasoning, and physical training with difficulty tracking.</p>
           </div>
 
           <div className="p-6 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-slate-700">
@@ -131,8 +131,8 @@ export default function Page() {
 
         <div className="text-center mb-20">
           <h2 className="text-3xl font-bold text-white mb-8">Supported Exams</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {['Bihar Police SI', 'UP Police', 'SSC GD', 'SSC CGL'].map((exam) => (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {['Bihar Police SI', 'UP Police', 'SSC GD'].map((exam) => (
               <div
                 key={exam}
                 className="p-4 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-slate-700 text-white font-semibold hover:border-blue-500 transition-colors"

@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { toLocalDateString } from '@/lib/date-utils'
 import { getRuntimeHealthEnv } from '@/lib/env'
+import { SUPPORTED_EXAM_IDS, isSupportedExamId, supportedExamFilterValue } from '@/lib/exams/supported'
 import type {
   Exam,
   Subject,
@@ -107,8 +108,8 @@ function resourceIsNote(resource: StudyResource) {
   return ['concept_note', 'pdf_note', 'current_affairs', 'physical_training'].includes(resource.resource_type)
 }
 
-function resourceHasCuratedVideo(resource: StudyResource) {
-  return resource.resource_type === 'video_embed' && Boolean(resource.embed_url)
+function resourceHasVideoSupport(resource: StudyResource) {
+  return Boolean(resource.embed_url || resource.video_search_query)
 }
 
 function questionMatchesTask(question: Pick<OriginalPracticeQuestion, 'exam_id' | 'subject_id' | 'chapter_id'>, task: Pick<UserDailyTask, 'exam_id' | 'subject_id' | 'chapter_id'>) {
@@ -130,7 +131,7 @@ async function enrichTasksWithStudyData(userId: string, tasks: UserDailyTask[]):
   if (tasks.length === 0) return tasks
 
   const supabase = await createClient()
-  const examIds = [...new Set(tasks.map((task) => task.exam_id).filter(Boolean))]
+  const examIds = [...new Set(tasks.map((task) => task.exam_id).filter(isSupportedExamId))]
   const subjectIds = [...new Set(tasks.map((task) => task.subject_id).filter(Boolean) as string[])]
 
   const [resourcesResult, questionsResult] = await Promise.all([
@@ -138,6 +139,7 @@ async function enrichTasksWithStudyData(userId: string, tasks: UserDailyTask[]):
       .from('study_resources')
       .select('*, subject:subjects(*), chapter:chapters(*)')
       .eq('is_active', true)
+      .or(`exam_id.is.null,exam_id.in.${supportedExamFilterValue()}`)
       .order('priority', { ascending: true }),
     supabase
       .from('original_practice_questions')
@@ -218,6 +220,7 @@ export async function getActiveStudyPlan(userId: string): Promise<UserStudyPlan 
     .select('*')
     .eq('user_id', userId)
     .eq('status', 'active')
+    .in('exam_id', SUPPORTED_EXAM_IDS)
     .order('created_at', { ascending: false })
     .limit(1)
     .single()
@@ -234,6 +237,7 @@ export async function getSubjects(): Promise<Subject[]> {
   const { data: linkedSubjects, error: linkedSubjectsError } = await supabase
     .from('exam_subjects')
     .select('subject:subjects(*)')
+    .in('exam_id', SUPPORTED_EXAM_IDS)
 
   if (!linkedSubjectsError && linkedSubjects && linkedSubjects.length > 0) {
     const subjectsById = new Map<string, Subject>()
@@ -544,6 +548,7 @@ export async function getMockTests(): Promise<MockTest[]> {
     .select('*')
     .is('user_id', null)
     .eq('is_active', true)
+    .or(`exam_id.is.null,exam_id.in.${supportedExamFilterValue()}`)
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -556,6 +561,7 @@ export async function getMasterExams(): Promise<Exam[]> {
   const { data: linkedExams, error: linkedExamsError } = await supabase
     .from('exam_subjects')
     .select('exam:exams(*)')
+    .in('exam_id', SUPPORTED_EXAM_IDS)
 
   if (!linkedExamsError && linkedExams && linkedExams.length > 0) {
     const examsById = new Map<string, Exam>()
@@ -572,6 +578,7 @@ export async function getMasterExams(): Promise<Exam[]> {
   const { data, error } = await supabase
     .from('exams')
     .select('*')
+    .in('id', SUPPORTED_EXAM_IDS)
     .order('name')
 
   if (error) throw error
@@ -584,6 +591,7 @@ export async function getUserMockResults(userId: string): Promise<MockTest[]> {
     .from('mock_tests')
     .select('*')
     .eq('user_id', userId)
+    .or(`exam_id.is.null,exam_id.in.${supportedExamFilterValue()}`)
     .order('test_date', { ascending: false })
 
   if (error) throw error
@@ -651,9 +659,12 @@ export async function getPYQQuestions(filters?: {
   userId?: string
 }): Promise<PYQQuestion[]> {
   const supabase = await createClient()
+  if (filters?.examId && !isSupportedExamId(filters.examId)) return []
+
   let query = supabase
     .from('pyq_questions')
     .select('*, subject:subjects(*), exam:exams(*), chapter_ref:chapters(*)')
+    .in('exam_id', SUPPORTED_EXAM_IDS)
     .order('year', { ascending: false })
 
   if (filters?.examId) query = query.eq('exam_id', filters.examId)
@@ -697,6 +708,7 @@ export async function getPYQQuestionById(questionId: string): Promise<PYQQuestio
     .from('pyq_questions')
     .select('*, subject:subjects(*), exam:exams(*), chapter_ref:chapters(*)')
     .eq('id', questionId)
+    .in('exam_id', SUPPORTED_EXAM_IDS)
     .maybeSingle()
 
   if (error) throw error
@@ -709,6 +721,7 @@ export async function getPYQProgressSummary(userId: string): Promise<PYQProgress
   const { data: visibleQuestions, error: visibleError } = await supabase
     .from('pyq_questions')
     .select('id, question, subject_id, chapter_id, subject:subjects(id, name), chapter_ref:chapters(id, name)')
+    .in('exam_id', SUPPORTED_EXAM_IDS)
     .not('verification_status', 'in', '("needs_manual_review","auto_rejected")')
 
   if (visibleError) throw visibleError
@@ -851,6 +864,7 @@ export async function getPYQYears(): Promise<number[]> {
   const { data, error } = await supabase
     .from('pyq_questions')
     .select('year')
+    .in('exam_id', SUPPORTED_EXAM_IDS)
     .order('year', { ascending: false })
 
   if (error) throw error
@@ -893,6 +907,7 @@ export async function getPYQFilterData(): Promise<{
     supabase
       .from('chapters')
       .select('*')
+      .in('exam_id', SUPPORTED_EXAM_IDS)
       .order('exam_id')
       .order('subject_id')
       .order('order_index'),
@@ -933,6 +948,7 @@ export async function getStudyResourceById(resourceId: string): Promise<StudyRes
     .select('*, subject:subjects(*), chapter:chapters(*), exam:exams(*)')
     .eq('id', resourceId)
     .eq('is_active', true)
+    .or(`exam_id.is.null,exam_id.in.${supportedExamFilterValue()}`)
     .maybeSingle()
 
   if (error) throw error
@@ -953,10 +969,13 @@ export async function getOriginalPracticeQuestions(filters?: {
   userId?: string
 }): Promise<OriginalPracticeQuestion[]> {
   const supabase = await createClient()
+  if (filters?.examId && !isSupportedExamId(filters.examId)) return []
+
   let query = supabase
     .from('original_practice_questions')
     .select('*, subject:subjects(*), chapter:chapters(*), exam:exams(*)')
     .eq('is_active', true)
+    .in('exam_id', SUPPORTED_EXAM_IDS)
     .order('exam_id')
     .order('subject_id')
     .order('created_at')
@@ -1009,6 +1028,7 @@ export async function getOriginalPracticeFilterData(): Promise<{
     supabase
       .from('chapters')
       .select('*')
+      .in('exam_id', SUPPORTED_EXAM_IDS)
       .order('exam_id')
       .order('subject_id')
       .order('order_index'),
@@ -1029,6 +1049,7 @@ export async function getOriginalPracticeProgressSummary(userId: string): Promis
     .from('original_practice_questions')
     .select('id')
     .eq('is_active', true)
+    .in('exam_id', SUPPORTED_EXAM_IDS)
 
   if (questionError?.code === 'PGRST205') {
     return {
@@ -2165,7 +2186,8 @@ export async function getResourceCoverageForActivePlan(userId: string): Promise<
     supabase
       .from('study_resources')
       .select('*, subject:subjects(*), chapter:chapters(*)')
-      .eq('is_active', true),
+      .eq('is_active', true)
+      .or(`exam_id.is.null,exam_id.eq.${plan.exam_id}`),
     supabase
       .from('original_practice_questions')
       .select('id, exam_id, subject_id, chapter_id')
@@ -2205,7 +2227,7 @@ export async function getResourceCoverageForActivePlan(userId: string): Promise<
     const taskResources = resources.filter((resource) => resourceMatchesTask(resource, task))
     const hasNotes = taskResources.some(resourceIsNote)
     const hasPractice = questions.some((question) => questionMatchesTask(question, task))
-    const hasVideo = taskResources.some(resourceHasCuratedVideo)
+    const hasVideo = taskResources.some(resourceHasVideoSupport)
 
     if (hasNotes) tasksWithNotes += 1
     if (hasPractice) tasksWithOriginalPractice += 1

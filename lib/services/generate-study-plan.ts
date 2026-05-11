@@ -116,7 +116,7 @@ interface RuleContext {
   physicalRule: PhysicalRuleRow | null
 }
 
-const policePhysicalExams = new Set(['bihar_si', 'up_police', 'ssc_gd', 'bihar-si', 'up-police', 'ssc-gd'])
+const policePhysicalExams = new Set(['bihar_si', 'up_police', 'ssc_gd'])
 const baseSubjectOrder = ['maths', 'gk_gs', 'gk-gs', 'hindi', 'english', 'reasoning', 'general-awareness', 'computer']
 const fallbackPhaseRules = [
   { id: 'foundation', name: 'Foundation', percentage: 25 },

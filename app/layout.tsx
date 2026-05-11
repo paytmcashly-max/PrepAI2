@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     default: 'PrepAI',
     template: '%s | PrepAI',
   },
-  description: 'AI-powered SSC CGL preparation with study planning, notes, mock tests, and PYQs.',
+  description: 'AI-powered exam preparation for Bihar SI, UP Police, and SSC GD with study planning, notes, mock tests, and PYQs.',
   generator: 'PrepAI',
   icons: {
     icon: [

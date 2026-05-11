@@ -16,6 +16,7 @@ import { isAdminEmail } from '@/lib/admin-auth'
 import { getAdminDebugSnapshot } from '@/lib/queries'
 import { generateMissingResourcesForActivePlan } from '@/lib/actions'
 import { Button } from '@/components/ui/button'
+import { SUPPORTED_EXAM_IDS } from '@/lib/exams/supported'
 
 function MetricCard({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
   return (
@@ -79,6 +80,13 @@ export default async function AdminDebugPage({ searchParams }: { searchParams?: 
             This page contains private user and plan diagnostics. Do not share screenshots or expose this route to normal users.
           </AlertDescription>
         </Alert>
+        <Alert>
+          <Database className="h-4 w-4" />
+          <AlertTitle>Supported exams only</AlertTitle>
+          <AlertDescription className="break-words">
+            Unsupported exam data was removed in the cleanup migration. Current supported IDs: {SUPPORTED_EXAM_IDS.join(', ')}.
+          </AlertDescription>
+        </Alert>
       </div>
 
       {!snapshot.activePlan && (
@@ -124,6 +132,7 @@ export default async function AdminDebugPage({ searchParams }: { searchParams?: 
         <MetricCard label="Latest Commit" value={snapshot.health.latestCommit} />
         <MetricCard label="Groq Configured" value={snapshot.health.groqConfigured ? 'Yes' : 'No'} detail="Secret value is never displayed" />
         <MetricCard label="Visible PYQs" value={snapshot.pyqCounts.visible} detail="Excludes manual-review/rejected rows" />
+        <MetricCard label="Supported Exams" value={SUPPORTED_EXAM_IDS.length} detail={SUPPORTED_EXAM_IDS.join(', ')} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -144,8 +153,8 @@ export default async function AdminDebugPage({ searchParams }: { searchParams?: 
 
       <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>Auto Resource Coverage</CardTitle>
-          <CardDescription>Active-plan coverage for PrepAI notes, original practice, and curated video embeds.</CardDescription>
+          <CardTitle>Active Plan Resource Coverage</CardTitle>
+          <CardDescription>Supported active-plan coverage for PrepAI notes, original practice, and video/search support.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {resourceStatus && (
@@ -165,7 +174,7 @@ export default async function AdminDebugPage({ searchParams }: { searchParams?: 
             <MetricTile label="Overall Coverage" value={`${snapshot.resourceCoverage.overallCoveragePercent}%`} />
             <MetricTile label="Notes Coverage" value={`${snapshot.resourceCoverage.notesCoveragePercent}%`} />
             <MetricTile label="Practice Coverage" value={`${snapshot.resourceCoverage.practiceCoveragePercent}%`} />
-            <MetricTile label="Video Embed Coverage" value={`${snapshot.resourceCoverage.videoCoveragePercent}%`} />
+            <MetricTile label="Video/Search Coverage" value={`${snapshot.resourceCoverage.videoCoveragePercent}%`} />
             <MetricTile label="Missing Notes Tasks" value={snapshot.resourceCoverage.tasksMissingNotes} />
             <MetricTile label="Missing Practice Tasks" value={snapshot.resourceCoverage.tasksMissingPractice} />
             <MetricTile label="Missing Video Tasks" value={snapshot.resourceCoverage.tasksMissingVideo} />
@@ -194,7 +203,7 @@ export default async function AdminDebugPage({ searchParams }: { searchParams?: 
                     <TableHead className="text-right">Tasks</TableHead>
                     <TableHead className="text-right">No Notes</TableHead>
                     <TableHead className="text-right">No Practice</TableHead>
-                    <TableHead className="text-right">No Video</TableHead>
+                    <TableHead className="text-right">No Video/Search</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

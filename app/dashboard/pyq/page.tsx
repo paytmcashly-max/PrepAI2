@@ -6,7 +6,7 @@ import { isAdminEmail } from "@/lib/admin-auth"
 
 export const metadata = {
   title: "Previous Year Questions | PrepTrack",
-  description: "Practice with previous year questions from SSC CGL exams",
+  description: "Practice with previous year questions for supported exams",
 }
 
 export default async function PYQPage() {

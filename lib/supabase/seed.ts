@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isSupportedExamId } from '@/lib/exams/supported'
 import masterSeed from '@/supabase/master-seed.json'
 
 type Priority = 'low' | 'medium' | 'high'
@@ -180,6 +181,7 @@ export function getMasterSeedData(): SeedData {
 export async function seedDatabase(data: SeedData) {
   const supabase = createAdminClient()
   validateNoFixedUserSeeds(data)
+  const isSupportedOrGlobal = (examId: string | null | undefined) => !examId || isSupportedExamId(examId)
 
   try {
     if (data.planner_rules) {
@@ -196,6 +198,8 @@ export async function seedDatabase(data: SeedData) {
     }
 
     for (const exam of data.exams || []) {
+      if (!isSupportedExamId(exam.id)) continue
+
       const { error } = await supabase
         .from('exams')
         .upsert({
@@ -228,6 +232,8 @@ export async function seedDatabase(data: SeedData) {
     }
 
     for (const examSubject of data.exam_subjects || []) {
+      if (!isSupportedExamId(examSubject.exam_id)) continue
+
       const { error } = await supabase
         .from('exam_subjects')
         .upsert({
@@ -247,6 +253,7 @@ export async function seedDatabase(data: SeedData) {
       if (!examId || !subjectId) {
         throw new Error(`Chapter "${chapter.name}" is missing examId or subjectId.`)
       }
+      if (!isSupportedExamId(examId)) continue
 
       const { error } = await supabase
         .from('chapters')
@@ -270,12 +277,14 @@ export async function seedDatabase(data: SeedData) {
     for (const template of data.task_templates ?? data.taskTemplates ?? []) {
       const title = template.title_template ?? template.titleTemplate
       if (!title) throw new Error('Task template is missing titleTemplate.')
+      const examId = template.exam_id ?? template.examId ?? null
+      if (!isSupportedOrGlobal(examId)) continue
 
       const { error } = await supabase
         .from('task_templates')
         .upsert({
           ...(template.id ? { id: template.id } : {}),
-          exam_id: template.exam_id ?? template.examId ?? null,
+          exam_id: examId,
           subject_id: template.subject_id ?? template.subjectId ?? null,
           task_type: template.task_type ?? template.taskType ?? 'concept',
           title_template: title,
@@ -289,13 +298,14 @@ export async function seedDatabase(data: SeedData) {
     }
 
     const revisionRules = data.revision_rules ?? data.revisionRules ?? []
-    for (const examId of new Set(revisionRules.map((rule) => rule.exam_id ?? rule.examId).filter(Boolean))) {
+    for (const examId of new Set(revisionRules.map((rule) => rule.exam_id ?? rule.examId).filter(isSupportedExamId))) {
       await supabase.from('revision_rules').delete().eq('exam_id', examId)
     }
 
     for (const rule of revisionRules) {
       const examId = rule.exam_id ?? rule.examId
       if (!examId) throw new Error('Revision rule is missing examId.')
+      if (!isSupportedExamId(examId)) continue
 
       const { error } = await supabase
         .from('revision_rules')
@@ -310,13 +320,14 @@ export async function seedDatabase(data: SeedData) {
     }
 
     const mockRules = data.mock_rules ?? data.mockRules ?? []
-    for (const examId of new Set(mockRules.map((rule) => rule.exam_id ?? rule.examId).filter(Boolean))) {
+    for (const examId of new Set(mockRules.map((rule) => rule.exam_id ?? rule.examId).filter(isSupportedExamId))) {
       await supabase.from('mock_rules').delete().eq('exam_id', examId)
     }
 
     for (const rule of mockRules) {
       const examId = rule.exam_id ?? rule.examId
       if (!examId) throw new Error('Mock rule is missing examId.')
+      if (!isSupportedExamId(examId)) continue
 
       const { error } = await supabase
         .from('mock_rules')
@@ -336,6 +347,7 @@ export async function seedDatabase(data: SeedData) {
     for (const rule of physicalRules) {
       const examId = rule.exam_id ?? rule.examId
       if (!examId || !rule.level) throw new Error('Physical rule is missing examId or level.')
+      if (!isSupportedExamId(examId)) continue
 
       await supabase.from('physical_rules').delete().eq('exam_id', examId).eq('level', rule.level)
 
@@ -354,6 +366,8 @@ export async function seedDatabase(data: SeedData) {
     for (const [index, pyq] of (data.pyq_questions ?? data.pyqQuestions ?? []).entries()) {
       const source = pyq.source ?? 'ai_generated'
       const explicitVerified = pyq.is_verified ?? pyq.isVerified
+      const examId = pyq.exam_id ?? pyq.examId ?? null
+      if (!isSupportedOrGlobal(examId)) continue
 
       if (source === 'verified_pyq' && explicitVerified !== true) {
         throw new Error(`PYQ "${pyq.id ?? index + 1}" uses source=verified_pyq but is not explicitly marked verified.`)
@@ -378,7 +392,7 @@ export async function seedDatabase(data: SeedData) {
         .from('pyq_questions')
         .upsert({
           id: pyq.id ?? `pyq-${index + 1}`,
-          exam_id: pyq.exam_id ?? pyq.examId ?? null,
+          exam_id: examId,
           year: pyq.year,
           subject_id: pyq.subject_id ?? pyq.subjectId ?? null,
           chapter_id: pyq.chapter_id ?? pyq.chapterId ?? null,

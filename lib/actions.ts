@@ -12,6 +12,7 @@ import { autoValidatePYQInput } from '@/lib/pyq-trust'
 import { pyqAnswersMatch } from '@/lib/pyq-answer'
 import { toLocalDateString } from '@/lib/date-utils'
 import { getActiveStudyPlan, getAdaptiveRevisionRecommendations, getResourceCoverageForActivePlan } from '@/lib/queries'
+import { isSupportedExamId } from '@/lib/exams/supported'
 import { buildDailyCoachContext, buildPYQCoachContext } from '@/lib/ai/coach-context'
 import { callGroqCoach, claimGroqRateLimitSlot } from '@/lib/ai/groq'
 import type { CoachActionResult, PYQSource, PYQVerificationStatus } from '@/lib/types'
@@ -139,6 +140,9 @@ async function normalizePYQWriteInput(data: PYQWriteInput, existingQuestionId?: 
 
   if (!examId || !subjectId || !Number.isInteger(year) || year < 1900 || year > 2100) {
     throw new Error('Please provide exam, subject, and a valid year.')
+  }
+  if (!isSupportedExamId(examId)) {
+    throw new Error('Selected exam is not supported. Choose Bihar SI, UP Police, or SSC GD.')
   }
   if (!['easy', 'medium', 'hard'].includes(difficulty)) {
     throw new Error('Difficulty must be easy, medium, or hard.')
@@ -292,6 +296,9 @@ export async function completeOnboarding(data: {
 
   const targetDays = Math.max(7, Number(data.targetDays))
   const dailyStudyHours = Math.max(1, Number(data.dailyStudyHours))
+  if (!isSupportedExamId(data.examTarget)) {
+    throw new Error('Selected exam is not supported. Choose Bihar SI, UP Police, or SSC GD.')
+  }
 
   const { error: profileError } = await supabase
     .from('profiles')
@@ -594,6 +601,9 @@ export async function regeneratePlanFromSettings(data: {
 
   const examTarget = data.examTarget?.trim()
   if (!examTarget) throw new Error('Please choose an exam.')
+  if (!isSupportedExamId(examTarget)) {
+    throw new Error('Selected exam is not supported. Choose Bihar SI, UP Police, or SSC GD.')
+  }
 
   const targetDays = normalizePositiveInt(data.targetDays, 7, 'Target days')
   const dailyStudyHours = normalizePositiveInt(data.dailyStudyHours, 1, 'Daily study hours')
@@ -1542,6 +1552,9 @@ export async function generateMissingResourcesForActivePlan(input?: FormData | s
   const plan = await getActiveStudyPlan(targetUserId)
   if (!plan) {
     redirect('/dashboard/admin/debug?resourceStatus=no-active-plan')
+  }
+  if (!isSupportedExamId(plan.exam_id)) {
+    redirect('/dashboard/admin/debug?resourceStatus=unsupported-exam')
   }
 
   const coverage = await getResourceCoverageForActivePlan(targetUserId)
