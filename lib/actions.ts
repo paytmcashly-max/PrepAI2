@@ -8,6 +8,8 @@ import { generateStudyPlan } from '@/lib/services/generate-study-plan'
 import { getAdminEmails } from '@/lib/admin-auth'
 import { autoValidatePYQInput } from '@/lib/pyq-trust'
 import { pyqAnswersMatch } from '@/lib/pyq-answer'
+import { toLocalDateString } from '@/lib/date-utils'
+import { getAdaptiveRevisionRecommendations } from '@/lib/queries'
 import type { PYQSource, PYQVerificationStatus } from '@/lib/types'
 
 type Level = 'weak' | 'average' | 'good'
@@ -456,6 +458,99 @@ export async function skipTasks(taskIds: string[]) {
   revalidatePath('/dashboard/revision', 'page')
   revalidatePath('/dashboard/tasks', 'page')
   return { success: true, count: ids.length }
+}
+
+export async function createAdaptiveRevisionTask(recommendationId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const id = recommendationId?.trim()
+  if (!id) throw new Error('Recommendation ID is required.')
+
+  const { data: activePlan, error: planError } = await supabase
+    .from('user_study_plans')
+    .select('id, exam_id, start_date')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (planError || !activePlan) throw new Error('Active study plan not found.')
+
+  const recommendations = await getAdaptiveRevisionRecommendations(user.id)
+  const recommendation = recommendations.find((item) => item.id === id)
+  if (!recommendation) throw new Error('Recommendation is no longer available.')
+  if (!recommendation.subject_id && !recommendation.chapter_id) {
+    throw new Error('Recommendation is missing subject or chapter mapping.')
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayString = toLocalDateString(today)
+  const sevenDaysAgo = new Date(today)
+  sevenDaysAgo.setDate(today.getDate() - 6)
+  const sevenDaysAhead = new Date(today)
+  sevenDaysAhead.setDate(today.getDate() + 6)
+
+  let duplicateQuery = supabase
+    .from('user_daily_tasks')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('plan_id', activePlan.id)
+    .eq('status', 'pending')
+    .eq('task_type', 'revision')
+    .gte('task_date', toLocalDateString(sevenDaysAgo))
+    .lte('task_date', toLocalDateString(sevenDaysAhead))
+
+  duplicateQuery = recommendation.chapter_id
+    ? duplicateQuery.eq('chapter_id', recommendation.chapter_id)
+    : duplicateQuery.is('chapter_id', null).eq('subject_id', recommendation.subject_id)
+
+  const { data: duplicateRows, error: duplicateError } = await duplicateQuery.limit(1)
+  if (duplicateError) throw duplicateError
+  if (duplicateRows && duplicateRows.length > 0) {
+    throw new Error('A pending revision task for this PYQ pattern already exists within 7 days.')
+  }
+
+  const start = new Date(`${activePlan.start_date}T00:00:00`)
+  const dayNumber = Math.max(1, Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+
+  const { data: task, error } = await supabase
+    .from('user_daily_tasks')
+    .insert({
+      user_id: user.id,
+      plan_id: activePlan.id,
+      day_number: dayNumber,
+      task_date: todayString,
+      exam_id: activePlan.exam_id,
+      subject_id: recommendation.subject_id,
+      chapter_id: recommendation.chapter_id,
+      title: `PYQ revision: ${recommendation.chapter_name || recommendation.subject_name || 'mistake pattern'}`,
+      description: recommendation.reason,
+      task_type: 'revision',
+      estimated_minutes: recommendation.suggested_minutes,
+      priority: recommendation.priority,
+      how_to_study: [
+        'Re-open the incorrect or marked PYQs and identify the exact mistake pattern.',
+        'Revise the related concept or notes for this chapter.',
+        'Retry the PYQs without seeing the answer, then write one mistake note.',
+      ],
+      status: 'pending',
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  revalidatePath('/dashboard', 'layout')
+  revalidatePath('/dashboard', 'page')
+  revalidatePath('/dashboard/revision', 'page')
+  revalidatePath('/dashboard/tasks', 'page')
+  revalidatePath('/dashboard/pyq', 'page')
+  return { success: true, task }
 }
 
 // ============ PLAN SETTINGS ============

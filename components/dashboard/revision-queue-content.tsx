@@ -1,9 +1,14 @@
+'use client'
+
 import Link from 'next/link'
+import { useTransition } from 'react'
+import { toast } from 'sonner'
 import { AlertTriangle, BookOpen, ClipboardList, Flag, ListChecks, RotateCcw, TimerReset } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { createAdaptiveRevisionTask } from '@/lib/actions'
 import type { RevisionQueueData, UserDailyTask } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -37,9 +42,11 @@ function TaskRow({ task }: { task: UserDailyTask }) {
 }
 
 export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
+  const [isPending, startTransition] = useTransition()
   const hasQueueData = queue.overdueTasks.length > 0
     || queue.weakChapters.length > 0
     || queue.mockWeakAreas.length > 0
+    || queue.adaptiveRecommendations.length > 0
     || queue.pyqRevisionItems.length > 0
     || queue.currentWeekRevisionTasks.length > 0
     || queue.suggestedOrder.length > 0
@@ -69,7 +76,7 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-6">
         <Card className="overflow-hidden">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">Overdue Tasks</p>
@@ -92,6 +99,12 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">PYQ Review</p>
             <p className="mt-1 text-3xl font-bold">{queue.pyqRevisionItems.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-muted-foreground">Adaptive</p>
+            <p className="mt-1 text-3xl font-bold">{queue.adaptiveRecommendations.length}</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden">
@@ -148,6 +161,60 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Adaptive Recommendations
+            </CardTitle>
+            <CardDescription>PYQ mistake patterns converted into revision actions.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {queue.adaptiveRecommendations.length > 0 ? (
+              <div className="space-y-3">
+                {queue.adaptiveRecommendations.map((recommendation) => (
+                  <div key={recommendation.id} className="rounded-lg border p-4">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="break-words font-medium leading-relaxed">{recommendation.title}</p>
+                        <p className="mt-1 break-words text-sm leading-relaxed text-muted-foreground">{recommendation.reason}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Suggested: {recommendation.suggested_minutes} minutes
+                        </p>
+                      </div>
+                      <Badge className={cn('w-fit', priorityClass(recommendation.priority))}>{recommendation.priority}</Badge>
+                    </div>
+                    <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <Button asChild size="sm" variant="outline" className="w-full sm:w-fit">
+                        <Link href={recommendation.actionTarget}>Review PYQs</Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="w-full sm:w-fit"
+                        disabled={isPending}
+                        onClick={() => {
+                          startTransition(async () => {
+                            try {
+                              await createAdaptiveRevisionTask(recommendation.id)
+                              toast.success('Revision task created for today.')
+                            } catch (error) {
+                              toast.error(error instanceof Error ? error.message : 'Could not create revision task.')
+                            }
+                          })
+                        }}
+                      >
+                        Create revision task
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No adaptive PYQ recommendations yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">

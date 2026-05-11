@@ -143,6 +143,7 @@ export default async function AdminDebugPage() {
             <MetricTile label="Revision Overdue" value={snapshot.revisionQueueCounts.overdueTasks} />
             <MetricTile label="Weak Chapters" value={snapshot.revisionQueueCounts.weakChapters} />
             <MetricTile label="Mock Weak Areas" value={snapshot.revisionQueueCounts.mockWeakAreas} />
+            <MetricTile label="Adaptive Recommendations" value={snapshot.revisionQueueCounts.adaptiveRecommendations} />
             <MetricTile label="PYQ Revision Items" value={snapshot.revisionQueueCounts.pyqRevisionItems} />
             <MetricTile label="Weekly Revision Tasks" value={snapshot.revisionQueueCounts.currentWeekRevisionTasks} />
             <MetricTile label="Suggested Revision Items" value={snapshot.revisionQueueCounts.suggestedOrder} />

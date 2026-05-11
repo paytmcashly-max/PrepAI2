@@ -221,6 +221,20 @@ PYQ analytics UX hardening on 2026-05-11:
 - Attempt URL filters were checked for `?attempt=incorrect` and `?attempt=marked`; changing the attempt filter preserves `mode=test`.
 - Empty states now clearly say `No wrong attempts yet.`, `No weak chapter pattern yet.`, and `Submit a PYQ answer to build history.`
 
+Adaptive PYQ revision recommendations on 2026-05-11:
+
+- Added `getAdaptiveRevisionRecommendations(userId)` using active-plan exam, incorrect PYQ attempts, marked-for-revision PYQs, visible PYQ rows only, and existing pending active-plan tasks.
+- Repeated incorrect attempts in the same chapter produce high-priority recommendations.
+- One incorrect attempt plus a revision mark produces a medium-priority recommendation.
+- Marked-only recommendations produce low/medium priority depending on count.
+- `needs_manual_review` and `auto_rejected` PYQs are ignored.
+- Dashboard now shows the top 3 Adaptive Revision Recommendations with links to PYQ review or the Revision Queue.
+- Revision Queue now has a separate Adaptive Recommendations section.
+- Added `createAdaptiveRevisionTask()` to create a deterministic revision task for today from a recommendation.
+- Duplicate pending revision tasks for the same chapter/subject are prevented within a 7-day window.
+- Created tasks use `task_type = revision`, the recommendation priority, current active plan, and three deterministic `how_to_study` steps.
+- No Groq, bulk PYQ imports, or source-trust rule changes were made.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -246,6 +260,7 @@ PYQ analytics UX hardening on 2026-05-11:
 - Hardened PYQ answer matching and practice mode behavior without changing source trust rules.
 - Added PYQ progress summary cards, weakest subject/chapter analytics, recent attempts, dashboard PYQ progress card, and URL attempt filter initialization.
 - Hardened PYQ analytics hash links, summary refresh after actions, URL filter preservation, and empty-state copy.
+- Added adaptive PYQ revision recommendations and guarded revision task creation.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

@@ -29,7 +29,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { TaskCheckItem } from '@/components/dashboard/task-check-item'
 import { toggleTaskCompletion } from '@/lib/actions'
-import type { DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea, PYQProgressSummary } from '@/lib/types'
+import type { AdaptiveRevisionRecommendation, DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea, PYQProgressSummary } from '@/lib/types'
 
 interface DashboardContentProps {
   stats: DashboardStats
@@ -39,6 +39,7 @@ interface DashboardContentProps {
   weakAreas: WeakArea[]
   overdueTaskCount: number
   pyqProgress: PYQProgressSummary | null
+  adaptiveRecommendations: AdaptiveRevisionRecommendation[]
 }
 
 function clampPercent(value: number) {
@@ -46,7 +47,7 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value))
 }
 
-export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount, pyqProgress }: DashboardContentProps) {
+export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount, pyqProgress, adaptiveRecommendations }: DashboardContentProps) {
   const [isPending, startTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
   const visibleSubjectProgress = subjectProgress.filter((subject) => subject.totalTasks > 0)
@@ -320,6 +321,52 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">PYQ progress is unavailable right now.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Adaptive Revision Recommendations
+            </CardTitle>
+            <CardDescription>Deterministic suggestions from PYQ mistakes and marked questions.</CardDescription>
+          </div>
+          <Button asChild size="sm" variant="outline" className="w-full sm:w-fit">
+            <Link href="/dashboard/revision">Open revision queue</Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {adaptiveRecommendations.length > 0 ? (
+            <div className="space-y-3">
+              {adaptiveRecommendations.slice(0, 3).map((recommendation) => (
+                <div key={recommendation.id} className="rounded-lg border p-4">
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium leading-relaxed">{recommendation.title}</p>
+                      <p className="mt-1 break-words text-sm leading-relaxed text-muted-foreground">{recommendation.reason}</p>
+                    </div>
+                    <span className="w-fit rounded-full bg-muted px-2 py-0.5 text-xs capitalize text-muted-foreground">
+                      {recommendation.priority}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <Button asChild size="sm" variant="outline" className="w-full sm:w-fit">
+                      <Link href={recommendation.incorrectCount > 0 ? '/dashboard/pyq?attempt=incorrect' : '/dashboard/pyq?attempt=marked'}>
+                        Review PYQs
+                      </Link>
+                    </Button>
+                    <Button asChild size="sm" variant="ghost" className="w-full sm:w-fit">
+                      <Link href="/dashboard/revision">Open queue</Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No adaptive PYQ revision recommendations yet.</p>
           )}
         </CardContent>
       </Card>

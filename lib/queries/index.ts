@@ -10,6 +10,7 @@ import type {
   MockTest,
   MockTestAttempt,
   Note,
+  AdaptiveRevisionRecommendation,
   PYQQuestion,
   PYQProgressSummary,
   MotivationalQuote,
@@ -1180,6 +1181,179 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
     .slice(0, 8)
 }
 
+export async function getAdaptiveRevisionRecommendations(userId: string): Promise<AdaptiveRevisionRecommendation[]> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(userId)
+  if (!plan) return []
+
+  const today = toDateString(new Date())
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+  const sevenDaysAgoString = toDateString(sevenDaysAgo)
+
+  const { data: attemptRows, error: attemptError } = await supabase
+    .from('user_pyq_attempts')
+    .select(`
+      id,
+      is_correct,
+      marked_for_revision,
+      pyq_question_id,
+      question:pyq_questions(
+        id,
+        exam_id,
+        subject_id,
+        chapter_id,
+        question,
+        verification_status,
+        subject:subjects(id, name),
+        chapter_ref:chapters(id, name)
+      )
+    `)
+    .eq('user_id', userId)
+    .or('is_correct.eq.false,marked_for_revision.eq.true')
+    .order('updated_at', { ascending: false })
+    .limit(100)
+
+  if (attemptError) throw attemptError
+
+  const { data: pendingTaskRows, error: pendingTaskError } = await supabase
+    .from('user_daily_tasks')
+    .select('id, subject_id, chapter_id, task_type, task_date, status')
+    .eq('user_id', userId)
+    .eq('plan_id', plan.id)
+    .eq('status', 'pending')
+
+  if (pendingTaskError) throw pendingTaskError
+
+  type AttemptRow = {
+    id: string
+    is_correct: boolean | null
+    marked_for_revision: boolean
+    pyq_question_id: string
+    question: {
+      id: string
+      exam_id: string | null
+      subject_id: string | null
+      chapter_id: string | null
+      question: string
+      verification_status: string | null
+      subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+      chapter_ref: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    } | Array<{
+      id: string
+      exam_id: string | null
+      subject_id: string | null
+      chapter_id: string | null
+      question: string
+      verification_status: string | null
+      subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+      chapter_ref: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    }> | null
+  }
+
+  const pendingTasks = (pendingTaskRows || []) as Array<{
+    id: string
+    subject_id: string | null
+    chapter_id: string | null
+    task_type: string
+    task_date: string
+    status: string
+  }>
+
+  const pendingCountByKey = new Map<string, number>()
+  const recentRevisionByKey = new Set<string>()
+  for (const task of pendingTasks) {
+    const key = task.chapter_id || task.subject_id
+    if (!key) continue
+    pendingCountByKey.set(key, (pendingCountByKey.get(key) || 0) + 1)
+    if (task.task_type === 'revision' && task.task_date >= sevenDaysAgoString && task.task_date <= today) {
+      recentRevisionByKey.add(key)
+    }
+  }
+
+  const buckets = new Map<string, {
+    chapter_id: string | null
+    subject_id: string | null
+    chapter_name: string | null
+    subject_name: string | null
+    incorrectCount: number
+    markedCount: number
+    questionIds: string[]
+  }>()
+
+  for (const row of (attemptRows || []) as unknown as AttemptRow[]) {
+    const question = Array.isArray(row.question) ? row.question[0] || null : row.question
+    if (!question || question.exam_id !== plan.exam_id) continue
+    if (question.verification_status === 'needs_manual_review' || question.verification_status === 'auto_rejected') continue
+
+    const subject = Array.isArray(question.subject) ? question.subject[0] || null : question.subject
+    const chapter = Array.isArray(question.chapter_ref) ? question.chapter_ref[0] || null : question.chapter_ref
+    const key = question.chapter_id || question.subject_id || question.id
+    const existing = buckets.get(key) || {
+      chapter_id: question.chapter_id,
+      subject_id: question.subject_id,
+      chapter_name: chapter?.name || null,
+      subject_name: subject?.name || question.subject_id,
+      incorrectCount: 0,
+      markedCount: 0,
+      questionIds: [],
+    }
+    if (row.is_correct === false) existing.incorrectCount += 1
+    if (row.marked_for_revision) existing.markedCount += 1
+    existing.questionIds.push(question.id)
+    buckets.set(key, existing)
+  }
+
+  return [...buckets.entries()]
+    .map(([key, bucket]) => {
+      const pendingTaskCount = pendingCountByKey.get(key) || 0
+      const label = bucket.chapter_name || bucket.subject_name || 'PYQ practice'
+      const priority: AdaptiveRevisionRecommendation['priority'] = bucket.incorrectCount >= 2
+        ? 'high'
+        : bucket.incorrectCount >= 1 && bucket.markedCount >= 1
+          ? 'medium'
+          : bucket.incorrectCount >= 1
+            ? 'medium'
+            : bucket.markedCount >= 2
+              ? 'medium'
+              : 'low'
+      const reasonParts = [
+        bucket.incorrectCount > 0 ? `${bucket.incorrectCount} incorrect PYQ attempt${bucket.incorrectCount > 1 ? 's' : ''}` : null,
+        bucket.markedCount > 0 ? `${bucket.markedCount} marked for revision` : null,
+        pendingTaskCount > 0 ? `${pendingTaskCount} pending active-plan task${pendingTaskCount > 1 ? 's' : ''}` : null,
+        recentRevisionByKey.has(key) ? 'recent revision task already exists' : null,
+      ].filter(Boolean)
+
+      return {
+        id: key,
+        chapter_id: bucket.chapter_id,
+        subject_id: bucket.subject_id,
+        chapter_name: bucket.chapter_name,
+        subject_name: bucket.subject_name,
+        title: `Revise ${label} from PYQ mistakes`,
+        reason: reasonParts.join(' + '),
+        priority,
+        suggested_minutes: priority === 'high' ? 45 : priority === 'medium' ? 30 : 20,
+        action_type: recentRevisionByKey.has(key) ? 'pyq_review' as const : 'revision_task' as const,
+        actionTarget: bucket.incorrectCount > 0
+          ? `/dashboard/pyq?attempt=incorrect#pyq-${bucket.questionIds[0]}`
+          : `/dashboard/pyq?attempt=marked#pyq-${bucket.questionIds[0]}`,
+        incorrectCount: bucket.incorrectCount,
+        markedCount: bucket.markedCount,
+        pendingTaskCount,
+      }
+    })
+    .filter((recommendation) => recommendation.incorrectCount > 0 || recommendation.markedCount > 0)
+    .sort((a, b) => {
+      const priorityRank = { high: 0, medium: 1, low: 2 }
+      return priorityRank[a.priority] - priorityRank[b.priority]
+        || b.incorrectCount - a.incorrectCount
+        || b.markedCount - a.markedCount
+        || a.title.localeCompare(b.title)
+    })
+    .slice(0, 8)
+}
+
 export async function getRevisionQueue(userId: string): Promise<RevisionQueueData> {
   const supabase = await createClient()
   const plan = await getActiveStudyPlan(userId)
@@ -1191,6 +1365,7 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
       overdueTasks: [],
       weakChapters: [],
       mockWeakAreas: [],
+      adaptiveRecommendations: [],
       pyqRevisionItems: [],
       currentWeekRevisionTasks: [],
       suggestedOrder: [],
@@ -1288,6 +1463,8 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
     .map(([area, count]) => ({ area, count }))
     .sort((a, b) => b.count - a.count || a.area.localeCompare(b.area))
     .slice(0, 8)
+
+  const adaptiveRecommendations = await getAdaptiveRevisionRecommendations(userId)
 
   const { data: pyqAttemptRows, error: pyqAttemptError } = await supabase
     .from('user_pyq_attempts')
@@ -1416,6 +1593,7 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
     overdueTasks,
     weakChapters,
     mockWeakAreas,
+    adaptiveRecommendations,
     pyqRevisionItems,
     currentWeekRevisionTasks,
     suggestedOrder,
@@ -1672,6 +1850,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
         overdueTasks: revisionQueue.overdueTasks.length,
         weakChapters: revisionQueue.weakChapters.length,
         mockWeakAreas: revisionQueue.mockWeakAreas.length,
+        adaptiveRecommendations: revisionQueue.adaptiveRecommendations.length,
         pyqRevisionItems: revisionQueue.pyqRevisionItems.length,
         currentWeekRevisionTasks: revisionQueue.currentWeekRevisionTasks.length,
         suggestedOrder: revisionQueue.suggestedOrder.length,
@@ -1783,6 +1962,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       overdueTasks: revisionQueue.overdueTasks.length,
       weakChapters: revisionQueue.weakChapters.length,
       mockWeakAreas: revisionQueue.mockWeakAreas.length,
+      adaptiveRecommendations: revisionQueue.adaptiveRecommendations.length,
       pyqRevisionItems: revisionQueue.pyqRevisionItems.length,
       currentWeekRevisionTasks: revisionQueue.currentWeekRevisionTasks.length,
       suggestedOrder: revisionQueue.suggestedOrder.length,

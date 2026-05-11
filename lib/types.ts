@@ -261,6 +261,23 @@ export interface PYQProgressSummary {
   recentAttempts: PYQRecentAttempt[]
 }
 
+export interface AdaptiveRevisionRecommendation {
+  id: string
+  chapter_id: string | null
+  subject_id: string | null
+  chapter_name: string | null
+  subject_name: string | null
+  title: string
+  reason: string
+  priority: 'low' | 'medium' | 'high'
+  suggested_minutes: number
+  action_type: 'pyq_review' | 'revision_task'
+  actionTarget: string
+  incorrectCount: number
+  markedCount: number
+  pendingTaskCount: number
+}
+
 export interface MotivationalQuote {
   id: string
   quote: string
@@ -358,6 +375,7 @@ export interface RevisionQueueData {
     area: string
     count: number
   }>
+  adaptiveRecommendations: AdaptiveRevisionRecommendation[]
   pyqRevisionItems: Array<{
     id: string
     questionId: string
@@ -430,6 +448,7 @@ export interface AdminDebugSnapshot {
     overdueTasks: number
     weakChapters: number
     mockWeakAreas: number
+    adaptiveRecommendations: number
     pyqRevisionItems: number
     currentWeekRevisionTasks: number
     suggestedOrder: number
