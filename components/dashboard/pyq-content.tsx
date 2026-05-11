@@ -403,6 +403,11 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                         {!question.is_verified && (
                           <span>Do not treat as official PYQ</span>
                         )}
+                        {question.source_reference && (
+                          <span className="min-w-0 break-words">
+                            Source: {question.source_reference}
+                          </span>
+                        )}
                       </div>
 
                       <Button

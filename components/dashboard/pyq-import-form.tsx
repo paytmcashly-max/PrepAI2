@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState, useTransition } from 'react'
-import { ArrowLeft, ShieldAlert, Upload } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ShieldAlert, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,7 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
     options: '',
     answer: '',
     explanation: '',
+    source_reference: '',
     source: 'verified_pyq' as Source,
     is_verified: true,
   })
@@ -55,6 +56,17 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
     }))
   }
 
+  const isVerifiedSource = formData.source === 'verified_pyq'
+  const canSubmit = Boolean(
+    isAdmin
+    && !isPending
+    && formData.exam_id
+    && formData.subject_id
+    && formData.question.trim()
+    && formData.answer.trim()
+    && (!isVerifiedSource || (formData.chapter_id && formData.source_reference.trim() && formData.is_verified))
+  )
+
   const submit = () => {
     startTransition(async () => {
       try {
@@ -68,6 +80,7 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
           options: formData.options.split('\n').map((option) => option.trim()).filter(Boolean),
           answer: formData.answer,
           explanation: formData.explanation || null,
+          source_reference: formData.source_reference || null,
           source: formData.source,
           is_verified: formData.is_verified,
         })
@@ -78,6 +91,7 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
           options: '',
           answer: '',
           explanation: '',
+          source_reference: '',
         }))
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Could not save PYQ')
@@ -129,6 +143,35 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
       )}
 
       {isAdmin && isConfigured && (
+        <>
+        <Alert className="border-amber-500/40 bg-amber-500/10">
+          <ShieldAlert className="h-4 w-4 text-amber-500" />
+          <AlertTitle>Verified PYQ import rule</AlertTitle>
+          <AlertDescription>
+            Only questions verified from official/question-paper source should be marked verified.
+          </AlertDescription>
+        </Alert>
+
+        <Card>
+        <CardHeader>
+          <CardTitle>Import Checklist</CardTitle>
+          <CardDescription>Use this before saving a manual PYQ record.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm md:grid-cols-2">
+          {[
+            'Question is copied from an official or verified question-paper source.',
+            'Exam, year, subject, and chapter match the paper.',
+            'Answer and explanation have been reviewed manually.',
+            'Source reference names the paper, shift, set, URL, or document location.',
+          ].map((item) => (
+            <div key={item} className="flex min-w-0 items-start gap-2 rounded-lg border p-3">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+              <span className="min-w-0 break-words leading-relaxed">{item}</span>
+            </div>
+          ))}
+        </CardContent>
+        </Card>
+
         <Card>
         <CardHeader>
           <CardTitle>Question Details</CardTitle>
@@ -174,12 +217,17 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
           <div className="grid gap-2">
             <Label>Chapter</Label>
             <Select value={formData.chapter_id || 'none'} onValueChange={(value) => setFormData((current) => ({ ...current, chapter_id: value === 'none' ? '' : value }))}>
-              <SelectTrigger><SelectValue placeholder="Optional chapter" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={isVerifiedSource ? 'Required chapter' : 'Optional chapter'} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No chapter</SelectItem>
+                <SelectItem value="none" disabled={isVerifiedSource}>
+                  {isVerifiedSource ? 'Select a chapter' : 'No chapter'}
+                </SelectItem>
                 {filteredChapters.map((chapter) => <SelectItem key={chapter.id} value={chapter.id}>{chapter.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            {isVerifiedSource && (
+              <p className="text-xs text-muted-foreground">Verified PYQs must be linked to the exact chapter.</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -214,17 +262,30 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
             <Textarea value={formData.explanation} onChange={(event) => setFormData((current) => ({ ...current, explanation: event.target.value }))} className="min-h-24" />
           </div>
 
+          <div className="grid gap-2">
+            <Label>Source reference</Label>
+            <Input
+              value={formData.source_reference}
+              onChange={(event) => setFormData((current) => ({ ...current, source_reference: event.target.value }))}
+              placeholder="Official paper name, shift, set, URL, or document location"
+            />
+            <p className="text-xs text-muted-foreground">
+              Required for verified PYQs. For AI/demo questions, keep the source as ai_generated and unverified.
+            </p>
+          </div>
+
           <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
             <Checkbox checked={formData.is_verified} disabled={formData.source === 'ai_generated'} onCheckedChange={(checked) => setFormData((current) => ({ ...current, is_verified: Boolean(checked) }))} />
             <span>Verified previous-year paper question</span>
           </label>
 
-          <Button onClick={submit} disabled={!isAdmin || isPending || !formData.question || !formData.answer}>
+          <Button onClick={submit} disabled={!canSubmit}>
             <Upload className="mr-2 h-4 w-4" />
             {isPending ? 'Saving...' : 'Save PYQ'}
           </Button>
         </CardContent>
         </Card>
+        </>
       )}
     </div>
   )

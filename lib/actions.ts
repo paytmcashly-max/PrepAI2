@@ -570,6 +570,7 @@ export async function createPYQQuestion(data: {
   options: string[]
   answer: string
   explanation?: string | null
+  source_reference?: string | null
   source: string
   is_verified: boolean
 }) {
@@ -584,6 +585,7 @@ export async function createPYQQuestion(data: {
   const question = data.question?.trim()
   const answer = data.answer?.trim()
   const explanation = data.explanation?.trim() || null
+  const sourceReference = data.source_reference?.trim() || null
   const options = (data.options || []).map((option) => option.trim()).filter(Boolean)
 
   if (!examId || !subjectId || !Number.isInteger(year) || year < 1900 || year > 2100) {
@@ -602,6 +604,12 @@ export async function createPYQQuestion(data: {
   const isVerified = source === 'verified_pyq'
   if (source === 'verified_pyq' && !data.is_verified) {
     throw new Error('Verified previous-year questions must be marked verified.')
+  }
+  if (source === 'verified_pyq' && !chapterId) {
+    throw new Error('Verified previous-year questions must be linked to a chapter.')
+  }
+  if (source === 'verified_pyq' && !sourceReference) {
+    throw new Error('Verified previous-year questions require an official/source-paper reference.')
   }
 
   const admin = createAdminClient()
@@ -646,6 +654,7 @@ export async function createPYQQuestion(data: {
       options,
       answer,
       explanation,
+      source_reference: sourceReference,
       source,
       is_verified: isVerified,
       frequency: 1,

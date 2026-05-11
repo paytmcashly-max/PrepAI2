@@ -179,6 +179,7 @@ export interface PYQQuestion {
   answer: string | null
   explanation: string | null
   source: string | null
+  source_reference: string | null
   is_verified: boolean
   frequency: number
   created_at: string
