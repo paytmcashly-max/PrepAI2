@@ -165,6 +165,19 @@ export interface Note {
   chapter_ref?: Chapter | null
 }
 
+export type PYQSource =
+  | 'verified_pyq'
+  | 'trusted_third_party'
+  | 'memory_based'
+  | 'ai_generated'
+
+export type PYQVerificationStatus =
+  | 'official_verified'
+  | 'third_party_reviewed'
+  | 'in_review'
+  | 'memory_based'
+  | 'ai_practice'
+
 export interface PYQQuestion {
   id: string
   exam_id: string | null
@@ -178,8 +191,13 @@ export interface PYQQuestion {
   options: string[]
   answer: string | null
   explanation: string | null
-  source: string | null
+  source: PYQSource | null
   source_reference: string | null
+  source_name: string | null
+  source_url: string | null
+  verification_status: PYQVerificationStatus | null
+  reviewed_by: string | null
+  reviewed_at: string | null
   is_verified: boolean
   frequency: number
   created_at: string
@@ -348,6 +366,9 @@ export interface AdminDebugSnapshot {
   pyqCounts: {
     total: number
     verified: number
+    trustedThirdParty: number
+    memoryBased: number
+    aiPractice: number
   }
   mockResultCount: number
 }

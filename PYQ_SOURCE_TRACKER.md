@@ -14,6 +14,17 @@ Last updated: 2026-05-11
 - Do not insert verified PYQs unless the source reference is available.
 - Keep the existing 11 Bihar SI `ai_generated` samples as unverified practice only.
 
+## Source Taxonomy Decision Guide
+
+| source | when to use | verification status | import rule |
+|---|---|---|---|
+| `verified_pyq` | Official question paper, official answer key, or exact official response sheet with question text and answer reference. | `official_verified` | Can be imported only with `is_verified = true`, chapter, answer, and complete `source_reference`. |
+| `trusted_third_party` | Exact candidate PDF or reputable third-party paper collection that has been manually reviewed but is not official. | `in_review` or `third_party_reviewed` | Can be imported as practice only with `is_verified = false`, `source_name`, and `source_reference`. Never call official. |
+| `memory_based` | Memory-based article/list, reconstructed paper, or candidate recall. | `memory_based` | Can be imported only as unofficial practice with `is_verified = false` and a clear source reference, or kept rejected in this tracker. |
+| `ai_generated` | AI/demo/practice questions. | `ai_practice` | Can be imported as practice only with `is_verified = false`; source reference is optional. |
+
+Rejected sources stay only in this tracker and must not be inserted into `pyq_questions`.
+
 ## Status Legend
 
 - `not_started`: source has not been collected.

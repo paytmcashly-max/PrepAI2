@@ -146,7 +146,10 @@ export default async function AdminDebugPage() {
             <MetricTile label="Weekly Revision Tasks" value={snapshot.revisionQueueCounts.currentWeekRevisionTasks} />
             <MetricTile label="Suggested Revision Items" value={snapshot.revisionQueueCounts.suggestedOrder} />
             <MetricTile label="PYQ Questions" value={snapshot.pyqCounts.total} />
-            <MetricTile label="Verified PYQs" value={snapshot.pyqCounts.verified} />
+            <MetricTile label="Official Verified PYQs" value={snapshot.pyqCounts.verified} />
+            <MetricTile label="Trusted Third-party PYQs" value={snapshot.pyqCounts.trustedThirdParty} />
+            <MetricTile label="Memory-based PYQs" value={snapshot.pyqCounts.memoryBased} />
+            <MetricTile label="AI Practice PYQs" value={snapshot.pyqCounts.aiPractice} />
           </CardContent>
         </Card>
 

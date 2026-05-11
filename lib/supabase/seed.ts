@@ -99,7 +99,14 @@ type SeedPYQ = {
   options?: unknown
   answer?: string | null
   explanation?: string | null
-  source?: 'ai_generated' | 'verified_pyq' | string | null
+  source?: 'ai_generated' | 'verified_pyq' | 'trusted_third_party' | 'memory_based' | string | null
+  source_reference?: string | null
+  sourceName?: string | null
+  source_name?: string | null
+  sourceUrl?: string | null
+  source_url?: string | null
+  verificationStatus?: string | null
+  verification_status?: string | null
   isVerified?: boolean
   is_verified?: boolean
 }
@@ -351,8 +358,21 @@ export async function seedDatabase(data: SeedData) {
       if (source === 'verified_pyq' && explicitVerified !== true) {
         throw new Error(`PYQ "${pyq.id ?? index + 1}" uses source=verified_pyq but is not explicitly marked verified.`)
       }
+      if ((source === 'trusted_third_party' || source === 'memory_based') && explicitVerified === true) {
+        throw new Error(`PYQ "${pyq.id ?? index + 1}" cannot be verified unless source=verified_pyq.`)
+      }
 
       const isVerified = source === 'verified_pyq'
+      const verificationStatus =
+        pyq.verification_status
+        ?? pyq.verificationStatus
+        ?? (source === 'verified_pyq'
+          ? 'official_verified'
+          : source === 'trusted_third_party'
+            ? 'in_review'
+            : source === 'memory_based'
+              ? 'memory_based'
+              : 'ai_practice')
 
       const { error } = await supabase
         .from('pyq_questions')
@@ -367,8 +387,12 @@ export async function seedDatabase(data: SeedData) {
           options: pyq.options ?? [],
           answer: pyq.answer ?? null,
           explanation: pyq.explanation ?? null,
+          source_reference: pyq.source_reference ?? null,
+          source_name: pyq.source_name ?? pyq.sourceName ?? null,
+          source_url: pyq.source_url ?? pyq.sourceUrl ?? null,
           source,
           is_verified: isVerified,
+          verification_status: verificationStatus,
         }, { onConflict: 'id' })
 
       if (error) throw error

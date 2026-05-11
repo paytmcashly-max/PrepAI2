@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { createPYQQuestion } from '@/lib/actions'
-import type { Chapter, Exam, Subject } from '@/lib/types'
+import type { Chapter, Exam, PYQSource, Subject } from '@/lib/types'
 
 interface PYQImportFormProps {
   exams: Exam[]
@@ -23,7 +23,32 @@ interface PYQImportFormProps {
   isConfigured: boolean
 }
 
-type Source = 'ai_generated' | 'verified_pyq'
+const SOURCE_OPTIONS: Array<{
+  value: PYQSource
+  label: string
+  warning: string
+}> = [
+  {
+    value: 'verified_pyq',
+    label: 'Official verified PYQ',
+    warning: 'Only official/question-paper sources can be marked verified.',
+  },
+  {
+    value: 'trusted_third_party',
+    label: 'Trusted third-party practice',
+    warning: 'Useful for practice, but not official verified PYQ.',
+  },
+  {
+    value: 'memory_based',
+    label: 'Memory-based / unofficial',
+    warning: 'Memory-based/unofficial; do not treat as exact PYQ.',
+  },
+  {
+    value: 'ai_generated',
+    label: 'AI-generated practice',
+    warning: 'Practice only; not a previous-year question.',
+  },
+]
 
 export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured }: PYQImportFormProps) {
   const [isPending, startTransition] = useTransition()
@@ -38,7 +63,9 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
     answer: '',
     explanation: '',
     source_reference: '',
-    source: 'verified_pyq' as Source,
+    source_name: '',
+    source_url: '',
+    source: 'verified_pyq' as PYQSource,
     is_verified: true,
   })
 
@@ -48,7 +75,7 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
     return true
   }), [chapters, formData.exam_id, formData.subject_id])
 
-  const updateSource = (source: Source) => {
+  const updateSource = (source: PYQSource) => {
     setFormData((current) => ({
       ...current,
       source,
@@ -57,6 +84,9 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
   }
 
   const isVerifiedSource = formData.source === 'verified_pyq'
+  const requiresSourceReference = formData.source !== 'ai_generated'
+  const requiresSourceName = formData.source === 'trusted_third_party'
+  const selectedSourceOption = SOURCE_OPTIONS.find((option) => option.value === formData.source)
   const canSubmit = Boolean(
     isAdmin
     && !isPending
@@ -64,7 +94,9 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
     && formData.subject_id
     && formData.question.trim()
     && formData.answer.trim()
-    && (!isVerifiedSource || (formData.chapter_id && formData.source_reference.trim() && formData.is_verified))
+    && (!isVerifiedSource || formData.chapter_id)
+    && (!requiresSourceReference || formData.source_reference.trim())
+    && (!requiresSourceName || formData.source_name.trim())
   )
 
   const submit = () => {
@@ -81,8 +113,10 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
           answer: formData.answer,
           explanation: formData.explanation || null,
           source_reference: formData.source_reference || null,
+          source_name: formData.source_name || null,
+          source_url: formData.source_url || null,
           source: formData.source,
-          is_verified: formData.is_verified,
+          is_verified: formData.source === 'verified_pyq',
         })
         toast.success('PYQ saved')
         setFormData((current) => ({
@@ -92,6 +126,8 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
           answer: '',
           explanation: '',
           source_reference: '',
+          source_name: '',
+          source_url: '',
         }))
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Could not save PYQ')
@@ -109,7 +145,7 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Manual PYQ Import</h1>
-          <p className="text-muted-foreground">Add verified previous-year questions or clearly unverified AI/demo questions.</p>
+          <p className="text-muted-foreground">Add official verified PYQs or clearly marked practice questions by source trust level.</p>
         </div>
       </div>
 
@@ -146,9 +182,9 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
         <>
         <Alert className="border-amber-500/40 bg-amber-500/10">
           <ShieldAlert className="h-4 w-4 text-amber-500" />
-          <AlertTitle>Verified PYQ import rule</AlertTitle>
+          <AlertTitle>PYQ source trust rule</AlertTitle>
           <AlertDescription>
-            Only questions verified from official/question-paper source should be marked verified.
+            Only questions verified from official/question-paper source should be marked verified. Third-party, memory-based, and AI practice rows must stay unverified.
           </AlertDescription>
         </Alert>
 
@@ -159,7 +195,10 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-2">
           {[
-            'Question is copied from an official or verified question-paper source.',
+            'Official verified PYQs are copied from an official or exact question-paper source.',
+            'Third-party candidate PDFs are practice/in-review unless officially matched.',
+            'Memory-based sources are unofficial and must stay unverified.',
+            'AI/demo questions are practice only and are never previous-year questions.',
             'Exam, year, subject, and chapter match the paper.',
             'Answer and explanation have been reviewed manually.',
             'Source reference names the paper, shift, set, URL, or document location.',
@@ -175,7 +214,7 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
         <Card>
         <CardHeader>
           <CardTitle>Question Details</CardTitle>
-          <CardDescription>Do not mark generated/demo questions as verified PYQs.</CardDescription>
+          <CardDescription>Source trust controls how the question is displayed and whether it can ever be treated as official.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -247,15 +286,26 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
             </div>
             <div className="grid gap-2">
               <Label>Source</Label>
-              <Select value={formData.source} onValueChange={(value) => updateSource(value as Source)}>
+              <Select value={formData.source} onValueChange={(value) => updateSource(value as PYQSource)}>
                 <SelectTrigger><SelectValue placeholder="Source" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="verified_pyq">Verified PYQ</SelectItem>
-                  <SelectItem value="ai_generated">AI generated / demo</SelectItem>
+                  {SOURCE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {selectedSourceOption && (
+            <Alert className={isVerifiedSource ? 'border-green-500/40 bg-green-500/10' : 'border-amber-500/40 bg-amber-500/10'}>
+              <ShieldAlert className={isVerifiedSource ? 'h-4 w-4 text-green-600' : 'h-4 w-4 text-amber-500'} />
+              <AlertTitle>{selectedSourceOption.label}</AlertTitle>
+              <AlertDescription>{selectedSourceOption.warning}</AlertDescription>
+            </Alert>
+          )}
 
           <div className="grid gap-2">
             <Label>Explanation</Label>
@@ -270,13 +320,33 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
               placeholder="Official paper name, shift, set, URL, or document location"
             />
             <p className="text-xs text-muted-foreground">
-              Required for verified PYQs. For AI/demo questions, keep the source as ai_generated and unverified.
+              Required for official verified, trusted third-party, and memory-based sources. Optional for AI practice.
             </p>
           </div>
 
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Source name</Label>
+              <Input
+                value={formData.source_name}
+                onChange={(event) => setFormData((current) => ({ ...current, source_name: event.target.value }))}
+                placeholder="Official SSC, UPPRPB, Testbook, etc."
+              />
+              <p className="text-xs text-muted-foreground">Required for trusted third-party practice.</p>
+            </div>
+            <div className="grid gap-2">
+              <Label>Source URL</Label>
+              <Input
+                value={formData.source_url}
+                onChange={(event) => setFormData((current) => ({ ...current, source_url: event.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+
           <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
-            <Checkbox checked={formData.is_verified} disabled={formData.source === 'ai_generated'} onCheckedChange={(checked) => setFormData((current) => ({ ...current, is_verified: Boolean(checked) }))} />
-            <span>Verified previous-year paper question</span>
+            <Checkbox checked={formData.source === 'verified_pyq'} disabled />
+            <span>{formData.source === 'verified_pyq' ? 'Will be saved as official verified PYQ' : 'Will be saved as unverified practice'}</span>
           </label>
 
           <Button onClick={submit} disabled={!canSubmit}>

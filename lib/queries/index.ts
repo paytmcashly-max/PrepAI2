@@ -516,7 +516,7 @@ export async function getPYQQuestions(filters?: {
   if (filters?.subjectId) query = query.eq('subject_id', filters.subjectId)
   if (filters?.chapterId) query = query.eq('chapter_id', filters.chapterId)
   if (filters?.difficulty) query = query.eq('difficulty', filters.difficulty)
-  if (filters?.verifiedOnly) query = query.eq('is_verified', true)
+  if (filters?.verifiedOnly) query = query.eq('source', 'verified_pyq').eq('is_verified', true)
 
   const { data, error } = await query
 
@@ -1193,6 +1193,9 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     archivedPlanResult,
     pyqCountResult,
     verifiedPyqCountResult,
+    trustedThirdPartyPyqCountResult,
+    memoryBasedPyqCountResult,
+    aiPracticePyqCountResult,
     mockResultCountResult,
     weakAreas,
     revisionQueue,
@@ -1208,7 +1211,20 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     supabase
       .from('pyq_questions')
       .select('*', { count: 'exact', head: true })
+      .eq('source', 'verified_pyq')
       .eq('is_verified', true),
+    supabase
+      .from('pyq_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', 'trusted_third_party'),
+    supabase
+      .from('pyq_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', 'memory_based'),
+    supabase
+      .from('pyq_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', 'ai_generated'),
     supabase
       .from('mock_tests')
       .select('*', { count: 'exact', head: true })
@@ -1220,6 +1236,9 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
   if (archivedPlanResult.error) throw archivedPlanResult.error
   if (pyqCountResult.error) throw pyqCountResult.error
   if (verifiedPyqCountResult.error) throw verifiedPyqCountResult.error
+  if (trustedThirdPartyPyqCountResult.error) throw trustedThirdPartyPyqCountResult.error
+  if (memoryBasedPyqCountResult.error) throw memoryBasedPyqCountResult.error
+  if (aiPracticePyqCountResult.error) throw aiPracticePyqCountResult.error
   if (mockResultCountResult.error) throw mockResultCountResult.error
 
   const emptyTaskCounts = {
@@ -1252,6 +1271,9 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       pyqCounts: {
         total: pyqCountResult.count || 0,
         verified: verifiedPyqCountResult.count || 0,
+        trustedThirdParty: trustedThirdPartyPyqCountResult.count || 0,
+        memoryBased: memoryBasedPyqCountResult.count || 0,
+        aiPractice: aiPracticePyqCountResult.count || 0,
       },
       mockResultCount: mockResultCountResult.count || 0,
     }
@@ -1349,6 +1371,9 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     pyqCounts: {
       total: pyqCountResult.count || 0,
       verified: verifiedPyqCountResult.count || 0,
+      trustedThirdParty: trustedThirdPartyPyqCountResult.count || 0,
+      memoryBased: memoryBasedPyqCountResult.count || 0,
+      aiPractice: aiPracticePyqCountResult.count || 0,
     },
     mockResultCount: mockResultCountResult.count || 0,
   }

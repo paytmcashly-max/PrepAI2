@@ -20,6 +20,7 @@ import {
   TrendingUp, 
   BarChart3,
   CheckCircle2,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   HelpCircle,
@@ -28,7 +29,7 @@ import {
   ChevronUp,
   Upload,
 } from 'lucide-react'
-import type { Chapter, Exam, PYQQuestion, Subject } from '@/lib/types'
+import type { Chapter, Exam, PYQQuestion, PYQSource, Subject } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface PYQContentProps {
@@ -60,7 +61,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
     if (filterSubject !== 'all' && q.subject_id !== filterSubject) return false
     if (filterChapter !== 'all' && q.chapter_id !== filterChapter) return false
     if (filterDifficulty !== 'all' && q.difficulty !== filterDifficulty) return false
-    if (verifiedOnly && !q.is_verified) return false
+    if (verifiedOnly && !(q.source === 'verified_pyq' && q.is_verified)) return false
     return true
   })
 
@@ -72,7 +73,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
     hard: questions.filter(q => q.difficulty === 'hard').length,
   }
 
-  const verifiedCount = questions.filter((question) => question.is_verified).length
+  const verifiedCount = questions.filter((question) => question.source === 'verified_pyq' && question.is_verified).length
   const uniqueTopics = new Set(questions.map(q => q.chapter_ref?.name || q.chapter || q.topic).filter(Boolean))
 
   // Get most frequent topics
@@ -101,12 +102,45 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
     }
   }
 
+  const getSourceConfig = (source: PYQSource | null, isVerified: boolean) => {
+    if (source === 'verified_pyq' && isVerified) {
+      return {
+        label: 'Official Verified PYQ',
+        helper: 'Official/question-paper verified',
+        icon: ShieldCheck,
+        className: 'gap-1 border-green-600/30 bg-green-600/10 text-green-700 dark:text-green-300',
+      }
+    }
+    if (source === 'trusted_third_party') {
+      return {
+        label: 'Trusted Third-party Practice',
+        helper: 'Not official verified',
+        icon: BookOpen,
+        className: 'gap-1 border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
+      }
+    }
+    if (source === 'memory_based') {
+      return {
+        label: 'Memory-based / Unofficial',
+        helper: 'Memory-based/unofficial; do not treat as exact PYQ',
+        icon: ShieldAlert,
+        className: 'gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+      }
+    }
+    return {
+      label: 'AI Practice',
+      helper: 'Practice only; not a previous-year question',
+      icon: Sparkles,
+      className: 'gap-1 border-muted-foreground/30 bg-muted text-muted-foreground',
+    }
+  }
+
   return (
     <div className="space-y-5 p-4 sm:space-y-6 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">PYQ Practice</h1>
-          <p className="break-words text-sm text-muted-foreground sm:text-base">Practice verified and clearly marked unverified previous-year questions</p>
+          <p className="break-words text-sm text-muted-foreground sm:text-base">Practice questions with clear source-trust labels</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Only verified_pyq questions should be treated as real previous-year questions.
           </p>
@@ -153,7 +187,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
           <CardContent className="pt-6">
             <div className="flex min-w-0 items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-muted-foreground">Verified</p>
+                <p className="text-sm font-medium text-muted-foreground">Official Verified</p>
                 <p className="text-3xl font-bold mt-1">{verifiedCount}</p>
               </div>
               <div className="rounded-lg bg-amber-500/10 p-3">
@@ -303,7 +337,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
 
             <label className="flex min-w-0 items-center gap-2 rounded-md border p-3 text-sm sm:items-end">
               <Checkbox checked={verifiedOnly} onCheckedChange={(checked) => setVerifiedOnly(Boolean(checked))} />
-              <span className="leading-none">Verified only</span>
+              <span className="leading-none">Official verified only</span>
             </label>
           </div>
         </CardContent>
@@ -325,10 +359,10 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
             <Card>
               <CardContent className="py-12 text-center">
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">No Questions Found</h3>
+            <h3 className="font-semibold mb-2">No Questions Found</h3>
                 <p className="text-muted-foreground">
                   {questions.length === 0
-                    ? 'No verified PYQ bank has been imported yet. Add real PYQs through manual import when available.'
+                    ? 'No official verified PYQ bank has been imported yet. Add sourced questions through manual import when available.'
                     : 'Try adjusting your filters to see more questions.'}
                 </p>
               </CardContent>
@@ -339,12 +373,8 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               const subjectName = question.subject?.name || 'General'
               const examName = question.exam?.name || question.exam_id || 'Exam'
               const chapterName = question.chapter_ref?.name || question.chapter || question.topic
-              const sourceLabel = question.is_verified
-                ? 'Verified PYQ'
-                : question.source === 'ai_generated'
-                  ? 'AI-generated / Unverified'
-                  : 'Unverified'
-              const SourceIcon = question.is_verified ? ShieldCheck : Sparkles
+              const sourceConfig = getSourceConfig(question.source, question.is_verified)
+              const SourceIcon = sourceConfig.icon
 
               return (
                 <Card key={question.id} className="overflow-hidden">
@@ -360,11 +390,11 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                           </Badge>
                         )}
                         <Badge
-                          variant={question.is_verified ? 'default' : 'outline'}
-                          className={question.is_verified ? 'gap-1' : 'gap-1 border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'}
+                          variant="outline"
+                          className={sourceConfig.className}
                         >
                           <SourceIcon className="h-3 w-3" />
-                          {sourceLabel}
+                          {sourceConfig.label}
                         </Badge>
                       </div>
                       <Badge className={cn('w-fit', getDifficultyColor(question.difficulty))}>
@@ -400,12 +430,20 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                             Appeared {question.frequency}x
                           </span>
                         )}
-                        {!question.is_verified && (
-                          <span>Do not treat as official PYQ</span>
-                        )}
+                        <span>{sourceConfig.helper}</span>
                         {question.source_reference && (
                           <span className="min-w-0 break-words">
                             Source: {question.source_reference}
+                          </span>
+                        )}
+                        {question.source_name && (
+                          <span className="min-w-0 break-words">
+                            Source name: {question.source_name}
+                          </span>
+                        )}
+                        {question.source_url && (
+                          <span className="min-w-0 break-words">
+                            Source URL: {question.source_url}
                           </span>
                         )}
                       </div>

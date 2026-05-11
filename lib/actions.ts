@@ -6,13 +6,18 @@ import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'node:crypto'
 import { generateStudyPlan } from '@/lib/services/generate-study-plan'
 import { getAdminEmails } from '@/lib/admin-auth'
+import type { PYQSource, PYQVerificationStatus } from '@/lib/types'
 
 type Level = 'weak' | 'average' | 'good'
 type StudyLanguage = 'hindi' | 'english'
-type PYQSource = 'ai_generated' | 'verified_pyq'
 const allowedLevels = new Set<Level>(['weak', 'average', 'good'])
 const allowedStudyLanguages = new Set<StudyLanguage>(['hindi', 'english'])
-const allowedPYQSources = new Set<PYQSource>(['ai_generated', 'verified_pyq'])
+const allowedPYQSources = new Set<PYQSource>([
+  'verified_pyq',
+  'trusted_third_party',
+  'memory_based',
+  'ai_generated',
+])
 
 function assertLevel(value: string, label: string): Level {
   if (allowedLevels.has(value as Level)) return value as Level
@@ -571,10 +576,13 @@ export async function createPYQQuestion(data: {
   answer: string
   explanation?: string | null
   source_reference?: string | null
+  source_name?: string | null
+  source_url?: string | null
+  verification_status?: string | null
   source: string
   is_verified: boolean
 }) {
-  await assertPYQAdmin()
+  const user = await assertPYQAdmin()
 
   const examId = data.exam_id?.trim()
   const subjectId = data.subject_id?.trim()
@@ -586,6 +594,8 @@ export async function createPYQQuestion(data: {
   const answer = data.answer?.trim()
   const explanation = data.explanation?.trim() || null
   const sourceReference = data.source_reference?.trim() || null
+  const sourceName = data.source_name?.trim() || null
+  const sourceUrl = data.source_url?.trim() || null
   const options = (data.options || []).map((option) => option.trim()).filter(Boolean)
 
   if (!examId || !subjectId || !Number.isInteger(year) || year < 1900 || year > 2100) {
@@ -598,18 +608,43 @@ export async function createPYQQuestion(data: {
     throw new Error('Question and answer are required.')
   }
   if (!source) {
-    throw new Error('Source must be ai_generated or verified_pyq.')
+    throw new Error('Source must be official verified, trusted third-party, memory-based, or AI-generated.')
   }
 
   const isVerified = source === 'verified_pyq'
-  if (source === 'verified_pyq' && !data.is_verified) {
-    throw new Error('Verified previous-year questions must be marked verified.')
+  if (data.is_verified && source !== 'verified_pyq') {
+    throw new Error('Only official verified PYQs can be marked verified.')
   }
-  if (source === 'verified_pyq' && !chapterId) {
-    throw new Error('Verified previous-year questions must be linked to a chapter.')
-  }
-  if (source === 'verified_pyq' && !sourceReference) {
-    throw new Error('Verified previous-year questions require an official/source-paper reference.')
+
+  let verificationStatus: PYQVerificationStatus
+  switch (source) {
+    case 'verified_pyq':
+      verificationStatus = 'official_verified'
+      if (!chapterId) {
+        throw new Error('Official verified PYQs must be linked to a chapter.')
+      }
+      if (!sourceReference) {
+        throw new Error('Official verified PYQs require an official/question-paper source reference.')
+      }
+      break
+    case 'trusted_third_party':
+      verificationStatus = data.verification_status === 'third_party_reviewed' ? 'third_party_reviewed' : 'in_review'
+      if (!sourceReference) {
+        throw new Error('Trusted third-party practice requires a source reference.')
+      }
+      if (!sourceName) {
+        throw new Error('Trusted third-party practice requires a source name.')
+      }
+      break
+    case 'memory_based':
+      verificationStatus = 'memory_based'
+      if (!sourceReference) {
+        throw new Error('Memory-based/unofficial practice requires a source reference.')
+      }
+      break
+    case 'ai_generated':
+      verificationStatus = 'ai_practice'
+      break
   }
 
   const admin = createAdminClient()
@@ -655,8 +690,13 @@ export async function createPYQQuestion(data: {
       answer,
       explanation,
       source_reference: sourceReference,
+      source_name: sourceName,
+      source_url: sourceUrl,
       source,
       is_verified: isVerified,
+      verification_status: verificationStatus,
+      reviewed_by: user.email || null,
+      reviewed_at: new Date().toISOString(),
       frequency: 1,
     })
     .select()

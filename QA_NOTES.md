@@ -51,6 +51,27 @@ Admin-only checklist for verified/manual PYQ entry:
 - `ai_generated` means a practice/demo question. It must use `source = ai_generated` and `is_verified = false`. It must never be described as a real previous-year question.
 - Memory-based questions, coaching-site reconstructions, and AI-written practice questions are not verified PYQs.
 
+PYQ source taxonomy update:
+
+- Added migration `20260511010000_pyq_source_trust_taxonomy.sql`.
+- Supported sources are now `verified_pyq`, `trusted_third_party`, `memory_based`, and `ai_generated`.
+- `verified_pyq` is the only source that can set `is_verified = true`.
+- `trusted_third_party`, `memory_based`, and `ai_generated` are always unverified practice sources.
+- Admin import now forces source-specific validation:
+  - official verified requires chapter and `source_reference`
+  - trusted third-party requires `source_name` and `source_reference`
+  - memory-based requires `source_reference`
+  - AI practice does not require `source_reference`
+- PYQ display badges now separate Official Verified PYQ, Trusted Third-party Practice, Memory-based / Unofficial, and AI Practice.
+- Admin debug counts now separate official verified, trusted third-party, memory-based, and AI practice counts.
+- Live database taxonomy smoke tests passed:
+  - trusted third-party with source name/reference inserts and cleans up
+  - memory-based with source reference inserts and cleans up
+  - AI practice without source reference inserts and cleans up
+  - trusted third-party without source name is rejected
+  - memory-based without source reference is rejected
+  - trusted third-party with `is_verified = true` is rejected
+
 PYQ data added on 2026-05-11:
 
 - Added 11 Bihar SI practice samples as `source = ai_generated` and `is_verified = false`.
@@ -74,6 +95,8 @@ PYQ checks from this pass:
 - Hindi/Devanagari sample rows were checked after insertion and corrected to preserve Unicode text.
 - `source_reference` migration was applied to live Supabase after this pass. The column is now readable through Supabase, and the verification constraints are present on `pyq_questions`.
 - Verified import is still intentionally empty until an official/question-paper source reference is available.
+- Verified-only filter now means `source = verified_pyq` and `is_verified = true`; third-party, memory-based, and AI practice are excluded.
+- Existing 11 Bihar SI AI practice rows remain `source = ai_generated` and `is_verified = false`.
 
 ## Commands Run
 
@@ -81,6 +104,8 @@ PYQ checks from this pass:
 - Supabase filter/count checks for PYQ exam/year/subject/chapter/difficulty/verified-only behavior.
 - Applied `supabase/migrations/20260511000000_pyq_source_reference.sql` to live Supabase using the project Postgres connection.
 - Verified live `pyq_questions.source_reference` is readable through Supabase.
+- Added and applied `supabase/migrations/20260511010000_pyq_source_trust_taxonomy.sql`.
+- Verified source taxonomy constraints preserve existing AI practice rows and reject unsafe trust labels.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
