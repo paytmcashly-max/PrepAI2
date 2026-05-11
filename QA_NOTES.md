@@ -351,6 +351,26 @@ Auto Resource Pack + PrepAI Original Practice implementation on 2026-05-11:
 - Original practice is consistently labeled “PrepAI Original Practice — Not Official PYQ.”
 - Groq remains optional and on-demand only; original-practice Coach output is not written to Supabase.
 
+Auto Resource Pack smoke QA on 2026-05-11:
+
+- Applied `supabase/migrations/20260511070000_auto_resource_original_practice.sql` to live Supabase.
+- Blocking issue found and fixed: migration originally used `uuid` for `study_resources.chapter_id` and `original_practice_questions.chapter_id`, but live `chapters.id` is `text`. Migration was corrected to `text` and then applied successfully.
+- Verified live tables exist: `study_resources`, `original_practice_questions`, and `original_practice_attempts`.
+- Verified live seed counts: `study_resources = 12`, `original_practice_questions = 120`, `original_practice_attempts = 0` before smoke attempt cleanup.
+- Verified Bihar SI seed coverage: Number System Basics has `15` original questions; Hindi `विलोम शब्द` has `15` original questions.
+- Fresh disposable Bihar SI smoke user was created with 120 days, 3 hours/day, maths weak, physical weak, and an active Day 1 plan fixture; user was deleted after the smoke run.
+- Day 1 Daily Tasks route passed: Number System task rendered `Study Material`, `PrepAI Short Notes`, `Practice in app`, `Not Official PYQ`, and graceful `Video not available yet` copy.
+- Number System Original Practice route passed: `/dashboard/practice/original?exam=bihar_si&subject=maths&chapter=5d8845da-f2d3-5906-90c7-855507e08960` rendered PrepAI Original Practice and Not Official PYQ labels.
+- Resource viewer passed: `/dashboard/resources/res-bihar-si-number-system-note` rendered PrepAI Original trust label and Number System notes.
+- Original practice attempt passed: one Number System answer was saved as incorrect with mistake note and marked for revision using authenticated user RLS.
+- Revision Queue passed: incorrect/marked original practice appeared under `PrepAI Practice Mistakes` with the saved mistake note.
+- Dashboard passed: `PrepAI Practice` widget rendered after the original-practice attempt.
+- Hindi Original Practice passed: `/dashboard/practice/original?exam=bihar_si&subject=hindi&chapter=7d70af2d-af86-5767-b295-917e619111d5` rendered the Hindi practice flow.
+- PYQ separation passed: `/dashboard/pyq` did not render Original Practice as Official Verified PYQ; official verified PYQ count remained `0`.
+- No third-party content was imported, no video seed was added, and PYQ source trust rules were unchanged.
+- Mobile route-render smoke was covered through the same responsive pages, but full visual mobile browser automation was not available in this shell because `agent-browser`/Playwright were not installed.
+- Known issue: no seeded video resources in v1 by design; task cards show the graceful no-video state.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -382,6 +402,8 @@ Auto Resource Pack + PrepAI Original Practice implementation on 2026-05-11:
 - Hardened Groq Coach v1 with non-blocking Dashboard fallback, on-demand AI refresh, JSON parsing fallback, timeout/cooldown handling, and source-authority messaging.
 - Hardened production readiness docs, env errors, admin debug health metrics, and admin PYQ import protection.
 - Ran production smoke QA against `https://prepnix.vercel.app`; no blocking production bugs were found.
+- Applied `supabase/migrations/20260511070000_auto_resource_original_practice.sql` to live Supabase after correcting `chapter_id` column types to match `chapters.id`.
+- Ran authenticated local route smoke for Daily Tasks, Resource Viewer, Original Practice, Revision Queue, Dashboard, and PYQ separation using a disposable Bihar SI user.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
