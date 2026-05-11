@@ -524,6 +524,22 @@ export async function getPYQQuestions(filters?: {
   return data || []
 }
 
+export async function getPYQReviewRows(): Promise<PYQQuestion[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('pyq_questions')
+    .select('*, subject:subjects(*), exam:exams(*), chapter_ref:chapters(*)')
+    .eq('source', 'trusted_third_party')
+    .in('verification_status', ['in_review', 'third_party_reviewed'])
+    .eq('is_verified', false)
+    .order('verification_status')
+    .order('year', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
+}
+
 export async function getPYQYears(): Promise<number[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -1194,6 +1210,8 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     pyqCountResult,
     verifiedPyqCountResult,
     trustedThirdPartyPyqCountResult,
+    trustedThirdPartyInReviewPyqCountResult,
+    trustedThirdPartyReviewedPyqCountResult,
     memoryBasedPyqCountResult,
     aiPracticePyqCountResult,
     mockResultCountResult,
@@ -1220,6 +1238,16 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     supabase
       .from('pyq_questions')
       .select('*', { count: 'exact', head: true })
+      .eq('source', 'trusted_third_party')
+      .eq('verification_status', 'in_review'),
+    supabase
+      .from('pyq_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', 'trusted_third_party')
+      .eq('verification_status', 'third_party_reviewed'),
+    supabase
+      .from('pyq_questions')
+      .select('*', { count: 'exact', head: true })
       .eq('source', 'memory_based'),
     supabase
       .from('pyq_questions')
@@ -1237,6 +1265,8 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
   if (pyqCountResult.error) throw pyqCountResult.error
   if (verifiedPyqCountResult.error) throw verifiedPyqCountResult.error
   if (trustedThirdPartyPyqCountResult.error) throw trustedThirdPartyPyqCountResult.error
+  if (trustedThirdPartyInReviewPyqCountResult.error) throw trustedThirdPartyInReviewPyqCountResult.error
+  if (trustedThirdPartyReviewedPyqCountResult.error) throw trustedThirdPartyReviewedPyqCountResult.error
   if (memoryBasedPyqCountResult.error) throw memoryBasedPyqCountResult.error
   if (aiPracticePyqCountResult.error) throw aiPracticePyqCountResult.error
   if (mockResultCountResult.error) throw mockResultCountResult.error
@@ -1272,6 +1302,8 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
         total: pyqCountResult.count || 0,
         verified: verifiedPyqCountResult.count || 0,
         trustedThirdParty: trustedThirdPartyPyqCountResult.count || 0,
+        trustedThirdPartyInReview: trustedThirdPartyInReviewPyqCountResult.count || 0,
+        trustedThirdPartyReviewed: trustedThirdPartyReviewedPyqCountResult.count || 0,
         memoryBased: memoryBasedPyqCountResult.count || 0,
         aiPractice: aiPracticePyqCountResult.count || 0,
       },
@@ -1372,6 +1404,8 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       total: pyqCountResult.count || 0,
       verified: verifiedPyqCountResult.count || 0,
       trustedThirdParty: trustedThirdPartyPyqCountResult.count || 0,
+      trustedThirdPartyInReview: trustedThirdPartyInReviewPyqCountResult.count || 0,
+      trustedThirdPartyReviewed: trustedThirdPartyReviewedPyqCountResult.count || 0,
       memoryBased: memoryBasedPyqCountResult.count || 0,
       aiPractice: aiPracticePyqCountResult.count || 0,
     },

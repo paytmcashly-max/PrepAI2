@@ -118,6 +118,20 @@ Controlled PYQ practice import on 2026-05-11:
 - Admin/debug PYQ counts after import: total `16`, official verified `0`, trusted third-party `5`, AI practice `11`.
 - PYQ card source fields were code-checked for mobile wrapping via `min-w-0 break-words` on source reference, source name, verification status, and source URL.
 
+PYQ third-party review workflow on 2026-05-11:
+
+- Added admin-only `/dashboard/pyq/review` for trusted third-party practice review.
+- Normal users are blocked server-side with `notFound()` through the shared `ADMIN_EMAILS` / `PYQ_ADMIN_EMAILS` helper.
+- Added `updatePYQReviewStatus()` server action with only these safe transitions:
+  - `trusted_third_party` `in_review` → `third_party_reviewed`
+  - `trusted_third_party` `third_party_reviewed` → `in_review`
+  - `trusted_third_party` `in_review` → `memory_based`
+- The review action never allows `source = verified_pyq` or `is_verified = true`.
+- Promoted one imported Testbook row, `tb-bihar-si-2022-mains-s1-q005`, to `third_party_reviewed`.
+- Verified count remains `0`.
+- Third-party reviewed count is now `1`; third-party in-review count is now `4`.
+- Verified-only filter still returns `0` because third-party reviewed rows are not official verified PYQs.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -130,6 +144,8 @@ Controlled PYQ practice import on 2026-05-11:
 - Extracted exact question text/numbers from the Testbook English PDF for a controlled 5-question third-party practice import.
 - Inserted 5 rows as `trusted_third_party`, `verification_status = in_review`, `source_name = Testbook`, and `is_verified = false`.
 - Verified post-import PYQ counts: total `16`, official verified `0`, trusted third-party `5`, AI practice `11`, verified-only filter `0`.
+- Added `/dashboard/pyq/review` and promoted one Testbook row to `third_party_reviewed` while preserving `source = trusted_third_party` and `is_verified = false`.
+- Verified post-review PYQ counts: total `16`, official verified `0`, trusted third-party `5`, third-party in review `4`, third-party reviewed `1`, verified-only filter `0`.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

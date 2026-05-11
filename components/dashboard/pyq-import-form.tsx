@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState, useTransition } from 'react'
-import { ArrowLeft, CheckCircle2, ShieldAlert, Upload } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ClipboardCheck, ShieldAlert, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -137,16 +137,26 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/pyq">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Manual PYQ Import</h1>
-          <p className="text-muted-foreground">Add official verified PYQs or clearly marked practice questions by source trust level.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/dashboard/pyq">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <div className="min-w-0">
+            <h1 className="break-words text-3xl font-bold tracking-tight">Manual PYQ Import</h1>
+            <p className="break-words text-muted-foreground">Add official verified PYQs or clearly marked practice questions by source trust level.</p>
+          </div>
         </div>
+        {isAdmin && isConfigured && (
+          <Button asChild variant="outline" className="w-full sm:w-fit">
+            <Link href="/dashboard/pyq/review">
+              <ClipboardCheck className="mr-2 h-4 w-4" />
+              Review third-party
+            </Link>
+          </Button>
+        )}
       </div>
 
       {!isConfigured && (

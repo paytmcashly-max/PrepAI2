@@ -367,6 +367,8 @@ export interface AdminDebugSnapshot {
     total: number
     verified: number
     trustedThirdParty: number
+    trustedThirdPartyInReview: number
+    trustedThirdPartyReviewed: number
     memoryBased: number
     aiPractice: number
   }

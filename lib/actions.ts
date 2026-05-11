@@ -716,6 +716,97 @@ export async function createPYQQuestion(data: {
   return inserted
 }
 
+export async function updatePYQReviewStatus(
+  questionId: string,
+  status: Extract<PYQVerificationStatus, 'in_review' | 'third_party_reviewed' | 'memory_based'>
+) {
+  const user = await assertPYQAdmin()
+  const id = questionId?.trim()
+
+  if (!id) throw new Error('Question ID is required.')
+  if (!['in_review', 'third_party_reviewed', 'memory_based'].includes(status)) {
+    throw new Error('Unsupported PYQ review status.')
+  }
+
+  const admin = createAdminClient()
+  const { data: existing, error: existingError } = await admin
+    .from('pyq_questions')
+    .select('id, source, verification_status, is_verified, source_reference')
+    .eq('id', id)
+    .single()
+
+  if (existingError || !existing) {
+    throw new Error('PYQ question was not found.')
+  }
+  if (existing.is_verified || existing.source === 'verified_pyq') {
+    throw new Error('Official verified PYQs cannot be changed from this review workflow.')
+  }
+
+  const currentStatus = existing.verification_status as PYQVerificationStatus | null
+  const currentSource = existing.source as PYQSource | null
+  let updatePayload: {
+    source: PYQSource
+    verification_status: PYQVerificationStatus
+    is_verified: false
+    reviewed_by: string | null
+    reviewed_at: string
+  }
+
+  if (status === 'third_party_reviewed') {
+    if (currentSource !== 'trusted_third_party' || currentStatus !== 'in_review') {
+      throw new Error('Only third-party rows currently in review can be marked reviewed.')
+    }
+    updatePayload = {
+      source: 'trusted_third_party',
+      verification_status: 'third_party_reviewed',
+      is_verified: false,
+      reviewed_by: user.email || null,
+      reviewed_at: new Date().toISOString(),
+    }
+  } else if (status === 'in_review') {
+    if (currentSource !== 'trusted_third_party' || currentStatus !== 'third_party_reviewed') {
+      throw new Error('Only reviewed third-party rows can be sent back to in review.')
+    }
+    updatePayload = {
+      source: 'trusted_third_party',
+      verification_status: 'in_review',
+      is_verified: false,
+      reviewed_by: user.email || null,
+      reviewed_at: new Date().toISOString(),
+    }
+  } else {
+    if (currentSource !== 'trusted_third_party' || currentStatus !== 'in_review') {
+      throw new Error('Only third-party rows currently in review can be reclassified as memory-based.')
+    }
+    if (!existing.source_reference?.trim()) {
+      throw new Error('Memory-based rows require a source reference.')
+    }
+    updatePayload = {
+      source: 'memory_based',
+      verification_status: 'memory_based',
+      is_verified: false,
+      reviewed_by: user.email || null,
+      reviewed_at: new Date().toISOString(),
+    }
+  }
+
+  const { data: updated, error } = await admin
+    .from('pyq_questions')
+    .update(updatePayload)
+    .eq('id', id)
+    .neq('source', 'verified_pyq')
+    .eq('is_verified', false)
+    .select()
+    .single()
+
+  if (error) throw error
+
+  revalidatePath('/dashboard/pyq', 'page')
+  revalidatePath('/dashboard/pyq/review', 'page')
+  revalidatePath('/dashboard/admin/debug', 'page')
+  return updated
+}
+
 // ============ MOCK TEST ATTEMPTS ============
 export async function startMockTest(mockTestId: string) {
   const supabase = await createClient()
