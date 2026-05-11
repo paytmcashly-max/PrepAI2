@@ -30,6 +30,22 @@
 - Daily tasks, resource viewer, original practice, revision queue, and protected admin routes still render.
 - Run `docs/cleanup/db-cleanup-report.sql` after migration for repeatable database counts.
 
+## Post-Cleanup Production Smoke
+
+- Timestamp: 2026-05-11.
+- Production URL tested: `https://prepnix.vercel.app`.
+- Database sanity passed: exactly `bihar_si`, `up_police`, `ssc_gd`; unsupported exams/chapters/resources/original practice/PYQs all `0`; weak generic PrepAI questions `0`.
+- Blocking cleanup fix applied: removed legacy physical PrepAI Original Practice rows; post-fix physical original practice count `0`.
+- Logged-out `/dashboard` redirected to `/auth/login`.
+- Fresh Bihar SI onboarding passed with `120` days, `3` hours/day, maths `weak`, physical `weak`; dashboard and daily tasks loaded.
+- Daily task Study Material passed: notes render, video search/no-video fallback renders, Current Affairs is labeled `Study Method Practice`, Original Practice is labeled `Not Official PYQ`.
+- Original Practice wrong answer saved, mistake note persisted, mark-for-revision worked, and the item appeared in Revision Queue under PrepAI Practice Mistakes.
+- Quick onboarding smoke passed for UP Police and SSC GD.
+- PYQ page loaded; filters/content did not show SSC CGL; AI/third-party practice was not labeled Official Verified PYQ. Official verified PYQ count remains `0`.
+- Non-admin `/dashboard/admin/debug` returned 404/not-found behavior.
+- Admin `/dashboard/admin/debug` loaded for `PYQ_ADMIN_EMAILS` admin and showed supported-exam cleanup counts.
+- Temporary smoke auth users and their generated user data were cleaned up after the run.
+
 ## Commands
 
 - `npm run typecheck` passed on 2026-05-11.
