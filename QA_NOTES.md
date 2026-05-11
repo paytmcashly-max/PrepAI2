@@ -315,6 +315,23 @@ Production smoke run on 2026-05-11T15:20:32+05:30:
 - Observed non-blocker: stale aliases `https://prexnix.vercel.app` and `https://prepxnix.vercel.app` return 404; the working production URL is `https://prepnix.vercel.app`.
 - Blocking failures found: none.
 
+Admin production QA run on 2026-05-11T16:02:28+05:30:
+
+- Production URL tested: `https://prepnix.vercel.app`.
+- Admin account used: `kk7012234@gmail.com` from `PYQ_ADMIN_EMAILS`.
+- Admin debug passed: `/dashboard/admin/debug` loaded for the admin account and showed active-plan diagnostics plus health metrics without exposing secrets.
+- Admin PYQ import passed: `/dashboard/pyq/admin` loaded for the admin account.
+- Admin PYQ review passed: `/dashboard/pyq/review` loaded for the admin account.
+- Admin PYQ edit passed: `/dashboard/pyq/admin/[questionId]/edit` loaded for a temporary QA row.
+- Non-admin protection passed: a disposable non-admin user saw not-found/404 content for `/dashboard/admin/debug`, `/dashboard/pyq/admin`, `/dashboard/pyq/review`, and `/dashboard/pyq/admin/[questionId]/edit`.
+- Temporary PYQ workflow passed: one `ai_generated` / `ai_practice` row was inserted, appeared on `/dashboard/pyq` with the AI Practice badge, edited through the admin correction form, and deleted through the admin delete confirmation.
+- Visible PYQ count restored after cleanup: before `16`, after `16`.
+- Local missing-key Groq fallback passed with a local production start and no `GROQ_API_KEY`: Dashboard Daily Coach rendered deterministic fallback immediately, `Refresh with AI Coach` returned the missing-key fallback without crashing, and PYQ Ask Coach returned fallback copy without writing AI output to Supabase.
+- Temporary QA users and temporary PYQ rows were deleted after the run.
+- Known remaining issue: stale aliases `https://prexnix.vercel.app` and `https://prepxnix.vercel.app` still return 404; beta testers should use `https://prepnix.vercel.app`.
+- Final checks passed: `npm run typecheck`, `npm run lint`, `npm run build`, and `npm run audit`.
+- Beta readiness status: ready for a small controlled beta.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
