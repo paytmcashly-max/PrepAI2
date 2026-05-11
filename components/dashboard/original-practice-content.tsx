@@ -28,6 +28,30 @@ function normalizeAnswer(value: string | null | undefined) {
   return normalizePYQAnswer(value).text
 }
 
+function getPracticeCategoryBadges(question: OriginalPracticeQuestion) {
+  if (question.practice_category === 'study_method') {
+    return {
+      primary: 'Study Method Practice',
+      secondary: 'Not Actual Current Affairs Fact MCQ',
+      note: 'This checks how to study and revise current affairs. Actual monthly fact practice will appear only when verified/source-based content is added.',
+    }
+  }
+
+  if (question.practice_category === 'fact_practice') {
+    return {
+      primary: 'Current Affairs Fact Practice',
+      secondary: 'Source-based Practice',
+      note: 'Current affairs fact practice should be based on explicit source data.',
+    }
+  }
+
+  return {
+    primary: 'PrepAI Original Practice',
+    secondary: 'Not Official PYQ',
+    note: 'PrepAI Original Practice - Not Official PYQ.',
+  }
+}
+
 export function OriginalPracticeContent({ questions, exams, subjects, chapters, progress }: OriginalPracticeContentProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -198,12 +222,14 @@ export function OriginalPracticeContent({ questions, exams, subjects, chapters, 
             const isExpanded = expandedQuestion === question.id || Boolean(attempt?.selected_answer)
             const coach = coachResponses[question.id]
             const options = Array.isArray(question.options) ? question.options : []
+            const categoryBadges = getPracticeCategoryBadges(question)
             return (
               <Card id={`opq-${question.id}`} key={question.id} className="overflow-hidden scroll-mt-6">
                 <CardHeader>
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <Badge>PrepAI Original Practice</Badge>
-                    <Badge variant="outline">Not Official PYQ</Badge>
+                    <Badge>{categoryBadges.primary}</Badge>
+                    <Badge variant="outline">{categoryBadges.secondary}</Badge>
+                    {categoryBadges.secondary !== 'Not Official PYQ' && <Badge variant="outline">Not Official PYQ</Badge>}
                     <Badge variant="secondary">{question.difficulty}</Badge>
                     {attempt?.is_correct === true && <Badge className="bg-green-500/10 text-green-600">Correct</Badge>}
                     {attempt?.is_correct === false && <Badge className="bg-red-500/10 text-red-600">Incorrect</Badge>}
@@ -211,6 +237,11 @@ export function OriginalPracticeContent({ questions, exams, subjects, chapters, 
                   </div>
                   <CardTitle className="break-words text-base leading-relaxed">{question.question}</CardTitle>
                   <CardDescription className="break-words">{question.exam?.name || question.exam_id} - {question.subject?.name || question.subject_id}{question.chapter?.name ? ` - ${question.chapter.name}` : ''}</CardDescription>
+                  {question.practice_category === 'study_method' && (
+                    <p className="break-words text-xs leading-relaxed text-amber-600 dark:text-amber-300">
+                      Actual monthly fact practice will appear only when verified/source-based content is added.
+                    </p>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -255,7 +286,7 @@ export function OriginalPracticeContent({ questions, exams, subjects, chapters, 
                     <div className="rounded-lg border bg-muted/20 p-4">
                       <p className="font-medium">Answer: {question.answer}</p>
                       {question.explanation && <p className="mt-2 break-words text-sm leading-relaxed text-muted-foreground">{question.explanation}</p>}
-                      <p className="mt-2 text-xs text-amber-600 dark:text-amber-300">PrepAI Original Practice - Not Official PYQ.</p>
+                      <p className="mt-2 text-xs text-amber-600 dark:text-amber-300">{categoryBadges.note}</p>
                     </div>
                   )}
 

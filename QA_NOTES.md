@@ -387,6 +387,18 @@ Auto Resource Pack repeat smoke QA on 2026-05-11:
 - No video seed was added, no third-party content was imported, and PYQ source trust rules were unchanged.
 - Full click-level browser automation was not available because `agent-browser`/Playwright are not installed; the smoke used production `next start`, authenticated route fetches, and Supabase RLS writes.
 
+Current Affairs practice labeling smoke QA on 2026-05-11:
+
+- Added and applied `supabase/migrations/20260511080000_original_practice_category.sql`.
+- Verified live original-practice category counts: `study_method = 30`, `concept_practice = 90`, `fact_practice = 0`.
+- Verified Current Affairs starter rows are labeled `Study Method Practice`, not fact practice.
+- Verified Current Affairs practice cards show `Not Actual Current Affairs Fact MCQ` and the warning that monthly fact practice will appear only when verified/source-based content is added.
+- Verified Daily Tasks Study Material shows `Study Method Practice` for Current Affairs and the same “actual current-affairs fact practice will appear later” copy.
+- Verified Number System and Hindi `विलोम` still show `PrepAI Original Practice` and `Not Official PYQ`.
+- Verified Current Affairs resource notes no longer render literal escaped `\\n\\n`; MarkdownLite now decodes escaped newline sequences before rendering.
+- Verified PYQ source trust rules were unchanged and official verified PYQ count stayed `0`.
+- No fake latest facts were added, no video seed was added, no third-party content was scraped/imported, and no third-party MCQs were added.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -421,6 +433,8 @@ Auto Resource Pack repeat smoke QA on 2026-05-11:
 - Applied `supabase/migrations/20260511070000_auto_resource_original_practice.sql` to live Supabase after correcting `chapter_id` column types to match `chapters.id`.
 - Ran authenticated local route smoke for Daily Tasks, Resource Viewer, Original Practice, Revision Queue, Dashboard, and PYQ separation using a disposable Bihar SI user.
 - Re-ran authenticated local route smoke for Auto Resource Pack and Original Practice using production `next start`; verified cleanup left no disposable users or original-practice attempts.
+- Applied `supabase/migrations/20260511080000_original_practice_category.sql`.
+- Ran authenticated local route smoke for Current Affairs study-method labels, Number System/Hindi labels, Current Affairs notes rendering, and PYQ verified-only separation.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

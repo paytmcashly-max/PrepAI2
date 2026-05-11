@@ -149,6 +149,7 @@ export interface OriginalPracticeQuestion {
   answer: string
   explanation: string | null
   difficulty: 'easy' | 'medium' | 'hard'
+  practice_category: 'study_method' | 'fact_practice' | 'concept_practice'
   language: string
   source_type: 'prepai_original'
   exam_pattern_note: string | null
@@ -179,6 +180,11 @@ export interface TaskStudyResourceSummary {
   attemptedCount: number
   incorrectCount: number
   markedForRevisionCount: number
+  practiceCategoryCounts: {
+    study_method: number
+    fact_practice: number
+    concept_practice: number
+  }
 }
 
 export interface OriginalPracticeProgressSummary {

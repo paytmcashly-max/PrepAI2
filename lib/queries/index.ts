@@ -107,6 +107,14 @@ function questionMatchesTask(question: Pick<OriginalPracticeQuestion, 'exam_id' 
   return true
 }
 
+function emptyPracticeCategoryCounts() {
+  return {
+    study_method: 0,
+    fact_practice: 0,
+    concept_practice: 0,
+  }
+}
+
 async function enrichTasksWithStudyData(userId: string, tasks: UserDailyTask[]): Promise<UserDailyTask[]> {
   if (tasks.length === 0) return tasks
 
@@ -122,7 +130,7 @@ async function enrichTasksWithStudyData(userId: string, tasks: UserDailyTask[]):
       .order('priority', { ascending: true }),
     supabase
       .from('original_practice_questions')
-      .select('id, exam_id, subject_id, chapter_id')
+      .select('id, exam_id, subject_id, chapter_id, practice_category')
       .eq('is_active', true)
       .in('exam_id', examIds.length > 0 ? examIds : ['__none__'])
       .in('subject_id', subjectIds.length > 0 ? subjectIds : ['__none__']),
@@ -136,7 +144,7 @@ async function enrichTasksWithStudyData(userId: string, tasks: UserDailyTask[]):
     subject: Array.isArray(resource.subject) ? resource.subject[0] || null : resource.subject,
     chapter: Array.isArray(resource.chapter) ? resource.chapter[0] || null : resource.chapter,
   }))
-  const questions = (questionsResult.data || []) as Pick<OriginalPracticeQuestion, 'id' | 'exam_id' | 'subject_id' | 'chapter_id'>[]
+  const questions = (questionsResult.data || []) as Pick<OriginalPracticeQuestion, 'id' | 'exam_id' | 'subject_id' | 'chapter_id' | 'practice_category'>[]
   const questionIds = questions.map((question) => question.id)
   const { data: attempts, error: attemptsError } = questionIds.length > 0
     ? await supabase
@@ -160,9 +168,12 @@ async function enrichTasksWithStudyData(userId: string, tasks: UserDailyTask[]):
       attemptedCount: 0,
       incorrectCount: 0,
       markedForRevisionCount: 0,
+      practiceCategoryCounts: emptyPracticeCategoryCounts(),
     }
 
     for (const question of taskQuestions) {
+      const category = question.practice_category || 'concept_practice'
+      summary.practiceCategoryCounts[category] += 1
       const attempt = attemptsByQuestionId.get(question.id)
       if (!attempt) continue
       if (attempt.selected_answer) summary.attemptedCount += 1
@@ -899,6 +910,7 @@ export async function getTaskStudyResources(task: UserDailyTask, userId?: string
       attemptedCount: 0,
       incorrectCount: 0,
       markedForRevisionCount: 0,
+      practiceCategoryCounts: emptyPracticeCategoryCounts(),
     },
   }
 }

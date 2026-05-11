@@ -11,7 +11,10 @@ function renderInline(text: string) {
 }
 
 export function MarkdownLite({ content }: { content: string }) {
-  const lines = content.split(/\r?\n/)
+  const normalizedContent = content
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+  const lines = normalizedContent.split(/\r?\n/)
   const blocks: React.ReactNode[] = []
   let listItems: string[] = []
 
@@ -39,9 +42,9 @@ export function MarkdownLite({ content }: { content: string }) {
     }
     flushList()
     if (trimmed.startsWith('# ')) {
-      blocks.push(<h1 key={index} className="break-words text-3xl font-bold tracking-tight">{trimmed.slice(2)}</h1>)
+      blocks.push(<h1 key={index} className="break-words text-2xl font-bold tracking-tight">{trimmed.slice(2)}</h1>)
     } else if (trimmed.startsWith('## ')) {
-      blocks.push(<h2 key={index} className="break-words text-2xl font-semibold">{trimmed.slice(3)}</h2>)
+      blocks.push(<h2 key={index} className="break-words text-lg font-semibold">{trimmed.slice(3)}</h2>)
     } else if (/^\d+\.\s/.test(trimmed)) {
       blocks.push(<p key={index} className="break-words leading-relaxed">{renderInline(trimmed)}</p>)
     } else {
@@ -50,5 +53,5 @@ export function MarkdownLite({ content }: { content: string }) {
   })
   flushList()
 
-  return <div className="space-y-4">{blocks}</div>
+  return <div className="space-y-4 text-sm leading-relaxed sm:text-base">{blocks}</div>
 }

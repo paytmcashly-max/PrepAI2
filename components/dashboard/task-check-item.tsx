@@ -43,6 +43,13 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
   const noteResources = resources.filter((resource) => resource.resource_type === 'concept_note' || resource.resource_type === 'pdf_note' || resource.resource_type === 'current_affairs' || resource.resource_type === 'physical_training')
   const videoResource = resources.find((resource) => resource.resource_type === 'video_embed')
   const practiceHref = `/dashboard/practice/original?exam=${encodeURIComponent(task.exam_id)}${task.subject_id ? `&subject=${encodeURIComponent(task.subject_id)}` : ''}${task.chapter_id ? `&chapter=${encodeURIComponent(task.chapter_id)}` : ''}`
+  const practiceCategories = practiceSummary?.practiceCategoryCounts
+  const hasPractice = (practiceSummary?.availableQuestionCount || 0) > 0
+  const hasOnlyStudyMethodPractice = hasPractice
+    && (practiceCategories?.study_method || 0) > 0
+    && (practiceCategories?.fact_practice || 0) === 0
+    && (practiceCategories?.concept_practice || 0) === 0
+  const hasFactPractice = (practiceCategories?.fact_practice || 0) > 0
 
   return (
     <Card className={cn('overflow-hidden transition-opacity', completed && 'opacity-60')}>
@@ -138,13 +145,33 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
                       <HelpCircle className="h-4 w-4 text-muted-foreground" />
                       <p className="break-words text-sm font-medium">Practice</p>
                     </div>
-                    {(practiceSummary?.availableQuestionCount || 0) > 0 ? (
+                    {hasPractice ? (
                       <>
                         <p className="break-words text-xs leading-relaxed text-muted-foreground">
-                          {practiceSummary?.availableQuestionCount || 0} PrepAI Original MCQs.
+                          {hasOnlyStudyMethodPractice
+                            ? `${practiceSummary?.availableQuestionCount || 0} Study Method Practice questions.`
+                            : hasFactPractice
+                              ? `${practiceSummary?.availableQuestionCount || 0} Current Affairs Fact Practice questions.`
+                              : `${practiceSummary?.availableQuestionCount || 0} PrepAI Original MCQs.`}
                           {practiceSummary?.attemptedCount ? ` ${practiceSummary.attemptedCount} attempted.` : ''}
                         </p>
-                        <Badge variant="secondary" className="mt-2 whitespace-normal break-words text-xs">Not Official PYQ</Badge>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {hasOnlyStudyMethodPractice ? (
+                            <>
+                              <Badge variant="secondary" className="whitespace-normal break-words text-xs">Study Method Practice</Badge>
+                              <Badge variant="outline" className="whitespace-normal break-words text-xs">Not Actual Current Affairs Fact MCQ</Badge>
+                            </>
+                          ) : hasFactPractice ? (
+                            <Badge variant="secondary" className="whitespace-normal break-words text-xs">Current Affairs Fact Practice</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="whitespace-normal break-words text-xs">Not Official PYQ</Badge>
+                          )}
+                        </div>
+                        {hasOnlyStudyMethodPractice && (
+                          <p className="mt-2 break-words text-xs leading-relaxed text-muted-foreground">
+                            Actual current-affairs fact practice will appear when monthly verified/source-based content is added.
+                          </p>
+                        )}
                         <Button asChild size="sm" className="mt-3 w-full">
                           <Link href={practiceHref}>Practice in app</Link>
                         </Button>
