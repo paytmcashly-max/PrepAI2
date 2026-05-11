@@ -11,6 +11,7 @@ import type {
   MockTestAttempt,
   Note,
   PYQQuestion,
+  PYQProgressSummary,
   MotivationalQuote,
   DashboardStats,
   SubjectProgress,
@@ -561,6 +562,133 @@ export async function getPYQQuestionById(questionId: string): Promise<PYQQuestio
   return data || null
 }
 
+export async function getPYQProgressSummary(userId: string): Promise<PYQProgressSummary> {
+  const supabase = await createClient()
+
+  const { data: visibleQuestions, error: visibleError } = await supabase
+    .from('pyq_questions')
+    .select('id, question, subject_id, chapter_id, subject:subjects(id, name), chapter_ref:chapters(id, name)')
+    .not('verification_status', 'in', '("needs_manual_review","auto_rejected")')
+
+  if (visibleError) throw visibleError
+
+  const visibleRows = ((visibleQuestions || []) as unknown as Array<{
+    id: string
+    question: string
+    subject_id: string | null
+    chapter_id: string | null
+    subject: { id: string; name: string } | Array<{ id: string; name: string }> | null
+    chapter_ref: { id: string; name: string } | Array<{ id: string; name: string }> | null
+  }>).map((question) => ({
+    ...question,
+    subject: Array.isArray(question.subject) ? question.subject[0] || null : question.subject,
+    chapter_ref: Array.isArray(question.chapter_ref) ? question.chapter_ref[0] || null : question.chapter_ref,
+  }))
+
+  if (visibleRows.length === 0) {
+    return {
+      totalVisiblePYQs: 0,
+      attemptedCount: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      accuracyPercentage: 0,
+      markedForRevisionCount: 0,
+      weakestSubjects: [],
+      weakestChapters: [],
+      recentAttempts: [],
+    }
+  }
+
+  const visibleById = new Map(visibleRows.map((question) => [question.id, question]))
+  const { data: attemptRows, error: attemptError } = await supabase
+    .from('user_pyq_attempts')
+    .select('*')
+    .eq('user_id', userId)
+    .in('pyq_question_id', visibleRows.map((question) => question.id))
+    .order('updated_at', { ascending: false })
+
+  if (attemptError) throw attemptError
+
+  const attempts = (attemptRows || []) as UserPYQAttempt[]
+  const attempted = attempts.filter((attempt) => Boolean(attempt.selected_answer))
+  const correctCount = attempted.filter((attempt) => attempt.is_correct === true).length
+  const incorrectCount = attempted.filter((attempt) => attempt.is_correct === false).length
+  const markedForRevisionCount = attempts.filter((attempt) => attempt.marked_for_revision).length
+  const accuracyPercentage = attempted.length > 0 ? Math.round((correctCount / attempted.length) * 100) : 0
+
+  const subjectBuckets = new Map<string, {
+    id: string | null
+    name: string
+    incorrectCount: number
+    attemptedCount: number
+  }>()
+  const chapterBuckets = new Map<string, {
+    id: string | null
+    name: string
+    incorrectCount: number
+    attemptedCount: number
+  }>()
+
+  for (const attempt of attempted) {
+    const question = visibleById.get(attempt.pyq_question_id)
+    if (!question) continue
+
+    const subjectKey = question.subject_id || 'general'
+    const subjectBucket = subjectBuckets.get(subjectKey) || {
+      id: question.subject_id,
+      name: question.subject?.name || question.subject_id || 'General',
+      incorrectCount: 0,
+      attemptedCount: 0,
+    }
+    subjectBucket.attemptedCount += 1
+    if (attempt.is_correct === false) subjectBucket.incorrectCount += 1
+    subjectBuckets.set(subjectKey, subjectBucket)
+
+    const chapterKey = question.chapter_id || question.chapter_ref?.name || question.id
+    const chapterBucket = chapterBuckets.get(chapterKey) || {
+      id: question.chapter_id,
+      name: question.chapter_ref?.name || 'Unmapped chapter',
+      incorrectCount: 0,
+      attemptedCount: 0,
+    }
+    chapterBucket.attemptedCount += 1
+    if (attempt.is_correct === false) chapterBucket.incorrectCount += 1
+    chapterBuckets.set(chapterKey, chapterBucket)
+  }
+
+  const sortWeakest = <T extends { incorrectCount: number; attemptedCount: number; name: string }>(items: T[]) => (
+    items
+      .filter((item) => item.incorrectCount > 0)
+      .sort((a, b) => b.incorrectCount - a.incorrectCount || b.attemptedCount - a.attemptedCount || a.name.localeCompare(b.name))
+      .slice(0, 5)
+  )
+
+  return {
+    totalVisiblePYQs: visibleRows.length,
+    attemptedCount: attempted.length,
+    correctCount,
+    incorrectCount,
+    accuracyPercentage,
+    markedForRevisionCount,
+    weakestSubjects: sortWeakest([...subjectBuckets.values()]),
+    weakestChapters: sortWeakest([...chapterBuckets.values()]),
+    recentAttempts: attempted.slice(0, 8).map((attempt) => {
+      const question = visibleById.get(attempt.pyq_question_id)
+      return {
+        id: attempt.id,
+        questionId: attempt.pyq_question_id,
+        question: question?.question || 'PYQ question',
+        selectedAnswer: attempt.selected_answer,
+        isCorrect: attempt.is_correct,
+        markedForRevision: attempt.marked_for_revision,
+        attemptedAt: attempt.updated_at || attempt.attempted_at,
+        subjectName: question?.subject?.name || question?.subject_id || null,
+        chapterName: question?.chapter_ref?.name || null,
+      }
+    }),
+  }
+}
+
 export async function getPYQReviewRows(): Promise<PYQQuestion[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -1042,7 +1170,7 @@ export async function getWeakAreas(userId: string): Promise<WeakArea[]> {
       reason: `${mistake.count} incorrect PYQ attempt${mistake.count > 1 ? 's' : ''}`,
       priority: mistake.count >= 2 ? 'high' : 'medium',
       suggested_action: `Review ${label}, retry incorrect PYQs, and write one mistake note before the next practice set.`,
-      actionTarget: '/dashboard/pyq',
+      actionTarget: '/dashboard/pyq?attempt=incorrect',
     }, 70 + mistake.count * 8)
   }
 
@@ -1236,6 +1364,9 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
         marked_for_revision: row.marked_for_revision,
         is_correct: row.is_correct,
         attempted_at: row.attempted_at,
+        actionTarget: row.is_correct === false
+          ? `/dashboard/pyq?attempt=incorrect#pyq-${question.id}`
+          : `/dashboard/pyq?attempt=marked#pyq-${question.id}`,
       }
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
@@ -1268,7 +1399,7 @@ export async function getRevisionQueue(userId: string): Promise<RevisionQueueDat
       title: item.question.length > 80 ? `${item.question.slice(0, 80)}...` : item.question,
       reason: item.reason,
       priority: item.priority,
-      actionTarget: '/dashboard/pyq',
+      actionTarget: item.actionTarget,
     })),
     ...currentWeekRevisionTasks.slice(0, 3).map((task) => ({
       id: `revision-${task.id}`,

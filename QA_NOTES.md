@@ -200,6 +200,18 @@ PYQ practice hardening on 2026-05-11:
 - Server-side attempt actions now reject `needs_manual_review` and `auto_rejected` PYQs.
 - Attempts continue to update Revision Queue, Weak Areas, Dashboard, PYQ, and Admin Debug surfaces through revalidation.
 
+PYQ progress analytics on 2026-05-11:
+
+- Added `getPYQProgressSummary(userId)` for visible PYQs only, excluding `needs_manual_review` and `auto_rejected` rows from student analytics.
+- `/dashboard/pyq` now shows Attempted, Accuracy, Incorrect, and Marked Revision summary cards.
+- Accuracy calculation is `correct / attempted` and returns `0%` when the user has no attempted answers.
+- Added Weakest PYQ Subjects and Weakest PYQ Chapters sections based on incorrect attempts.
+- Added Recent Attempts cards linking back to the related PYQ card.
+- URL attempt filters now initialize from `/dashboard/pyq?attempt=incorrect` and `/dashboard/pyq?attempt=marked`.
+- Dashboard now includes a compact PYQ Progress card with attempted/total, accuracy, incorrect count, and links to PYQ practice/revision.
+- Revision Queue PYQ mistake items now link to the related PYQ card and the relevant attempt filter where possible.
+- No Groq, bulk PYQ imports, or source-trust rule changes were made.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -223,6 +235,7 @@ PYQ practice hardening on 2026-05-11:
 - Added and applied `supabase/migrations/20260511050000_user_pyq_attempts.sql`.
 - Verified live `user_pyq_attempts` table has 4 owner-only RLS policies.
 - Hardened PYQ answer matching and practice mode behavior without changing source trust rules.
+- Added PYQ progress summary cards, weakest subject/chapter analytics, recent attempts, dashboard PYQ progress card, and URL attempt filter initialization.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

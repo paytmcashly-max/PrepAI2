@@ -198,7 +198,7 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
                     </p>
                     <p className="mt-1 min-w-0 break-words text-sm leading-relaxed text-muted-foreground">{item.reason}</p>
                     <Button asChild size="sm" variant="outline" className="mt-3 w-full sm:w-fit">
-                      <Link href="/dashboard/pyq">Open PYQ practice</Link>
+                      <Link href={item.actionTarget}>Open PYQ practice</Link>
                     </Button>
                   </div>
                 ))}

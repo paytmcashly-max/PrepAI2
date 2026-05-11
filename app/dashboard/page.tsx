@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import { getDashboardStats, getSubjectProgress, getRandomQuote, getTodayTaskGroup, getWeakAreas, getOverdueTaskCount } from '@/lib/queries'
+import { getDashboardStats, getSubjectProgress, getRandomQuote, getTodayTaskGroup, getWeakAreas, getOverdueTaskCount, getPYQProgressSummary } from '@/lib/queries'
 import { DashboardContent } from '@/components/dashboard/dashboard-content'
-import type { DashboardStats, DayTaskGroup, MotivationalQuote, SubjectProgress, WeakArea } from '@/lib/types'
+import type { DashboardStats, DayTaskGroup, MotivationalQuote, PYQProgressSummary, SubjectProgress, WeakArea } from '@/lib/types'
 
 const fallbackStats: DashboardStats = {
   activePlanId: null,
@@ -36,13 +36,14 @@ export default async function DashboardPage() {
     return null // Layout handles redirect
   }
 
-  const [statsResult, subjectProgressResult, quoteResult, todayTasksResult, weakAreasResult, overdueCountResult] = await Promise.allSettled([
+  const [statsResult, subjectProgressResult, quoteResult, todayTasksResult, weakAreasResult, overdueCountResult, pyqProgressResult] = await Promise.allSettled([
     getDashboardStats(user.id),
     getSubjectProgress(user.id),
     getRandomQuote(),
     getTodayTaskGroup(user.id),
     getWeakAreas(user.id),
     getOverdueTaskCount(user.id),
+    getPYQProgressSummary(user.id),
   ])
   const stats = valueOrFallback(statsResult, fallbackStats, 'stats')
   const subjectProgress = valueOrFallback<SubjectProgress[]>(subjectProgressResult, [], 'subject progress')
@@ -50,6 +51,7 @@ export default async function DashboardPage() {
   const todayTaskGroup = valueOrFallback<DayTaskGroup | null>(todayTasksResult, null, 'today tasks')
   const weakAreas = valueOrFallback<WeakArea[]>(weakAreasResult, [], 'weak areas')
   const overdueTaskCount = valueOrFallback<number>(overdueCountResult, 0, 'overdue task count')
+  const pyqProgress = valueOrFallback<PYQProgressSummary | null>(pyqProgressResult, null, 'PYQ progress')
 
   return (
     <DashboardContent 
@@ -59,6 +61,7 @@ export default async function DashboardPage() {
       todayTaskGroup={todayTaskGroup}
       weakAreas={weakAreas}
       overdueTaskCount={overdueTaskCount}
+      pyqProgress={pyqProgress}
     />
   )
 }

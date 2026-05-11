@@ -37,7 +37,7 @@ import {
 } from 'lucide-react'
 import { clearPYQAttempt, submitPYQAttempt, togglePYQRevisionMark } from '@/lib/actions'
 import { normalizePYQAnswer, pyqAnswersMatch } from '@/lib/pyq-answer'
-import type { Chapter, Exam, PYQQuestion, PYQSource, Subject, UserPYQAttempt } from '@/lib/types'
+import type { Chapter, Exam, PYQProgressSummary, PYQQuestion, PYQSource, Subject, UserPYQAttempt } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface PYQContentProps {
@@ -47,14 +47,18 @@ interface PYQContentProps {
   chapters: Chapter[]
   years: number[]
   isAdmin?: boolean
+  progressSummary: PYQProgressSummary | null
 }
 
-export function PYQContent({ questions, exams, subjects, chapters, years, isAdmin = false }: PYQContentProps) {
+export function PYQContent({ questions, exams, subjects, chapters, years, isAdmin = false, progressSummary }: PYQContentProps) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const initialMode = searchParams.get('mode') === 'test' ? 'test' : 'learning'
+  const initialAttemptFilter = ['attempted', 'not_attempted', 'incorrect', 'marked'].includes(searchParams.get('attempt') || '')
+    ? searchParams.get('attempt') || 'all'
+    : 'all'
   const mistakeNoteRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
   const [practiceMode, setPracticeMode] = useState<'learning' | 'test'>(initialMode)
   const [filterExam, setFilterExam] = useState<string>('all')
@@ -62,7 +66,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
   const [filterSubject, setFilterSubject] = useState<string>('all')
   const [filterChapter, setFilterChapter] = useState<string>('all')
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
-  const [filterAttempt, setFilterAttempt] = useState<string>('all')
+  const [filterAttempt, setFilterAttempt] = useState<string>(initialAttemptFilter)
   const [verifiedOnly, setVerifiedOnly] = useState(false)
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
   const [pendingQuestionId, setPendingQuestionId] = useState<string | null>(null)
@@ -108,6 +112,17 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
   }
 
   const verifiedCount = questions.filter((question) => question.source === 'verified_pyq' && question.is_verified).length
+  const summary = progressSummary || {
+    totalVisiblePYQs: totalQuestions,
+    attemptedCount: questions.filter((question) => Boolean(getAttempt(question)?.selected_answer)).length,
+    correctCount: questions.filter((question) => getAttempt(question)?.is_correct === true).length,
+    incorrectCount: questions.filter((question) => getAttempt(question)?.is_correct === false).length,
+    accuracyPercentage: 0,
+    markedForRevisionCount: questions.filter((question) => getAttempt(question)?.marked_for_revision).length,
+    weakestSubjects: [],
+    weakestChapters: [],
+    recentAttempts: [],
+  }
   const uniqueTopics = new Set(questions.map(q => q.chapter_ref?.name || q.chapter || q.topic).filter(Boolean))
 
   // Get most frequent topics
@@ -145,6 +160,18 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
       params.set('mode', 'test')
     } else {
       params.delete('mode')
+    }
+    const nextQuery = params.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
+  }
+
+  const handleAttemptFilterChange = (value: string) => {
+    setFilterAttempt(value)
+    const params = new URLSearchParams(searchParams.toString())
+    if (value === 'all') {
+      params.delete('attempt')
+    } else {
+      params.set('attempt', value)
     }
     const nextQuery = params.toString()
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
@@ -404,6 +431,41 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
         </Card>
       </div>
 
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-muted-foreground">Attempted</p>
+            <p className="mt-1 text-3xl font-bold">{summary.attemptedCount}</p>
+            <p className="text-xs text-muted-foreground">of {summary.totalVisiblePYQs} visible PYQs</p>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-muted-foreground">Accuracy</p>
+            <p className="mt-1 text-3xl font-bold">{summary.accuracyPercentage}%</p>
+            <p className="text-xs text-muted-foreground">{summary.correctCount} correct</p>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-muted-foreground">Incorrect</p>
+            <p className="mt-1 text-3xl font-bold">{summary.incorrectCount}</p>
+            <Link href="/dashboard/pyq?attempt=incorrect" className="text-xs text-primary hover:underline">
+              Review incorrect
+            </Link>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-muted-foreground">Marked Revision</p>
+            <p className="mt-1 text-3xl font-bold">{summary.markedForRevisionCount}</p>
+            <Link href="/dashboard/pyq?attempt=marked" className="text-xs text-primary hover:underline">
+              Open marked
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Difficulty Distribution */}
       <Card>
         <CardHeader>
@@ -558,7 +620,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
 
             <div className="min-w-0">
               <label className="text-sm font-medium mb-2 block">Attempt</label>
-              <Select value={filterAttempt} onValueChange={setFilterAttempt}>
+              <Select value={filterAttempt} onValueChange={handleAttemptFilterChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Attempt status" />
                 </SelectTrigger>
@@ -579,6 +641,87 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle>Weakest PYQ Subjects</CardTitle>
+            <CardDescription>Ranked by incorrect attempts.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {summary.weakestSubjects.length > 0 ? (
+              <div className="space-y-3">
+                {summary.weakestSubjects.map((subject) => (
+                  <div key={subject.id || subject.name} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border p-3">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium">{subject.name}</p>
+                      <p className="text-xs text-muted-foreground">{subject.attemptedCount} attempted</p>
+                    </div>
+                    <Badge variant="destructive" className="w-fit">{subject.incorrectCount} wrong</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No incorrect subject pattern yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle>Weakest PYQ Chapters</CardTitle>
+            <CardDescription>Chapters that need retry practice.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {summary.weakestChapters.length > 0 ? (
+              <div className="space-y-3">
+                {summary.weakestChapters.map((chapter) => (
+                  <div key={chapter.id || chapter.name} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border p-3">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium">{chapter.name}</p>
+                      <p className="text-xs text-muted-foreground">{chapter.attemptedCount} attempted</p>
+                    </div>
+                    <Badge variant="destructive" className="w-fit">{chapter.incorrectCount} wrong</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No incorrect chapter pattern yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle>Recent Attempts</CardTitle>
+            <CardDescription>Your latest PYQ submissions.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {summary.recentAttempts.length > 0 ? (
+              <div className="space-y-3">
+                {summary.recentAttempts.slice(0, 5).map((attempt) => (
+                  <Link
+                    key={attempt.id}
+                    href={`/dashboard/pyq?attempt=${attempt.isCorrect === false ? 'incorrect' : 'attempted'}#pyq-${attempt.questionId}`}
+                    className="block rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                  >
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <Badge variant={attempt.isCorrect ? 'default' : 'destructive'}>{attempt.isCorrect ? 'Correct' : 'Incorrect'}</Badge>
+                      {attempt.markedForRevision && <Badge variant="outline">Marked</Badge>}
+                    </div>
+                    <p className="mt-2 line-clamp-2 break-words text-sm font-medium leading-relaxed">{attempt.question}</p>
+                    <p className="mt-1 break-words text-xs text-muted-foreground">
+                      {attempt.subjectName || 'Subject'}{attempt.chapterName ? ` - ${attempt.chapterName}` : ''}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Submit a PYQ answer to build recent attempt history.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Questions List */}
@@ -624,6 +767,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years, isAdmi
 
               return (
                 <Card
+                  id={`pyq-${question.id}`}
                   key={question.id}
                   className={cn(
                     'overflow-hidden',

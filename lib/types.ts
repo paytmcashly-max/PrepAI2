@@ -230,6 +230,37 @@ export interface UserPYQAttempt {
   question?: PYQQuestion | null
 }
 
+export interface PYQProgressBucket {
+  id: string | null
+  name: string
+  incorrectCount: number
+  attemptedCount: number
+}
+
+export interface PYQRecentAttempt {
+  id: string
+  questionId: string
+  question: string
+  selectedAnswer: string | null
+  isCorrect: boolean | null
+  markedForRevision: boolean
+  attemptedAt: string
+  subjectName: string | null
+  chapterName: string | null
+}
+
+export interface PYQProgressSummary {
+  totalVisiblePYQs: number
+  attemptedCount: number
+  correctCount: number
+  incorrectCount: number
+  accuracyPercentage: number
+  markedForRevisionCount: number
+  weakestSubjects: PYQProgressBucket[]
+  weakestChapters: PYQProgressBucket[]
+  recentAttempts: PYQRecentAttempt[]
+}
+
 export interface MotivationalQuote {
   id: string
   quote: string
@@ -340,6 +371,7 @@ export interface RevisionQueueData {
     marked_for_revision: boolean
     is_correct: boolean | null
     attempted_at: string
+    actionTarget: string
   }>
   currentWeekRevisionTasks: UserDailyTask[]
   suggestedOrder: RevisionQueueItem[]

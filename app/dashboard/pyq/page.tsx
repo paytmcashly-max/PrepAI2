@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { getPYQFilterData, getPYQQuestions } from "@/lib/queries/index"
+import { getPYQFilterData, getPYQProgressSummary, getPYQQuestions } from "@/lib/queries/index"
 import { PYQContent } from "@/components/dashboard/pyq-content"
 import { createClient } from "@/lib/supabase/server"
 import { isAdminEmail } from "@/lib/admin-auth"
@@ -13,9 +13,10 @@ export default async function PYQPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const isAdmin = isAdminEmail(user?.email)
-  const [questions, filterData] = await Promise.all([
+  const [questions, filterData, progressSummary] = await Promise.all([
     getPYQQuestions({ includeAdminOnly: isAdmin, userId: user?.id }),
     getPYQFilterData(),
+    user?.id ? getPYQProgressSummary(user.id) : null,
   ])
 
   return (
@@ -27,6 +28,7 @@ export default async function PYQPage() {
         chapters={filterData.chapters}
         years={filterData.years}
         isAdmin={isAdmin}
+        progressSummary={progressSummary}
       />
     </Suspense>
   )

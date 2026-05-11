@@ -23,12 +23,13 @@ import {
   Quote,
   CalendarCheck,
   AlertTriangle,
+  Flag,
 } from 'lucide-react'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { TaskCheckItem } from '@/components/dashboard/task-check-item'
 import { toggleTaskCompletion } from '@/lib/actions'
-import type { DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea } from '@/lib/types'
+import type { DashboardStats, SubjectProgress, MotivationalQuote, DayTaskGroup, WeakArea, PYQProgressSummary } from '@/lib/types'
 
 interface DashboardContentProps {
   stats: DashboardStats
@@ -37,6 +38,7 @@ interface DashboardContentProps {
   todayTaskGroup: DayTaskGroup | null
   weakAreas: WeakArea[]
   overdueTaskCount: number
+  pyqProgress: PYQProgressSummary | null
 }
 
 function clampPercent(value: number) {
@@ -44,7 +46,7 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value))
 }
 
-export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount }: DashboardContentProps) {
+export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup, weakAreas, overdueTaskCount, pyqProgress }: DashboardContentProps) {
   const [isPending, startTransition] = useTransition()
   const [localCompletions, setLocalCompletions] = useState<Record<string, boolean>>({})
   const visibleSubjectProgress = subjectProgress.filter((subject) => subject.totalTasks > 0)
@@ -275,6 +277,49 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="flex items-center gap-2">
+              <Flag className="h-5 w-5 text-primary" />
+              PYQ Progress
+            </CardTitle>
+            <CardDescription>Attempt accuracy from visible PYQ practice questions.</CardDescription>
+          </div>
+          <Button asChild size="sm" variant="outline" className="w-full sm:w-fit">
+            <Link href="/dashboard/pyq">Open PYQ practice</Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {pyqProgress ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Attempted</p>
+                <p className="mt-1 text-2xl font-bold">{pyqProgress.attemptedCount}/{pyqProgress.totalVisiblePYQs}</p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Accuracy</p>
+                <p className="mt-1 text-2xl font-bold">{pyqProgress.accuracyPercentage}%</p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Incorrect</p>
+                <p className="mt-1 text-2xl font-bold">{pyqProgress.incorrectCount}</p>
+              </div>
+              <div className="flex min-w-0 flex-col gap-2 sm:col-span-3 sm:flex-row">
+                <Button asChild variant="outline" className="w-full sm:w-fit">
+                  <Link href="/dashboard/pyq?attempt=incorrect">Review incorrect</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full sm:w-fit">
+                  <Link href="/dashboard/revision">Open revision queue</Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">PYQ progress is unavailable right now.</p>
           )}
         </CardContent>
       </Card>
