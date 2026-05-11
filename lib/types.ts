@@ -430,6 +430,11 @@ export interface AdminDebugSubjectDistribution {
 }
 
 export interface AdminDebugSnapshot {
+  health: {
+    appVersion: string
+    latestCommit: string
+    groqConfigured: boolean
+  }
   user: {
     id: string
     email: string | null
@@ -463,6 +468,7 @@ export interface AdminDebugSnapshot {
   }
   pyqCounts: {
     total: number
+    visible: number
     verified: number
     trustedThirdParty: number
     systemValidated: number

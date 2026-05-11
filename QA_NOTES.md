@@ -271,6 +271,33 @@ Groq Coach v1 hardening on 2026-05-11:
 - Coach context still excludes user email, auth id, env values, admin-only PYQ rows, `auto_rejected`, and `needs_manual_review` content.
 - Groq remains display-only; no AI output is written to Supabase.
 
+Production readiness hardening on 2026-05-11:
+
+- Added production smoke checklist coverage for auth redirect, onboarding, dashboard, Daily Tasks, Backlog, Revision Queue, PYQ practice, PYQ attempt submit, PYQ Ask Coach missing-key fallback, Dashboard Daily Coach fallback, admin PYQ import/review/edit protection, and mobile layout pass.
+- Existing route loading/error states were audited for dashboard, tasks, PYQ, revision, admin debug, admin PYQ import, admin PYQ review, and admin PYQ edit. No broad UI feature expansion was added.
+- Supabase server/admin env handling now fails with explicit missing-variable errors instead of non-null assertion crashes.
+- `GROQ_API_KEY` remains optional; missing key uses deterministic coach fallback. Missing `GROQ_MODEL` still uses the default model.
+- Admin debug now shows app version, latest commit when provided by Vercel, Groq configured true/false without secrets, visible PYQ count, PYQ attempts, adaptive recommendation count, and source-trust counts.
+- `/dashboard/pyq/admin` now hard-404s for non-admin users, matching `/dashboard/admin/debug`, `/dashboard/pyq/review`, and `/dashboard/pyq/admin/[questionId]/edit`.
+- Student PYQ queries and Groq context were rechecked to exclude `auto_rejected` and `needs_manual_review` rows.
+- Local readiness checks passed: `npm run typecheck`, `npm run lint`, `npm run build`, and `npm run audit`.
+- Known remaining issue: production Groq responses require `GROQ_API_KEY` to be configured in Vercel; fallback mode works without it.
+
+Production smoke checklist:
+
+- [ ] Auth redirect: logged-out dashboard route redirects through auth guard.
+- [ ] Onboarding: new user can complete onboarding and generate an active plan.
+- [ ] Dashboard: active-plan stats, today tasks, weak areas, PYQ progress, and Daily Coach fallback render.
+- [ ] Daily Tasks: current-day and rescheduled-today tasks render and task completion persists after refresh.
+- [ ] Backlog: overdue pending tasks can be moved/skipped and completed/skipped tasks stay hidden.
+- [ ] Revision Queue: overdue tasks, weak chapters, mock weak areas, PYQ items, and adaptive recommendations render or show clear empty states.
+- [ ] PYQ Practice: visible PYQs render; no-PYQ and no-attempt states are clear.
+- [ ] PYQ Attempt Submit: correct/incorrect attempt state saves and updates PYQ analytics.
+- [ ] PYQ Ask Coach fallback/missing key: missing `GROQ_API_KEY` shows deterministic fallback and source warning.
+- [ ] Dashboard Daily Coach fallback: initial dashboard load does not call Groq and renders deterministic suggestions.
+- [ ] Admin PYQ import/review/edit protected: non-admin users receive 404.
+- [ ] Mobile layout pass: dashboard, tasks, backlog, revision, PYQ, settings, and admin debug avoid horizontal overflow.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -300,6 +327,7 @@ Groq Coach v1 hardening on 2026-05-11:
 - Hardened adaptive recommendation IDs, action-type UI behavior, duplicate messaging, and router refresh after task creation.
 - Added Groq Coach v1 safe explainer with missing-key fallback, PYQ mistake explanations, dashboard daily coach, sanitized context, and no DB writes.
 - Hardened Groq Coach v1 with non-blocking Dashboard fallback, on-demand AI refresh, JSON parsing fallback, timeout/cooldown handling, and source-authority messaging.
+- Hardened production readiness docs, env errors, admin debug health metrics, and admin PYQ import protection.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

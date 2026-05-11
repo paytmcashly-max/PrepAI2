@@ -114,6 +114,13 @@ export default async function AdminDebugPage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="App Version" value={snapshot.health.appVersion} />
+        <MetricCard label="Latest Commit" value={snapshot.health.latestCommit} />
+        <MetricCard label="Groq Configured" value={snapshot.health.groqConfigured ? 'Yes' : 'No'} detail="Secret value is never displayed" />
+        <MetricCard label="Visible PYQs" value={snapshot.pyqCounts.visible} detail="Excludes manual-review/rejected rows" />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Target Days" value={snapshot.activePlan?.targetDays || 0} />
         <MetricCard label="Current Day" value={snapshot.activePlan?.currentDay || 0} />
         <MetricCard label="Archived Plans" value={snapshot.archivedPlanCount} />
@@ -148,6 +155,7 @@ export default async function AdminDebugPage() {
             <MetricTile label="Weekly Revision Tasks" value={snapshot.revisionQueueCounts.currentWeekRevisionTasks} />
             <MetricTile label="Suggested Revision Items" value={snapshot.revisionQueueCounts.suggestedOrder} />
             <MetricTile label="PYQ Questions" value={snapshot.pyqCounts.total} />
+            <MetricTile label="Visible PYQs" value={snapshot.pyqCounts.visible} />
             <MetricTile label="PYQ Attempts" value={snapshot.pyqAttemptCounts.total} />
             <MetricTile label="Incorrect PYQ Attempts" value={snapshot.pyqAttemptCounts.incorrect} />
             <MetricTile label="Marked PYQ Revisions" value={snapshot.pyqAttemptCounts.markedForRevision} />

@@ -1,6 +1,7 @@
 // Server-side queries for PrepTrack
 import { createClient } from '@/lib/supabase/server'
 import { toLocalDateString } from '@/lib/date-utils'
+import { getRuntimeHealthEnv } from '@/lib/env'
 import type {
   Exam,
   Subject,
@@ -1729,10 +1730,12 @@ export async function getSidebarPlanSummary(userId: string): Promise<{
 export async function getAdminDebugSnapshot(user: { id: string; email?: string | null }): Promise<AdminDebugSnapshot> {
   const supabase = await createClient()
   const plan = await getActiveStudyPlan(user.id)
+  const health = getRuntimeHealthEnv()
 
   const [
     archivedPlanResult,
     pyqCountResult,
+    visiblePyqCountResult,
     verifiedPyqCountResult,
     trustedThirdPartyPyqCountResult,
     systemValidatedPyqCountResult,
@@ -1757,6 +1760,10 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     supabase
       .from('pyq_questions')
       .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('pyq_questions')
+      .select('*', { count: 'exact', head: true })
+      .not('verification_status', 'in', '("needs_manual_review","auto_rejected")'),
     supabase
       .from('pyq_questions')
       .select('*', { count: 'exact', head: true })
@@ -1820,6 +1827,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
 
   if (archivedPlanResult.error) throw archivedPlanResult.error
   if (pyqCountResult.error) throw pyqCountResult.error
+  if (visiblePyqCountResult.error) throw visiblePyqCountResult.error
   if (verifiedPyqCountResult.error) throw verifiedPyqCountResult.error
   if (trustedThirdPartyPyqCountResult.error) throw trustedThirdPartyPyqCountResult.error
   if (systemValidatedPyqCountResult.error) throw systemValidatedPyqCountResult.error
@@ -1845,6 +1853,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
 
   if (!plan) {
     return {
+      health,
       user: {
         id: user.id,
         email: user.email || null,
@@ -1865,6 +1874,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
       },
       pyqCounts: {
         total: pyqCountResult.count || 0,
+        visible: visiblePyqCountResult.count || 0,
         verified: verifiedPyqCountResult.count || 0,
         trustedThirdParty: trustedThirdPartyPyqCountResult.count || 0,
         systemValidated: systemValidatedPyqCountResult.count || 0,
@@ -1942,6 +1952,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
   }
 
   return {
+    health,
     user: {
       id: user.id,
       email: user.email || null,
@@ -1977,6 +1988,7 @@ export async function getAdminDebugSnapshot(user: { id: string; email?: string |
     },
     pyqCounts: {
       total: pyqCountResult.count || 0,
+      visible: visiblePyqCountResult.count || 0,
       verified: verifiedPyqCountResult.count || 0,
       trustedThirdParty: trustedThirdPartyPyqCountResult.count || 0,
       systemValidated: systemValidatedPyqCountResult.count || 0,
