@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { AlertTriangle, BookOpen, ClipboardList, Flag, ListChecks, RotateCcw, TimerReset } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -43,6 +44,7 @@ function TaskRow({ task }: { task: UserDailyTask }) {
 
 export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
   const hasQueueData = queue.overdueTasks.length > 0
     || queue.weakChapters.length > 0
     || queue.mockWeakAreas.length > 0
@@ -188,23 +190,32 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
                       <Button asChild size="sm" variant="outline" className="w-full sm:w-fit">
                         <Link href={recommendation.actionTarget}>Review PYQs</Link>
                       </Button>
-                      <Button
-                        size="sm"
-                        className="w-full sm:w-fit"
-                        disabled={isPending}
-                        onClick={() => {
-                          startTransition(async () => {
-                            try {
-                              await createAdaptiveRevisionTask(recommendation.id)
-                              toast.success('Revision task created for today.')
-                            } catch (error) {
-                              toast.error(error instanceof Error ? error.message : 'Could not create revision task.')
-                            }
-                          })
-                        }}
-                      >
-                        Create revision task
-                      </Button>
+                      {recommendation.action_type === 'revision_task' && (recommendation.chapter_id || recommendation.subject_id) ? (
+                        <Button
+                          size="sm"
+                          className="w-full sm:w-fit"
+                          disabled={isPending}
+                          onClick={() => {
+                            startTransition(async () => {
+                              try {
+                                await createAdaptiveRevisionTask(recommendation.id)
+                                router.refresh()
+                                toast.success('Revision task created for today.')
+                              } catch (error) {
+                                toast.error(error instanceof Error ? error.message : 'Could not create revision task.')
+                              }
+                            })
+                          }}
+                        >
+                          Create revision task
+                        </Button>
+                      ) : (
+                        <div className="rounded-md border border-muted bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                          {recommendation.chapter_id || recommendation.subject_id
+                            ? 'Revision task already exists recently.'
+                            : 'Review-only recommendation.'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

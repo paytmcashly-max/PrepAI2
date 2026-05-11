@@ -73,6 +73,12 @@ function dedupeTasks(tasks: UserDailyTask[]) {
   return [...tasksById.values()]
 }
 
+function adaptiveRecommendationId(chapterId: string | null, subjectId: string | null, questionId: string) {
+  if (chapterId) return `chapter:${chapterId}`
+  if (subjectId) return `subject:${subjectId}`
+  return `question:${questionId}`
+}
+
 export async function getActiveStudyPlan(userId: string): Promise<UserStudyPlan | null> {
   const supabase = await createClient()
   const { data: plan, error } = await supabase
@@ -1263,7 +1269,7 @@ export async function getAdaptiveRevisionRecommendations(userId: string): Promis
   const pendingCountByKey = new Map<string, number>()
   const recentRevisionByKey = new Set<string>()
   for (const task of pendingTasks) {
-    const key = task.chapter_id || task.subject_id
+    const key = task.chapter_id ? `chapter:${task.chapter_id}` : task.subject_id ? `subject:${task.subject_id}` : null
     if (!key) continue
     pendingCountByKey.set(key, (pendingCountByKey.get(key) || 0) + 1)
     if (task.task_type === 'revision' && task.task_date >= sevenDaysAgoString && task.task_date <= today) {
@@ -1288,7 +1294,7 @@ export async function getAdaptiveRevisionRecommendations(userId: string): Promis
 
     const subject = Array.isArray(question.subject) ? question.subject[0] || null : question.subject
     const chapter = Array.isArray(question.chapter_ref) ? question.chapter_ref[0] || null : question.chapter_ref
-    const key = question.chapter_id || question.subject_id || question.id
+    const key = adaptiveRecommendationId(question.chapter_id, question.subject_id, question.id)
     const existing = buckets.get(key) || {
       chapter_id: question.chapter_id,
       subject_id: question.subject_id,
@@ -1334,7 +1340,9 @@ export async function getAdaptiveRevisionRecommendations(userId: string): Promis
         reason: reasonParts.join(' + '),
         priority,
         suggested_minutes: priority === 'high' ? 45 : priority === 'medium' ? 30 : 20,
-        action_type: recentRevisionByKey.has(key) ? 'pyq_review' as const : 'revision_task' as const,
+        action_type: recentRevisionByKey.has(key) || (!bucket.chapter_id && !bucket.subject_id)
+          ? 'pyq_review' as const
+          : 'revision_task' as const,
         actionTarget: bucket.incorrectCount > 0
           ? `/dashboard/pyq?attempt=incorrect#pyq-${bucket.questionIds[0]}`
           : `/dashboard/pyq?attempt=marked#pyq-${bucket.questionIds[0]}`,

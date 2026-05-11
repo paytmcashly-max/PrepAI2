@@ -468,6 +468,9 @@ export async function createAdaptiveRevisionTask(recommendationId: string) {
 
   const id = recommendationId?.trim()
   if (!id) throw new Error('Recommendation ID is required.')
+  if (!/^(chapter|subject|question):/.test(id)) {
+    throw new Error('Recommendation ID is invalid. Please refresh and try again.')
+  }
 
   const { data: activePlan, error: planError } = await supabase
     .from('user_study_plans')
@@ -483,8 +486,11 @@ export async function createAdaptiveRevisionTask(recommendationId: string) {
   const recommendations = await getAdaptiveRevisionRecommendations(user.id)
   const recommendation = recommendations.find((item) => item.id === id)
   if (!recommendation) throw new Error('Recommendation is no longer available.')
+  if (recommendation.action_type !== 'revision_task') {
+    throw new Error('A recent revision task already exists. Review the PYQs from this recommendation instead.')
+  }
   if (!recommendation.subject_id && !recommendation.chapter_id) {
-    throw new Error('Recommendation is missing subject or chapter mapping.')
+    throw new Error('This recommendation cannot create a task because it is not mapped to a subject or chapter.')
   }
 
   const today = new Date()
@@ -512,7 +518,7 @@ export async function createAdaptiveRevisionTask(recommendationId: string) {
   const { data: duplicateRows, error: duplicateError } = await duplicateQuery.limit(1)
   if (duplicateError) throw duplicateError
   if (duplicateRows && duplicateRows.length > 0) {
-    throw new Error('A pending revision task for this PYQ pattern already exists within 7 days.')
+    throw new Error('You already have a pending revision task for this PYQ pattern within 7 days. Review the PYQs first, then continue with that task.')
   }
 
   const start = new Date(`${activePlan.start_date}T00:00:00`)

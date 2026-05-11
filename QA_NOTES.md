@@ -235,6 +235,16 @@ Adaptive PYQ revision recommendations on 2026-05-11:
 - Created tasks use `task_type = revision`, the recommendation priority, current active plan, and three deterministic `how_to_study` steps.
 - No Groq, bulk PYQ imports, or source-trust rule changes were made.
 
+Adaptive PYQ recommendation hardening on 2026-05-11:
+
+- Recommendation IDs now use stable prefixes: `chapter:<id>`, `subject:<id>`, or `question:<id>`.
+- `createAdaptiveRevisionTask()` validates the prefixed ID format before resolving the current recommendation.
+- Revision Queue respects `action_type`: `revision_task` shows Create revision task, while `pyq_review` hides creation and shows review-only/recent-task messaging.
+- Recommendations with no subject/chapter mapping are review-only and cannot create revision tasks.
+- Duplicate prevention remains server-side and now returns a friendlier message when a pending revision task exists within 7 days.
+- Successful task creation calls `router.refresh()` so recommendation counts and action states do not stay stale.
+- No Groq, bulk PYQ imports, or source-trust rule changes were made.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -261,6 +271,7 @@ Adaptive PYQ revision recommendations on 2026-05-11:
 - Added PYQ progress summary cards, weakest subject/chapter analytics, recent attempts, dashboard PYQ progress card, and URL attempt filter initialization.
 - Hardened PYQ analytics hash links, summary refresh after actions, URL filter preservation, and empty-state copy.
 - Added adaptive PYQ revision recommendations and guarded revision task creation.
+- Hardened adaptive recommendation IDs, action-type UI behavior, duplicate messaging, and router refresh after task creation.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
