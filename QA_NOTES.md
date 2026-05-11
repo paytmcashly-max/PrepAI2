@@ -102,6 +102,22 @@ PYQ checks from this pass:
 - Existing 11 Bihar SI AI practice rows remain `source = ai_generated` and `is_verified = false`.
 - Admin import was tested for all source types through server/DB validation paths; no bulk imports were created.
 
+Controlled PYQ practice import on 2026-05-11:
+
+- Imported 5 Bihar SI questions from the tracked Testbook Bihar Police SI Mains Previous Year Paper, Held on 24 April 2022 Shift 1, English PDF.
+- Imported IDs:
+  - `tb-bihar-si-2022-mains-s1-q005`
+  - `tb-bihar-si-2022-mains-s1-q016`
+  - `tb-bihar-si-2022-mains-s1-q022`
+  - `tb-bihar-si-2022-mains-s1-q038`
+  - `tb-bihar-si-2022-mains-s1-q073`
+- Every imported row uses `source = trusted_third_party`, `verification_status = in_review`, `source_name = Testbook`, and `is_verified = false`.
+- No rows were imported as `verified_pyq`.
+- Each imported row includes `source_reference` with paper/date/shift/language and exact Testbook question number.
+- Verified-only filter still returns only `source = verified_pyq` and `is_verified = true`; after this import it returned `0`.
+- Admin/debug PYQ counts after import: total `16`, official verified `0`, trusted third-party `5`, AI practice `11`.
+- PYQ card source fields were code-checked for mobile wrapping via `min-w-0 break-words` on source reference, source name, verification status, and source URL.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -110,6 +126,10 @@ PYQ checks from this pass:
 - Verified live `pyq_questions.source_reference` is readable through Supabase.
 - Added and applied `supabase/migrations/20260511010000_pyq_source_trust_taxonomy.sql`.
 - Verified source taxonomy constraints preserve existing AI practice rows and reject unsafe trust labels.
+- Resolved the tracked Testbook PDF viewer to a Testbook resource API response and English PDF URL for Bihar SI Mains 24 Apr 2022 Shift 1.
+- Extracted exact question text/numbers from the Testbook English PDF for a controlled 5-question third-party practice import.
+- Inserted 5 rows as `trusted_third_party`, `verification_status = in_review`, `source_name = Testbook`, and `is_verified = false`.
+- Verified post-import PYQ counts: total `16`, official verified `0`, trusted third-party `5`, AI practice `11`, verified-only filter `0`.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`

@@ -43,7 +43,7 @@ Rejected sources stay only in this tracker and must not be inserted into `pyq_qu
 | Bihar SI | 2023 | BPSSC Advt. No. 02/2023 result/marks notices | https://bpssc.bihar.gov.in/Notices/NB-2024-08-19-01.pdf ; https://bpssc.bihar.gov.in/Notices/NB-2024-07-09-01.pdf | N/A | source_found | 0 | Official BPSSC metadata source for the 2023 recruitment/result timeline only. It does not contain question text or answer keys, so it is not a PYQ import source. |
 | Bihar SI | 2023 | Prelims, 17 Dec 2023, Shift 1 | https://testbook.com/pdf-viewer?id=65afa031c668b36a25021a33&language=english | Full paper candidate PDF, not topic-extracted | in_review | 0 | Third-party Testbook PDF viewer. Do not import as `verified_pyq` unless matched with an official/question-paper source reference. |
 | Bihar SI | 2023 | Prelims, 17 Dec 2023, Shift 2 | https://testbook.com/pdf-viewer?id=65afa05ca3039b040bf7f577&language=english | Full paper candidate PDF, not topic-extracted | in_review | 0 | Third-party Testbook PDF viewer. Do not import as `verified_pyq` unless matched with an official/question-paper source reference. |
-| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Full paper candidate PDF, not topic-extracted | in_review | 0 | Third-party Testbook PDF viewer. Do not import as `verified_pyq` unless matched with an official/question-paper source reference. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Q5, Q16, Q22, Q38, Q73 extracted from Testbook English PDF | in_review | 5 | Third-party Testbook PDF viewer and candidate PDF. Imported only as `trusted_third_party`, `verification_status = in_review`, `is_verified = false`. Do not import as `verified_pyq` unless matched with an official/question-paper source reference. |
 | Bihar SI | 2023 | Prelims, 17 Dec 2023, memory-based questions | https://www.collegedekho.com/news/bpssc-bihar-si-question-paper-2023-available-check-question-paper-analysis-48196/ | Memory-based Shift 1/Shift 2 lists | rejected | 0 | Page labels the content as memory-based/unofficial. Do not import as verified. |
 
 ## Bihar SI
@@ -52,9 +52,9 @@ Rejected sources stay only in this tracker and must not be inserted into `pyq_qu
 
 | exam | year | paper/shift/set | source URL or file location | question range collected | verification status | imported count | notes |
 |---|---:|---|---|---|---|---:|---|
-| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Percentage | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
-| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Ratio & Proportion | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
-| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Profit & Loss | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Q38 Percentage Error | in_review | 1 | Imported only as unverified `trusted_third_party` practice with Testbook source reference. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Q22 Ratio & Proportion | in_review | 1 | Imported only as unverified `trusted_third_party` practice with Testbook source reference. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Q16 Discount / Profit & Loss | in_review | 1 | Imported only as unverified `trusted_third_party` practice with Testbook source reference. |
 
 ### Reasoning
 
@@ -62,6 +62,7 @@ Rejected sources stay only in this tracker and must not be inserted into `pyq_qu
 |---|---:|---|---|---|---|---:|---|
 | Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Analogy | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
 | Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Series | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
+| Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | Q5 and Q73 Coding-Decoding | in_review | 2 | Imported only as unverified `trusted_third_party` practice with Testbook source reference. |
 
 ### GK/GS
 
@@ -112,4 +113,4 @@ Before importing a row as `verified_pyq`:
 6. Confirm the PYQ page shows the verified badge, source reference, and correct filters.
 7. Update `imported count` and status to `imported`.
 
-If the source cannot be officially confirmed, keep it out of `verified_pyq`. If it is useful as practice, add it only as `ai_generated`/unverified content after review.
+If the source cannot be officially confirmed, keep it out of `verified_pyq`. If it is useful as practice, add it only as `trusted_third_party`, `memory_based`, or `ai_generated` unverified content after review, based on the source taxonomy above.
