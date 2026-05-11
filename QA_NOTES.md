@@ -285,18 +285,35 @@ Production readiness hardening on 2026-05-11:
 
 Production smoke checklist:
 
-- [ ] Auth redirect: logged-out dashboard route redirects through auth guard.
-- [ ] Onboarding: new user can complete onboarding and generate an active plan.
-- [ ] Dashboard: active-plan stats, today tasks, weak areas, PYQ progress, and Daily Coach fallback render.
-- [ ] Daily Tasks: current-day and rescheduled-today tasks render and task completion persists after refresh.
-- [ ] Backlog: overdue pending tasks can be moved/skipped and completed/skipped tasks stay hidden.
-- [ ] Revision Queue: overdue tasks, weak chapters, mock weak areas, PYQ items, and adaptive recommendations render or show clear empty states.
-- [ ] PYQ Practice: visible PYQs render; no-PYQ and no-attempt states are clear.
-- [ ] PYQ Attempt Submit: correct/incorrect attempt state saves and updates PYQ analytics.
-- [ ] PYQ Ask Coach fallback/missing key: missing `GROQ_API_KEY` shows deterministic fallback and source warning.
-- [ ] Dashboard Daily Coach fallback: initial dashboard load does not call Groq and renders deterministic suggestions.
-- [ ] Admin PYQ import/review/edit protected: non-admin users receive 404.
-- [ ] Mobile layout pass: dashboard, tasks, backlog, revision, PYQ, settings, and admin debug avoid horizontal overflow.
+- [x] Auth redirect: logged-out dashboard route redirects through auth guard.
+- [x] Onboarding: new user can complete onboarding and generate an active plan.
+- [x] Dashboard: active-plan stats, today tasks, weak areas, PYQ progress, and Daily Coach fallback render.
+- [x] Daily Tasks: current-day and rescheduled-today tasks render and task completion persists after refresh.
+- [x] Backlog: overdue pending tasks can be moved/skipped and completed/skipped tasks stay hidden.
+- [x] Revision Queue: overdue tasks, weak chapters, mock weak areas, PYQ items, and adaptive recommendations render or show clear empty states.
+- [x] PYQ Practice: visible PYQs render; no-PYQ and no-attempt states are clear.
+- [x] PYQ Attempt Submit: correct/incorrect attempt state saves and updates PYQ analytics.
+- [~] PYQ Ask Coach fallback/missing key: Ask Coach passed with Groq configured in production; missing-key fallback was not applicable on the live deployment.
+- [x] Dashboard Daily Coach fallback: initial dashboard load does not call Groq and renders deterministic suggestions.
+- [x] Admin PYQ import/review/edit protected: non-admin users receive 404.
+- [x] Mobile layout pass: dashboard, tasks, backlog, revision, PYQ, settings, and admin debug avoid horizontal overflow.
+
+Production smoke run on 2026-05-11T15:20:32+05:30:
+
+- Production URL tested: `https://prepnix.vercel.app`.
+- Test user type: disposable confirmed Supabase email/password user; user was deleted after the smoke run.
+- Auth redirect passed: `/dashboard` redirected to `/auth/login` when logged out.
+- Onboarding passed: Bihar Police SI, 120 days, 3 hours/day, maths weak, physical weak generated a Day 1/120 dashboard with active-plan tasks.
+- Dashboard passed: active plan, today tasks, PYQ progress, and deterministic Daily Coach fallback rendered.
+- Daily Tasks passed: today tasks rendered and the first checkbox-like task control toggled.
+- Backlog, Revision Queue, PYQ Practice, and Plan Settings loaded without server-error states.
+- PYQ attempt submit passed on a visible AI Practice row; incorrect attempt state and explanation rendered.
+- PYQ Ask Coach passed with production Groq configured; response included the authoritative source-label warning and did not claim the AI Practice row was official.
+- Non-admin route protection passed for `/dashboard/pyq/admin`, `/dashboard/pyq/review`, and `/dashboard/admin/debug` with 404 responses.
+- Mobile overflow check passed at 390px width for dashboard, tasks, backlog, revision, PYQ, and settings.
+- Admin access with an admin account was not executed because no admin credentials were available in this session.
+- Observed non-blocker: stale aliases `https://prexnix.vercel.app` and `https://prepxnix.vercel.app` return 404; the working production URL is `https://prepnix.vercel.app`.
+- Blocking failures found: none.
 
 ## Commands Run
 
@@ -328,6 +345,7 @@ Production smoke checklist:
 - Added Groq Coach v1 safe explainer with missing-key fallback, PYQ mistake explanations, dashboard daily coach, sanitized context, and no DB writes.
 - Hardened Groq Coach v1 with non-blocking Dashboard fallback, on-demand AI refresh, JSON parsing fallback, timeout/cooldown handling, and source-authority messaging.
 - Hardened production readiness docs, env errors, admin debug health metrics, and admin PYQ import protection.
+- Ran production smoke QA against `https://prepnix.vercel.app`; no blocking production bugs were found.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
