@@ -305,6 +305,52 @@ export interface BacklogData {
   totalCount: number
 }
 
+export interface AdminDebugSubjectDistribution {
+  subjectId: string | null
+  subjectName: string
+  totalTasks: number
+  completedTasks: number
+  pendingTasks: number
+  skippedTasks: number
+}
+
+export interface AdminDebugSnapshot {
+  user: {
+    id: string
+    email: string | null
+  }
+  activePlan: {
+    id: string
+    examId: string
+    examName: string
+    targetDays: number
+    currentDay: number
+  } | null
+  archivedPlanCount: number
+  taskCounts: {
+    total: number
+    today: number
+    completed: number
+    pending: number
+    skipped: number
+    overduePending: number
+  }
+  subjectDistribution: AdminDebugSubjectDistribution[]
+  weakAreasCount: number
+  revisionQueueCounts: {
+    overdueTasks: number
+    weakChapters: number
+    mockWeakAreas: number
+    currentWeekRevisionTasks: number
+    suggestedOrder: number
+  }
+  pyqCounts: {
+    total: number
+    verified: number
+  }
+  mockResultCount: number
+}
+
 export interface PlanSettingsData {
   plan: UserStudyPlan | null
   profile: Profile | null

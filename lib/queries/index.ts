@@ -26,6 +26,7 @@ import type {
   RevisionWeakChapter,
   BacklogData,
   BacklogTaskGroup,
+  AdminDebugSnapshot,
 } from '@/lib/types'
 
 function getCalendarDay(startDate: string) {
@@ -1176,5 +1177,174 @@ export async function getSidebarPlanSummary(userId: string): Promise<{
     examName: exam?.name || plan.exam_id,
     targetDays: plan.target_days,
     hasActivePlan: true,
+  }
+}
+
+export async function getAdminDebugSnapshot(user: { id: string; email?: string | null }): Promise<AdminDebugSnapshot> {
+  const supabase = await createClient()
+  const plan = await getActiveStudyPlan(user.id)
+
+  const [
+    archivedPlanResult,
+    pyqCountResult,
+    verifiedPyqCountResult,
+    mockResultCountResult,
+    weakAreas,
+    revisionQueue,
+  ] = await Promise.all([
+    supabase
+      .from('user_study_plans')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('status', 'archived'),
+    supabase
+      .from('pyq_questions')
+      .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('pyq_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_verified', true),
+    supabase
+      .from('mock_tests')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    getWeakAreas(user.id),
+    getRevisionQueue(user.id),
+  ])
+
+  if (archivedPlanResult.error) throw archivedPlanResult.error
+  if (pyqCountResult.error) throw pyqCountResult.error
+  if (verifiedPyqCountResult.error) throw verifiedPyqCountResult.error
+  if (mockResultCountResult.error) throw mockResultCountResult.error
+
+  const emptyTaskCounts = {
+    total: 0,
+    today: 0,
+    completed: 0,
+    pending: 0,
+    skipped: 0,
+    overduePending: 0,
+  }
+
+  if (!plan) {
+    return {
+      user: {
+        id: user.id,
+        email: user.email || null,
+      },
+      activePlan: null,
+      archivedPlanCount: archivedPlanResult.count || 0,
+      taskCounts: emptyTaskCounts,
+      subjectDistribution: [],
+      weakAreasCount: weakAreas.length,
+      revisionQueueCounts: {
+        overdueTasks: revisionQueue.overdueTasks.length,
+        weakChapters: revisionQueue.weakChapters.length,
+        mockWeakAreas: revisionQueue.mockWeakAreas.length,
+        currentWeekRevisionTasks: revisionQueue.currentWeekRevisionTasks.length,
+        suggestedOrder: revisionQueue.suggestedOrder.length,
+      },
+      pyqCounts: {
+        total: pyqCountResult.count || 0,
+        verified: verifiedPyqCountResult.count || 0,
+      },
+      mockResultCount: mockResultCountResult.count || 0,
+    }
+  }
+
+  const rawCurrentDay = getCalendarDay(plan.start_date)
+  const currentDay = clamp(rawCurrentDay, 1, plan.target_days)
+  const today = toDateString(new Date())
+
+  const [examResult, taskResult] = await Promise.all([
+    supabase
+      .from('exams')
+      .select('name')
+      .eq('id', plan.exam_id)
+      .single(),
+    supabase
+      .from('user_daily_tasks')
+      .select('id, status, task_date, day_number, subject_id, subject:subjects(id, name)')
+      .eq('user_id', user.id)
+      .eq('plan_id', plan.id),
+  ])
+
+  if (examResult.error && examResult.error.code !== 'PGRST116') throw examResult.error
+  if (taskResult.error) throw taskResult.error
+
+  const tasks = ((taskResult.data || []) as Array<{
+    id: string
+    status: UserDailyTask['status']
+    task_date: string
+    day_number: number
+    subject_id: string | null
+    subject: Pick<Subject, 'id' | 'name'> | Array<Pick<Subject, 'id' | 'name'>> | null
+  }>).map((task) => ({
+    ...task,
+    subject: Array.isArray(task.subject) ? task.subject[0] || null : task.subject,
+  }))
+
+  const todayTasks = new Map(
+    tasks
+      .filter((task) => task.day_number === currentDay || task.task_date === today)
+      .map((task) => [task.id, task])
+  )
+  const subjectDistributionById = new Map<string, AdminDebugSnapshot['subjectDistribution'][number]>()
+
+  for (const task of tasks) {
+    const key = task.subject_id || 'general'
+    const existing = subjectDistributionById.get(key) || {
+      subjectId: task.subject_id,
+      subjectName: task.subject?.name || task.subject_id || 'General',
+      totalTasks: 0,
+      completedTasks: 0,
+      pendingTasks: 0,
+      skippedTasks: 0,
+    }
+
+    existing.totalTasks += 1
+    if (task.status === 'completed') existing.completedTasks += 1
+    if (task.status === 'pending') existing.pendingTasks += 1
+    if (task.status === 'skipped') existing.skippedTasks += 1
+    subjectDistributionById.set(key, existing)
+  }
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email || null,
+    },
+    activePlan: {
+      id: plan.id,
+      examId: plan.exam_id,
+      examName: examResult.data?.name || plan.exam_id,
+      targetDays: plan.target_days,
+      currentDay,
+    },
+    archivedPlanCount: archivedPlanResult.count || 0,
+    taskCounts: {
+      total: tasks.length,
+      today: todayTasks.size,
+      completed: tasks.filter((task) => task.status === 'completed').length,
+      pending: tasks.filter((task) => task.status === 'pending').length,
+      skipped: tasks.filter((task) => task.status === 'skipped').length,
+      overduePending: tasks.filter((task) => task.status === 'pending' && task.task_date < today).length,
+    },
+    subjectDistribution: [...subjectDistributionById.values()].sort((a, b) => (
+      b.totalTasks - a.totalTasks || a.subjectName.localeCompare(b.subjectName)
+    )),
+    weakAreasCount: weakAreas.length,
+    revisionQueueCounts: {
+      overdueTasks: revisionQueue.overdueTasks.length,
+      weakChapters: revisionQueue.weakChapters.length,
+      mockWeakAreas: revisionQueue.mockWeakAreas.length,
+      currentWeekRevisionTasks: revisionQueue.currentWeekRevisionTasks.length,
+      suggestedOrder: revisionQueue.suggestedOrder.length,
+    },
+    pyqCounts: {
+      total: pyqCountResult.count || 0,
+      verified: verifiedPyqCountResult.count || 0,
+    },
+    mockResultCount: mockResultCountResult.count || 0,
   }
 }
