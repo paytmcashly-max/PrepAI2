@@ -89,21 +89,21 @@ export function TasksContent({ dayGroups, todayTaskGroup }: TasksContentProps) {
   const todayCompletionPercentage = todayTotalTasks > 0 ? clampPercent(Math.round((todayCompletedTasks / todayTotalTasks) * 100)) : 0
 
   return (
-    <div className="space-y-6 overflow-hidden p-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Daily Tasks</h1>
-        <p className="text-muted-foreground">Stay consistent with your preparation</p>
+    <div className="space-y-5 overflow-hidden p-4 sm:space-y-6 sm:p-6">
+      <div className="min-w-0">
+        <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">Daily Tasks</h1>
+        <p className="break-words text-sm text-muted-foreground sm:text-base">Stay consistent with your preparation</p>
       </div>
 
       {/* Progress Overview */}
       <Card className="overflow-hidden">
         <CardContent className="pt-6">
-          <div className="mb-4 flex min-w-0 items-center justify-between gap-4">
-            <div>
+          <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="min-w-0">
               <p className="mb-1 text-sm font-medium text-muted-foreground">Today&apos;s Progress</p>
               <p className="text-2xl font-bold">{todayCompletedTasks}/{todayTotalTasks} Tasks</p>
             </div>
-            <div className="text-right">
+            <div className="sm:text-right">
               <p className="mb-1 text-sm font-medium text-muted-foreground">Today</p>
               <p className="text-2xl font-bold text-primary">{todayCompletionPercentage}%</p>
             </div>
@@ -181,29 +181,29 @@ export function TasksContent({ dayGroups, todayTaskGroup }: TasksContentProps) {
               <div key={dayGroup.id}>
                 <button
                   onClick={() => toggleDay(dayGroup.id)}
-                  className="w-full p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors flex items-center justify-between"
+                  className="flex w-full min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent/50 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="flex items-center gap-4 text-left">
+                  <div className="flex min-w-0 items-start gap-3">
                     <ChevronDown
                       className={cn(
-                        "h-5 w-5 text-muted-foreground transition-transform",
+                        "mt-0.5 h-5 w-5 shrink-0 text-muted-foreground transition-transform",
                         expandedDays.includes(dayGroup.id) && "rotate-180"
                       )}
                     />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">Day {dayGroup.day}</h3>
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <h3 className="break-words font-semibold">Day {dayGroup.day}</h3>
                         {dayGroup.isRevisionDay && (
-                          <Badge variant="secondary" className="text-xs">Revision</Badge>
+                          <Badge variant="secondary" className="whitespace-normal break-words text-xs">Revision</Badge>
                         )}
                         {dayGroup.phaseName && (
-                          <Badge variant="outline" className="text-xs">{dayGroup.phaseName}</Badge>
+                          <Badge variant="outline" className="max-w-full whitespace-normal break-words text-xs">{dayGroup.phaseName}</Badge>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">{dayGroup.date}</p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="shrink-0 sm:text-right">
                     <p className="font-semibold">
                       {dayCompletedCount}/{dayGroup.totalCount}
                     </p>
@@ -212,7 +212,7 @@ export function TasksContent({ dayGroups, todayTaskGroup }: TasksContentProps) {
                 </button>
 
                 {expandedDays.includes(dayGroup.id) && (
-                  <div className="space-y-3 pl-6 pt-3 pb-1">
+                  <div className="space-y-3 pb-1 pt-3 sm:pl-6">
                     {dayGroup.tasks.map((task) => {
                       const taskCompleted = getCompletionStatus(task.id, readCompleted(task))
                       
@@ -241,8 +241,8 @@ export function TasksContent({ dayGroups, todayTaskGroup }: TasksContentProps) {
             <CardTitle>Session Statistics</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground mb-1">Total Time Estimated</p>
                 <p className="text-2xl font-bold">
                   {dayGroups.reduce((sum, day) => 
@@ -250,7 +250,7 @@ export function TasksContent({ dayGroups, todayTaskGroup }: TasksContentProps) {
                   )} min
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground mb-1">Average Task Duration</p>
                 <p className="text-2xl font-bold">
                   {totalTasks > 0 
@@ -261,7 +261,7 @@ export function TasksContent({ dayGroups, todayTaskGroup }: TasksContentProps) {
                   } min
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground mb-1">Tasks Remaining</p>
                 <p className="text-2xl font-bold text-amber-500">
                   {totalTasks - completedTasks}

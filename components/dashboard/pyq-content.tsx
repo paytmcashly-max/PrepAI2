@@ -102,16 +102,16 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-5 p-4 sm:space-y-6 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">PYQ Practice</h1>
-          <p className="text-muted-foreground">Practice verified and clearly marked unverified previous-year questions</p>
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">PYQ Practice</h1>
+          <p className="break-words text-sm text-muted-foreground sm:text-base">Practice verified and clearly marked unverified previous-year questions</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Only verified_pyq questions should be treated as real previous-year questions.
           </p>
         </div>
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="w-full sm:w-fit">
           <Link href="/dashboard/pyq/admin">
             <Upload className="mr-2 h-4 w-4" />
             Manual Import
@@ -120,11 +120,11 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Total Questions</p>
                 <p className="text-3xl font-bold mt-1">{totalQuestions}</p>
               </div>
@@ -135,10 +135,10 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Years Covered</p>
                 <p className="text-3xl font-bold mt-1">{years.length}</p>
               </div>
@@ -149,10 +149,10 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Verified</p>
                 <p className="text-3xl font-bold mt-1">{verifiedCount}</p>
               </div>
@@ -163,10 +163,10 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Topics</p>
                 <p className="text-3xl font-bold mt-1">{uniqueTopics.size}</p>
               </div>
@@ -185,16 +185,16 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
           <CardDescription>Questions breakdown by difficulty level</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1 rounded-lg bg-green-500/10 p-4 text-center">
+          <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+            <div className="rounded-lg bg-green-500/10 p-4 text-center">
               <p className="text-2xl font-bold text-green-600">{questionsByDifficulty.easy}</p>
               <p className="text-sm text-muted-foreground">Easy</p>
             </div>
-            <div className="flex-1 rounded-lg bg-amber-500/10 p-4 text-center">
+            <div className="rounded-lg bg-amber-500/10 p-4 text-center">
               <p className="text-2xl font-bold text-amber-600">{questionsByDifficulty.medium}</p>
               <p className="text-sm text-muted-foreground">Medium</p>
             </div>
-            <div className="flex-1 rounded-lg bg-red-500/10 p-4 text-center">
+            <div className="rounded-lg bg-red-500/10 p-4 text-center">
               <p className="text-2xl font-bold text-red-600">{questionsByDifficulty.hard}</p>
               <p className="text-sm text-muted-foreground">Hard</p>
             </div>
@@ -211,14 +211,14 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            <div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="min-w-0">
               <label className="text-sm font-medium mb-2 block">Exam</label>
               <Select value={filterExam} onValueChange={(value) => {
                 setFilterExam(value)
                 setFilterChapter('all')
               }}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select exam" />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,10 +232,10 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               </Select>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-medium mb-2 block">Year</label>
               <Select value={filterYear} onValueChange={setFilterYear}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -249,13 +249,13 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               </Select>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-medium mb-2 block">Subject</label>
               <Select value={filterSubject} onValueChange={(value) => {
                 setFilterSubject(value)
                 setFilterChapter('all')
               }}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select subject" />
                 </SelectTrigger>
                 <SelectContent>
@@ -269,10 +269,10 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               </Select>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-medium mb-2 block">Chapter</label>
               <Select value={filterChapter} onValueChange={setFilterChapter}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select chapter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -286,10 +286,10 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               </Select>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-medium mb-2 block">Difficulty</label>
               <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select difficulty" />
                 </SelectTrigger>
                 <SelectContent>
@@ -301,7 +301,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               </Select>
             </div>
 
-            <label className="flex items-end gap-2 rounded-md border p-3 text-sm">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border p-3 text-sm sm:items-end">
               <Checkbox checked={verifiedOnly} onCheckedChange={(checked) => setVerifiedOnly(Boolean(checked))} />
               <span className="leading-none">Verified only</span>
             </label>
@@ -312,8 +312,8 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Questions List */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">
+          <div className="flex min-w-0 items-center justify-between">
+            <h2 className="min-w-0 break-words text-xl font-bold">
               Questions
               <span className="text-muted-foreground font-normal ml-2">
                 ({filteredQuestions.length} results)
@@ -347,8 +347,8 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               const SourceIcon = question.is_verified ? ShieldCheck : Sparkles
 
               return (
-                <Card key={question.id}>
-                  <CardContent className="p-6">
+                <Card key={question.id} className="overflow-hidden">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="mb-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <Badge variant="outline">{question.year}</Badge>
@@ -381,9 +381,9 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                         {question.options.map((option, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                            className="flex min-w-0 items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/50"
                           >
-                            <span className="font-semibold text-primary w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-sm">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                               {String.fromCharCode(65 + idx)}
                             </span>
                             <span className="min-w-0 break-words text-foreground">{option}</span>
@@ -434,8 +434,8 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                       <div className="mt-4 pt-4 border-t border-border space-y-3">
                         {question.answer && (
                           <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10">
-                            <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
-                            <div>
+                            <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600 mt-0.5" />
+                            <div className="min-w-0">
                               <p className="font-medium text-green-700 dark:text-green-400">
                                 Correct Answer
                               </p>
@@ -445,8 +445,8 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                         )}
                         {question.explanation && (
                           <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10">
-                            <HelpCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                            <div>
+                            <HelpCircle className="h-5 w-5 shrink-0 text-blue-600 mt-0.5" />
+                            <div className="min-w-0">
                               <p className="font-medium text-blue-700 dark:text-blue-400">
                                 Explanation
                               </p>
@@ -465,7 +465,7 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
 
         {/* Sidebar - Important Topics */}
         <div className="lg:col-span-1">
-          <Card className="sticky top-24">
+          <Card className="overflow-hidden lg:sticky lg:top-24">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
@@ -483,10 +483,10 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                         // Clear other filters and filter by this topic somehow
                         // For now just show the topic info
                       }}
-                      className="w-full text-left p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                      className="w-full rounded-lg bg-muted/50 p-3 text-left transition-colors hover:bg-muted"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm">{topic}</span>
+                      <div className="flex min-w-0 items-center justify-between gap-3">
+                        <span className="min-w-0 break-words text-sm font-medium">{topic}</span>
                         <Badge variant="secondary" className="text-xs">
                           {count}
                         </Badge>

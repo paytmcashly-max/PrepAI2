@@ -47,16 +47,16 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
           className="mt-1 shrink-0"
           aria-label={completed ? `Mark ${task.title} as pending` : `Mark ${task.title} as complete`}
         />
-        <div className="min-w-[min(100%,14rem)] flex-1 break-words">
+        <div className="min-w-0 flex-1 break-words">
           <div className="mb-2 flex min-w-0 flex-col items-start gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
             {task.subject && (
               <Badge
                 variant="outline"
-                className="max-w-full whitespace-normal break-words text-xs leading-relaxed"
+                className="max-w-full whitespace-normal break-words text-left text-xs leading-relaxed"
                 style={subjectBadgeStyle(task.subject.color)}
               >
                 <SubjectIcon icon={task.subject.icon} className="h-3.5 w-3.5 shrink-0" />
-                <span className="ml-1 min-w-0 break-words">{task.subject.name}</span>
+                <span className="ml-1 min-w-0 whitespace-normal break-words">{task.subject.name}</span>
               </Badge>
             )}
             {chapterName && (
@@ -84,7 +84,7 @@ export function TaskCheckItem({ task, completed, disabled, compact, onToggle }: 
             </ul>
           )}
         </div>
-        <div className="ml-8 flex w-full shrink-0 flex-row flex-wrap items-center gap-2 text-left sm:ml-0 sm:w-auto sm:flex-col sm:items-end sm:text-right md:flex-row md:items-center">
+        <div className="ml-9 flex w-full shrink-0 flex-row flex-wrap items-center gap-2 text-left sm:ml-0 sm:w-auto sm:flex-col sm:items-end sm:text-right md:flex-row md:items-center">
           <div className="flex items-center gap-1 text-muted-foreground">
             <Clock className="h-4 w-4" />
             <span className="text-sm">{task.estimated_minutes}m</span>

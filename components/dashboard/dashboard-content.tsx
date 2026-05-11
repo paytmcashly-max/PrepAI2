@@ -100,24 +100,24 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
   }
 
   return (
-    <div className="space-y-6 overflow-hidden p-6">
+    <div className="space-y-5 overflow-hidden p-4 sm:space-y-6 sm:p-6">
       {/* Welcome Section with Quote */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
+          <p className="break-words text-sm text-muted-foreground sm:text-base">
             {planMessage}
           </p>
         </div>
         {quote && (
-          <Card className="max-w-md border-none bg-muted/50">
+          <Card className="w-full max-w-md overflow-hidden border-none bg-muted/50">
             <CardContent className="p-4">
-              <div className="flex gap-3">
+              <div className="flex min-w-0 gap-3">
                 <Quote className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm italic text-foreground">{quote.quote}</p>
+                <div className="min-w-0">
+                  <p className="break-words text-sm italic leading-relaxed text-foreground">{quote.quote}</p>
                   {quote.author && (
-                    <p className="text-xs text-muted-foreground mt-1">- {quote.author}</p>
+                    <p className="mt-1 break-words text-xs text-muted-foreground">- {quote.author}</p>
                   )}
                 </div>
               </div>
@@ -133,7 +133,7 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
             <span className="min-w-0 break-words">
               You have {overdueTaskCount} overdue task{overdueTaskCount === 1 ? '' : 's'}. Manage backlog.
             </span>
-            <Button asChild size="sm" variant="outline" className="w-fit">
+            <Button asChild size="sm" variant="outline" className="w-full sm:w-fit">
               <Link href="/dashboard/backlog">Manage backlog</Link>
             </Button>
           </AlertDescription>
@@ -141,11 +141,11 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
       )}
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Current Streak</p>
                 <p className="text-3xl font-bold">{stats.currentStreak}</p>
                 <p className="text-xs text-muted-foreground">Days</p>
@@ -157,10 +157,10 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Tasks Completed</p>
                 <p className="text-3xl font-bold">{stats.tasksCompletedThisMonth}</p>
                 <p className="text-xs text-muted-foreground">This Month</p>
@@ -172,10 +172,10 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Topics Covered</p>
                 <p className="text-3xl font-bold">{stats.topicsCovered}</p>
                 <p className="text-xs text-muted-foreground">Out of {stats.totalTopics}</p>
@@ -187,10 +187,10 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Avg. Mock Score</p>
                 <p className="text-3xl font-bold">{stats.avgMockScore}%</p>
                 <p className="text-xs text-muted-foreground">Mock Tests</p>
@@ -213,17 +213,17 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex justify-between text-sm">
+            <div className="flex min-w-0 flex-wrap justify-between gap-2 text-sm">
               <span className="text-muted-foreground">Roadmap Completion</span>
               <span className="font-medium">{planPercent}%</span>
             </div>
             <Progress value={planPercent} className="h-2" />
-            <div className="flex justify-between text-sm">
+            <div className="flex min-w-0 flex-wrap justify-between gap-2 text-sm">
               <span className="text-muted-foreground">Today&apos;s Tasks</span>
               <span className="font-medium">{todayCompletedCount}/{todayTaskCount}</span>
             </div>
             <Progress value={todayPercent} className="h-2" />
-            <div className="flex justify-between text-sm">
+            <div className="flex min-w-0 flex-wrap justify-between gap-2 text-sm">
               <span className="text-muted-foreground">Full Plan Tasks</span>
               <span className="font-medium">{adjustedOverallCompleted}/{stats.overallTaskCount}</span>
             </div>
@@ -303,7 +303,7 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
                   <p className="mt-1 text-sm text-muted-foreground">{area.reason}</p>
                   <p className="mt-2 break-words text-sm">{area.suggested_action}</p>
                   {area.actionTarget && (
-                    <Button asChild variant="outline" size="sm" className="mt-3">
+                    <Button asChild variant="outline" size="sm" className="mt-3 w-full sm:w-fit">
                       <Link href={area.actionTarget}>Review now</Link>
                     </Button>
                   )}
@@ -339,8 +339,8 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
               <div className="space-y-4">
                 {visibleSubjectProgress.map((subject) => (
                 <div key={subject.id} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">{subject.name}</span>
+                  <div className="flex min-w-0 justify-between gap-3 text-sm">
+                    <span className="min-w-0 break-words font-medium">{subject.name}</span>
                     <span className="text-muted-foreground">{subject.percentage}%</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -436,20 +436,20 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
       </div>
 
       {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Button asChild size="lg" className="h-14">
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
+        <Button asChild size="lg" className="min-h-14 h-auto py-3 whitespace-normal text-center leading-relaxed">
           <Link href="/dashboard/tasks?focus=today#today-tasks">
             <Plus className="mr-2 h-5 w-5" />
             Start Daily Tasks
           </Link>
         </Button>
-        <Button asChild variant="secondary" size="lg" className="h-14">
+        <Button asChild variant="secondary" size="lg" className="min-h-14 h-auto py-3 whitespace-normal text-center leading-relaxed">
           <Link href="/dashboard/roadmap">
             <Map className="mr-2 h-5 w-5" />
             View Roadmap
           </Link>
         </Button>
-        <Button asChild variant="outline" size="lg" className="h-14">
+        <Button asChild variant="outline" size="lg" className="min-h-14 h-auto py-3 whitespace-normal text-center leading-relaxed">
           <Link href="/dashboard/mock-tests">
             <ClipboardList className="mr-2 h-5 w-5" />
             Take Mock Test
@@ -466,17 +466,17 @@ export function DashboardContent({ stats, subjectProgress, quote, todayTaskGroup
           <div className="grid gap-4 md:grid-cols-2">
             <Link 
               href="/dashboard/subjects"
-              className="block p-4 rounded-lg border border-border hover:bg-accent transition-colors group"
+              className="block min-w-0 rounded-lg border border-border p-4 transition-colors hover:bg-accent group"
             >
-              <p className="font-semibold group-hover:text-primary transition-colors">Subject Progress</p>
-              <p className="text-sm text-muted-foreground">Track performance across subjects</p>
+              <p className="break-words font-semibold transition-colors group-hover:text-primary">Subject Progress</p>
+              <p className="break-words text-sm text-muted-foreground">Track performance across subjects</p>
             </Link>
             <Link 
               href="/dashboard/notes"
-              className="block p-4 rounded-lg border border-border hover:bg-accent transition-colors group"
+              className="block min-w-0 rounded-lg border border-border p-4 transition-colors hover:bg-accent group"
             >
-              <p className="font-semibold group-hover:text-primary transition-colors">Study Notes</p>
-              <p className="text-sm text-muted-foreground">Organize and review your notes</p>
+              <p className="break-words font-semibold transition-colors group-hover:text-primary">Study Notes</p>
+              <p className="break-words text-sm text-muted-foreground">Organize and review your notes</p>
             </Link>
           </div>
         </CardContent>

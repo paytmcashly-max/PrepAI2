@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import type { RevisionQueueData, UserDailyTask } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 interface RevisionQueueContentProps {
   queue: RevisionQueueData
@@ -20,15 +21,15 @@ function TaskRow({ task }: { task: UserDailyTask }) {
   return (
     <div className="rounded-lg border p-4">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Badge variant="outline">{task.task_date}</Badge>
+        <Badge variant="outline" className="whitespace-normal break-words">{task.task_date}</Badge>
         <Badge className={priorityClass(task.priority)}>{task.priority}</Badge>
-        <Badge variant="secondary">{task.task_type}</Badge>
+        <Badge variant="secondary" className="whitespace-normal break-words">{task.task_type}</Badge>
       </div>
       <p className="mt-2 min-w-0 break-words font-medium leading-relaxed">{task.title}</p>
       {task.description && (
         <p className="mt-1 min-w-0 break-words text-sm leading-relaxed text-muted-foreground">{task.description}</p>
       )}
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="mt-2 min-w-0 break-words text-xs leading-relaxed text-muted-foreground">
         {task.subject?.name || task.subject_id || 'General'}{task.chapter?.name ? ` • ${task.chapter.name}` : ''}
       </p>
     </div>
@@ -59,34 +60,34 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Revision Queue</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-5 p-4 sm:space-y-6 sm:p-6">
+      <div className="min-w-0">
+        <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">Revision Queue</h1>
+        <p className="break-words text-sm text-muted-foreground sm:text-base">
           Non-AI revision priorities from your active plan, overdue tasks, weak chapters, and mock results.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">Overdue Tasks</p>
             <p className="mt-1 text-3xl font-bold">{queue.overdueTasks.length}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">Weak Chapters</p>
             <p className="mt-1 text-3xl font-bold">{queue.weakChapters.length}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">Mock Weak Areas</p>
             <p className="mt-1 text-3xl font-bold">{queue.mockWeakAreas.length}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">Plan Day</p>
             <p className="mt-1 text-3xl font-bold">{queue.currentDay}</p>
@@ -127,7 +128,7 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{item.reason}</p>
                   </div>
-                  <Button asChild size="sm" variant="outline">
+                  <Button asChild size="sm" variant="outline" className="w-full sm:w-fit">
                     <Link href={item.actionTarget}>Review now</Link>
                   </Button>
                 </div>
@@ -142,15 +143,15 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
+            <div className="min-w-0">
+              <CardTitle className="flex min-w-0 flex-wrap items-center gap-2">
                 <TimerReset className="h-5 w-5" />
                 Overdue Tasks
               </CardTitle>
               <CardDescription>Pending active-plan tasks with dates before today.</CardDescription>
             </div>
             {queue.overdueTasks.length > 0 && (
-              <Button asChild size="sm" variant="outline">
+              <Button asChild size="sm" variant="outline" className="w-full sm:w-fit">
                 <Link href="/dashboard/backlog">Manage backlog</Link>
               </Button>
             )}
@@ -179,15 +180,15 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
               <div className="space-y-3">
                 {queue.weakChapters.map((chapter) => (
                   <div key={chapter.chapter_id || chapter.chapter_name} className="rounded-lg border p-4">
-                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <p className="min-w-0 break-words font-medium">{chapter.chapter_name}</p>
-                      <Badge className={priorityClass(chapter.priority)}>{chapter.priority}</Badge>
+                      <Badge className={cn('w-fit', priorityClass(chapter.priority))}>{chapter.priority}</Badge>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 min-w-0 break-words text-sm leading-relaxed text-muted-foreground">
                       {chapter.subject_name || chapter.subject_id || 'Subject'} • {chapter.pendingTasks}/{chapter.totalTasks} tasks pending
                     </p>
                     {chapter.subject_id && (
-                      <Button asChild size="sm" variant="outline" className="mt-3">
+                      <Button asChild size="sm" variant="outline" className="mt-3 w-full sm:w-fit">
                         <Link href={`/dashboard/subjects/${chapter.subject_id}`}>Open subject</Link>
                       </Button>
                     )}
@@ -212,9 +213,9 @@ export function RevisionQueueContent({ queue }: RevisionQueueContentProps) {
             {queue.mockWeakAreas.length > 0 ? (
               <div className="space-y-3">
                 {queue.mockWeakAreas.map((area) => (
-                  <div key={area.area} className="flex items-center justify-between gap-3 rounded-lg border p-4">
+                  <div key={area.area} className="flex min-w-0 flex-col gap-2 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <p className="min-w-0 break-words font-medium">{area.area}</p>
-                    <Badge variant="secondary">{area.count}x</Badge>
+                    <Badge variant="secondary" className="w-fit">{area.count}x</Badge>
                   </div>
                 ))}
                 <Button asChild variant="outline" className="w-full">

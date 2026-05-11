@@ -74,7 +74,7 @@ function TaskRow({
       />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 flex-col items-start gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
-          <Badge variant="outline" className="max-w-full whitespace-normal break-words leading-relaxed">
+          <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left leading-relaxed">
             {task.subject?.name || task.subject_id || 'General'}
           </Badge>
           {task.chapter?.name && (
@@ -83,7 +83,7 @@ function TaskRow({
             </span>
           )}
           <Badge className={priorityClass(task.priority)}>{task.priority}</Badge>
-          <Badge variant="secondary">{task.estimated_minutes}m</Badge>
+          <Badge variant="secondary" className="shrink-0">{task.estimated_minutes}m</Badge>
         </div>
         <p className="mt-2 min-w-0 whitespace-normal break-words font-medium leading-relaxed">{task.title}</p>
         {task.description && (
@@ -129,6 +129,7 @@ function GroupCard({
           size="sm"
           onClick={() => onToggleGroup(group)}
           disabled={pending}
+          className="w-full sm:w-fit"
         >
           {allSelected ? 'Unselect group' : 'Select group'}
         </Button>
@@ -234,15 +235,15 @@ export function BacklogContent({ backlog }: BacklogContentProps) {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-5 p-4 pb-24 sm:space-y-6 sm:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight">Backlog Manager</h1>
-          <p className="mt-1 max-w-2xl text-muted-foreground">
+          <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">Backlog Manager</h1>
+          <p className="mt-1 max-w-2xl break-words text-sm text-muted-foreground sm:text-base">
             Move overdue active-plan tasks into a realistic date, or mark tasks skipped when they no longer matter.
           </p>
         </div>
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="w-full sm:w-fit">
           <Link href="/dashboard/revision">
             <CalendarDays className="mr-2 h-4 w-4" />
             Revision Queue
@@ -265,7 +266,7 @@ export function BacklogContent({ backlog }: BacklogContentProps) {
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" onClick={toggleAll} disabled={isPending}>
+                  <Button type="button" variant="outline" onClick={toggleAll} disabled={isPending} className="w-full sm:w-fit">
                     <CheckSquare className="mr-2 h-4 w-4" />
                     {selectedCount === allTaskIds.length ? 'Clear selection' : 'Select all'}
                   </Button>
@@ -276,6 +277,7 @@ export function BacklogContent({ backlog }: BacklogContentProps) {
                     type="button"
                     onClick={() => moveSelected(todayString(), 'today')}
                     disabled={selectedCount === 0 || isPending}
+                    className="w-full sm:w-fit"
                   >
                     <MoveRight className="mr-2 h-4 w-4" />
                     Move to today
@@ -285,6 +287,7 @@ export function BacklogContent({ backlog }: BacklogContentProps) {
                     variant="secondary"
                     onClick={() => moveSelected(tomorrowString(), 'tomorrow')}
                     disabled={selectedCount === 0 || isPending}
+                    className="w-full sm:w-fit"
                   >
                     Move to tomorrow
                   </Button>
@@ -301,6 +304,7 @@ export function BacklogContent({ backlog }: BacklogContentProps) {
                       variant="outline"
                       onClick={() => moveSelected(customDate, displayDate(customDate))}
                       disabled={selectedCount === 0 || isPending || !customDate}
+                      className="w-full sm:w-fit"
                     >
                       Move to date
                     </Button>
@@ -310,6 +314,7 @@ export function BacklogContent({ backlog }: BacklogContentProps) {
                     variant="destructive"
                     onClick={skipSelected}
                     disabled={selectedCount === 0 || isPending}
+                    className="w-full sm:w-fit"
                   >
                     <SkipForward className="mr-2 h-4 w-4" />
                     Mark skipped
@@ -331,6 +336,32 @@ export function BacklogContent({ backlog }: BacklogContentProps) {
               />
             ))}
           </div>
+          {selectedCount > 0 && (
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:hidden">
+              <div className="mx-auto flex max-w-md flex-col gap-2">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-medium">{selectedCount} selected</span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} disabled={isPending}>
+                    Clear
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="button" size="sm" onClick={() => moveSelected(todayString(), 'today')} disabled={isPending}>
+                    Today
+                  </Button>
+                  <Button type="button" size="sm" variant="secondary" onClick={() => moveSelected(tomorrowString(), 'tomorrow')} disabled={isPending}>
+                    Tomorrow
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => moveSelected(customDate, displayDate(customDate))} disabled={isPending || !customDate}>
+                    Custom date
+                  </Button>
+                  <Button type="button" size="sm" variant="destructive" onClick={skipSelected} disabled={isPending}>
+                    Skip
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <Empty>

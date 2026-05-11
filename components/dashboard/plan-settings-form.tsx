@@ -118,14 +118,14 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
               key={level.value}
               htmlFor={id}
               className={cn(
-                'flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 p-3 text-center font-medium transition-colors',
+                'flex min-w-0 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 p-3 text-center font-medium leading-relaxed transition-colors',
                 isSelected
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-muted bg-background hover:border-primary/60 hover:bg-accent'
               )}
             >
               <RadioGroupItem id={id} value={level.value} className="sr-only" />
-              <span>{level.label}</span>
+              <span className="min-w-0 break-words">{level.label}</span>
               {isSelected && <CheckCircle2 className="h-4 w-4" />}
             </Label>
           )
@@ -135,10 +135,10 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
   )
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Plan Settings</h1>
-        <p className="text-muted-foreground">Adjust your active plan and regenerate future daily tasks.</p>
+    <div className="space-y-5 p-4 sm:space-y-6 sm:p-6">
+      <div className="min-w-0">
+        <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">Plan Settings</h1>
+        <p className="break-words text-sm text-muted-foreground sm:text-base">Adjust your active plan and regenerate future daily tasks.</p>
       </div>
 
       {!plan && (
@@ -152,13 +152,13 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
       )}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="min-w-0">
           <CardTitle>Current Plan</CardTitle>
-          <CardDescription>
+          <CardDescription className="break-words leading-relaxed">
             Regeneration first creates a new complete plan, then archives the current one. Old tasks are preserved but ignored by dashboard progress.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-5 sm:space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-2">
               <Label>Exam</Label>
@@ -247,10 +247,10 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+            <div className="flex min-w-0 items-start justify-between gap-4 rounded-lg border p-4">
               <div className="min-w-0 space-y-1">
                 <Label htmlFor="englishBackground">English background</Label>
-                <p className="text-sm text-muted-foreground">
+                <p className="break-words text-sm leading-relaxed text-muted-foreground">
                   Keep this on if you are comfortable studying exam content in English.
                 </p>
               </div>
@@ -283,19 +283,19 @@ export function PlanSettingsForm({ plan, profile, exams }: PlanSettingsFormProps
 
           <AlertDialog open={open} onOpenChange={setOpen}>
             <AlertDialogTrigger asChild>
-              <Button disabled={!isValid || isPending}>
+              <Button disabled={!isValid || isPending} className="w-full sm:w-fit">
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Regenerate Plan
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
               <AlertDialogHeader>
                 <AlertDialogTitle>Regenerate your study plan?</AlertDialogTitle>
-                <AlertDialogDescription>
+                <AlertDialogDescription className="break-words leading-relaxed">
                   A new plan will be generated from these settings before your current active plan is archived. Old tasks will remain in the database but will not affect dashboard, tasks, or progress.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
+              <AlertDialogFooter className="gap-2 sm:gap-0">
                 <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={(event) => {
