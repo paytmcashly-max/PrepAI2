@@ -68,6 +68,27 @@ Last updated: 2026-05-11
 | Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | पर्यायवाची | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
 | Bihar SI | 2022 | Mains, 24 Apr 2022, Shift 1 | https://testbook.com/pdf-viewer?id=6319c442455d78219845128e&language=english | मुहावरे | in_review | 0 | Candidate PDF found, but not official-confirmed and not topic-extracted yet. |
 
+## UP Police Source Search Log
+
+| exam | year | paper/shift/set | source URL or file location | question range collected | verification status | imported count | notes |
+|---|---:|---|---|---|---|---:|---|
+| UP Police | 2026 | SI Civil Police and equivalent posts, written exam held 14-15 Mar 2026, final answer key notice | https://uppbpb.gov.in/FilesUploaded/Notice/UPSI%20ANS%20KEY%2007%20May%20202605b0d6e3-5102-463c-aedf-1a6997d3f991.pdf | Answer-key notice only; no durable question text extracted | source_found | 0 | Official UPPRPB notice. Useful as answer-key/source metadata, but not enough to import verified PYQs without the exact question paper/series text. |
+| UP Police | 2026 | SI Civil Police and equivalent posts, final answer key/result candidate link | https://www.siupexam25.com/si2025writtentestresults/loginpage.aspx | Candidate-login response/answer-key access | source_found | 0 | Officially linked from UPPRPB home page. Candidate-login/time-bound style source; do not import unless a complete question paper and source reference are captured. |
+| UP Police | 2025 | Head Constable Motor Transport departmental exam, written exam held 05 Oct 2025 | https://uppbpb.gov.in/FilesUploaded/Notice/VIG1_06112025e39dbc78-901e-426c-a525-9fbe93320358.pdf | Revised/deleted answer-option details by series | source_found | 0 | Official UPPRPB correction notice with answer-option changes, but for a departmental Head Constable Motor Transport exam, not the main UP Police user target. Do not import into UP Police PYQ bank unless mapped to a dedicated exam. |
+| UP Police | 2024 | Constable Civil Police, 23/24/25/30/31 Aug 2024 shifts | https://www.sscadda.com/up-police-constable-question-paper-2024/ | Third-party shift-wise paper links | in_review | 0 | Third-party candidate PDFs. Keep for manual comparison only; cannot become `verified_pyq` unless matched against official UPPRPB paper/answer-key source. |
+| UP Police | 2024 | Constable Civil Police, unofficial/solved paper collections | https://thinkgovtjobs.com/up-police-constable-question-paper-2024/ | Third-party paper/answer-key list | in_review | 0 | Third-party source. Do not import as verified without official confirmation. |
+| UP Police | 2024 | Constable Civil Police, memory/unofficial answer-key articles | https://examstable.com/2024/up-police-constable-answer-key-2024-pdf-download/ | Article-only answer-key summary | rejected | 0 | Article states candidates view their own paper/answer key; no official public question text. Do not import as verified. |
+
+## SSC GD Source Search Log
+
+| exam | year | paper/shift/set | source URL or file location | question range collected | verification status | imported count | notes |
+|---|---:|---|---|---|---|---:|---|
+| SSC GD | 2024 | Constable GD CBE held 20 Feb-07 Mar and 30 Mar 2024 | https://ssc.gov.in/api/attachment/uploads/masterData/Results/CT%28GD%29%202024%20_CBE%20_Result%20Write%20Up_10.07.2024.pdf | Result write-up, final answer key / question paper / response sheet availability notice | source_found | 0 | Official SSC result write-up says final answer keys with question papers/response sheets were available from 10.07.2024 to 24.07.2024 via login. It does not include public question text, so do not import. |
+| SSC GD | 2022 | Constable GD in CAPFs, SSF, Rifleman GD, Sepoy in NCB | https://doc.ssc.nic.in/Portal/AnswerKey | Answer-key portal listing | source_found | 0 | Official SSC answer-key portal lists tentative/final answer-key notices and question-paper availability. Use only as metadata unless a durable question paper/response sheet is captured. |
+| SSC GD | 2021 | Constable GD Paper-I final answer keys with question papers | https://ssc.nic.in/SSCFileServer/PortalManagement/UploadedFiles/final_answerkey21_28032022.pdf | Official notice only; candidate-specific question papers were time-limited | source_found | 0 | Official SSC notice says final answer keys along with question papers were uploaded and available from 28.03.2022 to 26.04.2022. Link is metadata only now; no question import. |
+| SSC GD | 2018 | Constable GD final answer keys | https://ssc.nic.in/SSCFileServer/PortalManagement/UploadedFiles/answer_key_gd_10072019.pdf | Official notice only; final keys were time-limited | source_found | 0 | Official SSC notice says final answer keys were uploaded from 10.07.2019 to 09.08.2019. No durable question text available in the notice. |
+| SSC GD | 2021-2024 | Third-party SSC GD previous-year paper collections | https://testbook.com/previous-year-papers | Candidate PDF collections | in_review | 0 | Third-party collection. Use only for manual comparison; cannot become `verified_pyq` unless matched with official SSC source reference. |
+
 ## Import Checklist
 
 Before importing a row as `verified_pyq`:
