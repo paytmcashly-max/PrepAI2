@@ -35,7 +35,7 @@ const SOURCE_OPTIONS: Array<{
   },
   {
     value: 'trusted_third_party',
-    label: 'Trusted third-party practice',
+    label: 'Third-party practice / in review',
     warning: 'Useful for practice, but not official verified PYQ.',
   },
   {
@@ -65,8 +65,8 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
     source_reference: '',
     source_name: '',
     source_url: '',
-    source: 'verified_pyq' as PYQSource,
-    is_verified: true,
+    source: 'ai_generated' as PYQSource,
+    is_verified: false,
   })
 
   const filteredChapters = useMemo(() => chapters.filter((chapter) => {
@@ -320,7 +320,7 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
               placeholder="Official paper name, shift, set, URL, or document location"
             />
             <p className="text-xs text-muted-foreground">
-              Required for official verified, trusted third-party, and memory-based sources. Optional for AI practice.
+              Required for official verified, third-party practice, and memory-based sources. Optional for AI practice.
             </p>
           </div>
 
@@ -332,7 +332,7 @@ export function PYQImportForm({ exams, subjects, chapters, isAdmin, isConfigured
                 onChange={(event) => setFormData((current) => ({ ...current, source_name: event.target.value }))}
                 placeholder="Official SSC, UPPRPB, Testbook, etc."
               />
-              <p className="text-xs text-muted-foreground">Required for trusted third-party practice.</p>
+              <p className="text-xs text-muted-foreground">Required for third-party practice / in review.</p>
             </div>
             <div className="grid gap-2">
               <Label>Source URL</Label>

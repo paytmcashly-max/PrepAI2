@@ -62,7 +62,10 @@ PYQ source taxonomy update:
   - trusted third-party requires `source_name` and `source_reference`
   - memory-based requires `source_reference`
   - AI practice does not require `source_reference`
-- PYQ display badges now separate Official Verified PYQ, Trusted Third-party Practice, Memory-based / Unofficial, and AI Practice.
+- PYQ admin import defaults to `ai_generated` with `is_verified = false`; official verified PYQ requires intentional selection.
+- PYQ import validates `source_url` with `URL()` when the value starts with `http`, while non-URL local/file references stay in `source_reference`.
+- PYQ display badges now separate Official Verified PYQ, Third-party Practice / In Review, Memory-based / Unofficial, and AI Practice.
+- PYQ cards display `verification_status` when present.
 - Admin debug counts now separate official verified, trusted third-party, memory-based, and AI practice counts.
 - Live database taxonomy smoke tests passed:
   - trusted third-party with source name/reference inserts and cleans up
@@ -97,6 +100,7 @@ PYQ checks from this pass:
 - Verified import is still intentionally empty until an official/question-paper source reference is available.
 - Verified-only filter now means `source = verified_pyq` and `is_verified = true`; third-party, memory-based, and AI practice are excluded.
 - Existing 11 Bihar SI AI practice rows remain `source = ai_generated` and `is_verified = false`.
+- Admin import was tested for all source types through server/DB validation paths; no bulk imports were created.
 
 ## Commands Run
 

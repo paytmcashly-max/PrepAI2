@@ -102,7 +102,15 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
     }
   }
 
-  const getSourceConfig = (source: PYQSource | null, isVerified: boolean) => {
+  const formatVerificationStatus = (status: string | null) => {
+    if (!status) return null
+    return status
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+
+  const getSourceConfig = (source: PYQSource | null, isVerified: boolean, verificationStatus: string | null) => {
     if (source === 'verified_pyq' && isVerified) {
       return {
         label: 'Official Verified PYQ',
@@ -112,8 +120,9 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
       }
     }
     if (source === 'trusted_third_party') {
+      const isReviewed = verificationStatus === 'third_party_reviewed'
       return {
-        label: 'Trusted Third-party Practice',
+        label: isReviewed ? 'Third-party Reviewed Practice' : 'Third-party Practice / In Review',
         helper: 'Not official verified',
         icon: BookOpen,
         className: 'gap-1 border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
@@ -373,8 +382,9 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
               const subjectName = question.subject?.name || 'General'
               const examName = question.exam?.name || question.exam_id || 'Exam'
               const chapterName = question.chapter_ref?.name || question.chapter || question.topic
-              const sourceConfig = getSourceConfig(question.source, question.is_verified)
+              const sourceConfig = getSourceConfig(question.source, question.is_verified, question.verification_status)
               const SourceIcon = sourceConfig.icon
+              const verificationStatusLabel = formatVerificationStatus(question.verification_status)
 
               return (
                 <Card key={question.id} className="overflow-hidden">
@@ -439,6 +449,11 @@ export function PYQContent({ questions, exams, subjects, chapters, years }: PYQC
                         {question.source_name && (
                           <span className="min-w-0 break-words">
                             Source name: {question.source_name}
+                          </span>
+                        )}
+                        {verificationStatusLabel && (
+                          <span className="min-w-0 break-words">
+                            Status: {verificationStatusLabel}
                           </span>
                         )}
                         {question.source_url && (

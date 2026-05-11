@@ -615,6 +615,13 @@ export async function createPYQQuestion(data: {
   if (data.is_verified && source !== 'verified_pyq') {
     throw new Error('Only official verified PYQs can be marked verified.')
   }
+  if (sourceUrl?.startsWith('http')) {
+    try {
+      new URL(sourceUrl)
+    } catch {
+      throw new Error('Source URL must be a valid URL when it starts with http.')
+    }
+  }
 
   let verificationStatus: PYQVerificationStatus
   switch (source) {
