@@ -371,6 +371,22 @@ Auto Resource Pack smoke QA on 2026-05-11:
 - Mobile route-render smoke was covered through the same responsive pages, but full visual mobile browser automation was not available in this shell because `agent-browser`/Playwright were not installed.
 - Known issue: no seeded video resources in v1 by design; task cards show the graceful no-video state.
 
+Auto Resource Pack repeat smoke QA on 2026-05-11:
+
+- Re-verified migration/tables against live Supabase: `study_resources`, `original_practice_questions`, and `original_practice_attempts` are readable.
+- Exact seed counts before the route smoke: `study_resources = 12`, `original_practice_questions = 120`, `original_practice_attempts = 0`.
+- Exact Bihar SI starter counts: Number System original questions = `15`; Hindi `विलोम` original questions = `15`.
+- Created a fresh disposable Bihar SI user with a Day 1 active plan fixture for 120 days and 3 hours/day; deleted the user after smoke.
+- Day 1 Daily Tasks passed: Number System task showed `Study Material`, `PrepAI Short Notes`, `Practice in app`, and `Not Official PYQ`.
+- Practice in app route passed for Number System: wrong answer attempt was saved through authenticated RLS, explanation rendered after the attempt, mistake note saved, and revision mark saved.
+- Revision Queue passed: the item appeared under `PrepAI Practice Mistakes` with the saved mistake note.
+- Dashboard passed: `PrepAI Practice` widget rendered and reflected the incorrect/marked attempt before cleanup.
+- Hindi `विलोम` route passed: original practice page rendered for the Hindi chapter.
+- PYQ separation passed: Original Practice did not appear as Official Verified PYQ; verified-only official count remained `0`.
+- Cleanup verified: `original_practice_attempts = 0` and disposable smoke users = `0` after deleting the test user.
+- No video seed was added, no third-party content was imported, and PYQ source trust rules were unchanged.
+- Full click-level browser automation was not available because `agent-browser`/Playwright are not installed; the smoke used production `next start`, authenticated route fetches, and Supabase RLS writes.
+
 ## Commands Run
 
 - Supabase admin insert for 11 unverified Bihar SI AI-generated practice samples.
@@ -404,6 +420,7 @@ Auto Resource Pack smoke QA on 2026-05-11:
 - Ran production smoke QA against `https://prepnix.vercel.app`; no blocking production bugs were found.
 - Applied `supabase/migrations/20260511070000_auto_resource_original_practice.sql` to live Supabase after correcting `chapter_id` column types to match `chapters.id`.
 - Ran authenticated local route smoke for Daily Tasks, Resource Viewer, Original Practice, Revision Queue, Dashboard, and PYQ separation using a disposable Bihar SI user.
+- Re-ran authenticated local route smoke for Auto Resource Pack and Original Practice using production `next start`; verified cleanup left no disposable users or original-practice attempts.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
